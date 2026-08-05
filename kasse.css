@@ -1,0 +1,220 @@
+:root {
+  --kasse-bg: #0c0c0f;
+  --kasse-panel: rgba(255,255,255,.055);
+  --kasse-border: rgba(255,255,255,.1);
+  --kasse-muted: #a9a9b2;
+  --kasse-red: #ffffff;
+}
+
+.kasse-app { padding-bottom: 120px; }
+.kasse-headline, .panel-header { display:flex; justify-content:space-between; gap:16px; align-items:center; }
+.eyebrow { margin:0 0 5px; color:#ff516a; font-size:.76rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.role-badge { padding:8px 12px; border:1px solid rgba(224,0,34,.55); border-radius:999px; background:rgba(224,0,34,.14); font-size:.82rem; font-weight:800; }
+.kasse-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:22px 0; }
+.summary-card { min-height:110px; padding:18px; border:1px solid var(--kasse-border); border-radius:17px; background:var(--kasse-panel); display:flex; flex-direction:column; justify-content:space-between; }
+.summary-card span { color:var(--kasse-muted); font-size:.86rem; }
+.summary-card strong { font-size:1.45rem; }
+.balance-card { border-color:rgba(224,0,34,.65); box-shadow:inset 0 0 28px rgba(224,0,34,.08); }
+.warning-card strong { color:#ffb43a; }
+.kasse-panel { margin:18px 0; padding:22px; border:1px solid var(--kasse-border); border-radius:18px; background:var(--kasse-panel); }
+.month-picker { display:grid; gap:6px; color:var(--kasse-muted); font-size:.8rem; }
+.month-picker input, .kasse-modal input, .kasse-modal textarea { color:#fff; background:#151519; border:1px solid #34343c; border-radius:10px; padding:11px 12px; font:inherit; }
+.contribution-stats { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0 10px; }
+.contribution-stats span { padding:8px 11px; border-radius:999px; background:#17171c; color:var(--kasse-muted); font-size:.85rem; }
+.contribution-stats b { color:#fff; }
+.table-hint { color:var(--kasse-muted); font-size:.88rem; }
+.member-table-wrap { overflow-x:auto; margin-top:15px; }
+.member-table { width:100%; border-collapse:collapse; min-width:560px; }
+.member-table th { color:var(--kasse-muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; text-align:left; padding:11px; border-bottom:1px solid var(--kasse-border); }
+.member-table td { padding:12px 11px; border-bottom:1px solid rgba(255,255,255,.065); vertical-align:middle; }
+.member-name { font-weight:800; }
+.member-sub { display:block; color:var(--kasse-muted); font-size:.76rem; margin-top:2px; }
+.status-button, .status-dot { width:32px; height:32px; border-radius:50%; display:inline-grid; place-items:center; font-weight:900; }
+.status-button { border:2px solid #666; color:#fff; background:transparent; cursor:pointer; }
+.status-button:disabled { cursor:default; opacity:.95; }
+.status-open { border:2px solid #777; background:transparent; }
+.status-paid { border:2px solid #28c76f; background:#28c76f; color:#07180e; }
+.status-exempt { border:2px solid #8d8d98; background:#45454d; color:#fff; }
+.edit-member { border:1px solid #3a3a43; background:#17171c; color:#fff; padding:8px 10px; border-radius:9px; cursor:pointer; }
+.status-legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:18px; color:var(--kasse-muted); font-size:.83rem; }
+.status-legend span { display:flex; align-items:center; gap:7px; }
+.status-legend .status-dot { width:24px; height:24px; font-size:.75rem; }
+.journal-list { display:grid; gap:10px; margin-top:16px; }
+.journal-item { display:grid; grid-template-columns:46px 1fr auto; gap:12px; align-items:center; padding:12px; border:1px solid rgba(255,255,255,.07); border-radius:13px; background:#141418; }
+.journal-icon { width:42px; height:42px; display:grid; place-items:center; border-radius:12px; background:#212127; font-size:1.25rem; }
+.journal-main strong, .journal-main small { display:block; }
+.journal-main small { color:var(--kasse-muted); margin-top:3px; }
+.journal-amount { font-weight:900; white-space:nowrap; }
+.journal-amount.income { color:#31d47b; }
+.journal-amount.expense { color:#ff5d67; }
+.empty-cell { text-align:center; color:var(--kasse-muted); padding:24px !important; }
+.kasse-message { min-height:24px; text-align:center; color:#ffb43a; }
+.access-screen { min-height:100vh; display:grid; place-items:center; padding:24px; background:#09090b; }
+.access-card { max-width:420px; text-align:center; padding:32px; border:1px solid var(--kasse-border); border-radius:20px; background:#141418; }
+.access-icon { font-size:2.5rem; }
+.modal-overlay { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:18px; background:rgba(0,0,0,.78); }
+.modal-overlay[hidden] { display:none; }
+.kasse-modal { position:relative; width:min(440px,100%); display:grid; gap:14px; padding:24px; border:1px solid #34343c; border-radius:18px; background:#101014; box-shadow:0 20px 70px rgba(0,0,0,.55); }
+.kasse-modal label { display:grid; gap:7px; color:#ddd; font-size:.9rem; }
+.modal-close { position:absolute; top:12px; right:14px; border:0; background:transparent; color:#fff; font-size:1.8rem; cursor:pointer; }
+.money-input { display:grid; grid-template-columns:1fr auto; align-items:center; gap:8px; }
+.switch-row { grid-template-columns:auto 1fr !important; align-items:center; }
+.switch-row input { width:20px; height:20px; }
+
+@media (max-width:800px) {
+  .kasse-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .summary-card { min-height:100px; }
+}
+@media (max-width:560px) {
+  .kasse-app { padding-left:14px; padding-right:14px; }
+  .kasse-headline, .panel-header { align-items:flex-start; }
+  .panel-header { flex-direction:column; }
+  .month-picker { width:100%; }
+  .month-picker input { width:100%; box-sizing:border-box; }
+  .kasse-panel { padding:16px; }
+  .summary-card { padding:14px; min-height:92px; }
+  .summary-card strong { font-size:1.12rem; }
+  .journal-item { grid-template-columns:42px 1fr; }
+  .journal-amount { grid-column:2; }
+}
+
+.booking-form { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; margin-top:18px; }
+.booking-form label { display:grid; gap:7px; color:#ddd; font-size:.88rem; }
+.booking-form input, .booking-form select, .booking-form textarea { width:100%; box-sizing:border-box; color:#fff; background:#151519; border:1px solid #34343c; border-radius:10px; padding:11px 12px; font:inherit; }
+.booking-form select { appearance:auto; }
+.booking-note { grid-column:1 / -2; }
+.booking-submit { align-self:end; min-height:44px; }
+.monthly-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
+.monthly-summary article { display:grid; gap:8px; padding:15px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:#141418; }
+.monthly-summary span { color:var(--kasse-muted); font-size:.8rem; }
+.monthly-summary strong { font-size:1.15rem; }
+.monthly-summary article:nth-child(1) strong { color:#31d47b; }
+.monthly-summary article:nth-child(2) strong { color:#ff5d67; }
+.monthly-summary article:nth-child(4) strong { color:#ffb43a; }
+.booking-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+.booking-badge { display:inline-flex; padding:3px 7px; border-radius:999px; font-size:.7rem; font-weight:800; background:#25252c; color:#cfcfd6; }
+.booking-badge.ist { background:rgba(49,212,123,.14); color:#58d991; }
+.booking-badge.soll { background:rgba(255,180,58,.14); color:#ffbf55; }
+.journal-item.is-planned { opacity:.78; border-style:dashed; }
+
+@media (max-width:950px) {
+  .booking-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .booking-note { grid-column:1 / -1; }
+  .booking-submit { grid-column:1 / -1; }
+  .monthly-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:560px) {
+  .booking-form { grid-template-columns:1fr; }
+  .booking-note, .booking-submit { grid-column:auto; }
+  .monthly-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .monthly-summary article { padding:12px; }
+  .monthly-summary strong { font-size:1rem; }
+}
+
+
+.closing-info { display:grid; grid-template-columns:minmax(180px,auto) 1fr; gap:18px; align-items:center; margin-top:16px; padding:16px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:#141418; }
+.closing-info div { display:grid; gap:5px; }
+.closing-info span { color:var(--kasse-muted); font-size:.8rem; }
+.closing-info strong { font-size:1.2rem; }
+.closing-info p { margin:0; color:var(--kasse-muted); line-height:1.5; }
+.closing-button:disabled { opacity:.45; cursor:not-allowed; }
+@media (max-width:560px) {
+  .closing-info { grid-template-columns:1fr; }
+  .closing-button { width:100%; }
+}
+
+
+/* Buchungen verwalten */
+.journal-side { display:grid; justify-items:end; gap:9px; }
+.booking-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:6px; }
+.booking-action { border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:6px 8px; color:#fff; background:#24242a; font:inherit; font-size:.72rem; font-weight:800; cursor:pointer; }
+.booking-action.cancel:hover { border-color:#ffbf55; color:#ffcf75; }
+.booking-action.delete { background:rgba(255,70,80,.1); border-color:rgba(255,93,103,.35); color:#ff858c; }
+.booking-action.delete:hover { background:rgba(255,70,80,.2); }
+.booking-action:disabled { opacity:.45; cursor:wait; }
+.journal-item:has(strong:nth-child(1)) {}
+@media (max-width:700px) {
+  .journal-side { grid-column:2; justify-items:start; }
+  .booking-actions { justify-content:flex-start; }
+}
+
+/* Kassenprüfung und Journalfilter */
+.cash-check-form { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; align-items:end; margin-top:16px; }
+.cash-check-form label { display:grid; gap:7px; color:#ddd; font-size:.88rem; }
+.cash-check-form input, .journal-filters input, .journal-filters select { width:100%; box-sizing:border-box; color:#fff; background:#151519; border:1px solid #34343c; border-radius:10px; padding:11px 12px; font:inherit; }
+.cash-result { min-height:44px; display:grid; gap:4px; padding:9px 12px; border:1px solid rgba(255,255,255,.08); border-radius:10px; background:#141418; }
+.cash-result span { color:var(--kasse-muted); font-size:.72rem; }
+.cash-result strong { font-size:1rem; }
+.journal-filters { display:grid; grid-template-columns:minmax(220px,2fr) 1fr 1fr; gap:10px; margin-top:16px; }
+@media (max-width:850px) { .cash-check-form { grid-template-columns:repeat(2,minmax(0,1fr)); } .cash-check-form button { grid-column:1/-1; } }
+@media (max-width:560px) { .cash-check-form,.journal-filters { grid-template-columns:1fr; } .cash-check-form button { grid-column:auto; } }
+
+/* Version 17: Statuskreise dürfen auf Touch-Geräten nicht die globale rote
+   Button-Hoverfarbe übernehmen. iOS hält :hover nach einem Tippen teilweise
+   fest und zeigt sonst nach dem Neurendern scheinbar eine andere Person rot an. */
+.status-button.status-open,
+.status-button.status-open:hover,
+.status-button.status-open:focus,
+.status-button.status-open:active {
+  background: transparent !important;
+  border-color: #777 !important;
+  color: #fff !important;
+}
+.status-button.status-paid,
+.status-button.status-paid:hover,
+.status-button.status-paid:focus,
+.status-button.status-paid:active {
+  background: #28c76f !important;
+  border-color: #28c76f !important;
+  color: #07180e !important;
+}
+.status-button.status-exempt,
+.status-button.status-exempt:hover,
+.status-button.status-exempt:focus,
+.status-button.status-exempt:active {
+  background: #45454d !important;
+  border-color: #8d8d98 !important;
+  color: #fff !important;
+}
+.status-button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  outline: none;
+}
+
+/* Version 17: Auf Touch-Geräten darf der globale rote Button-Hover
+   nicht auf die Statuskreise der Mitgliedsbeiträge überspringen. */
+.status-button:hover,
+.status-button:focus,
+.status-button:focus-visible,
+.status-button:active {
+  transform: none !important;
+  box-shadow: none !important;
+}
+.status-button.status-open,
+.status-button.status-open:hover,
+.status-button.status-open:focus,
+.status-button.status-open:focus-visible,
+.status-button.status-open:active {
+  border: 2px solid #777 !important;
+  background: transparent !important;
+  color: #fff !important;
+}
+.status-button.status-paid,
+.status-button.status-paid:hover,
+.status-button.status-paid:focus,
+.status-button.status-paid:focus-visible,
+.status-button.status-paid:active {
+  border: 2px solid #28c76f !important;
+  background: #28c76f !important;
+  color: #07180e !important;
+}
+.status-button.status-exempt,
+.status-button.status-exempt:hover,
+.status-button.status-exempt:focus,
+.status-button.status-exempt:focus-visible,
+.status-button.status-exempt:active {
+  border: 2px solid #8d8d98 !important;
+  background: #45454d !important;
+  color: #fff !important;
+}

@@ -1,0 +1,15 @@
+{
+  "name": "black-white-eagles-spieltag-push",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "push:spieltag": "node scripts/spieltag-push.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0"
+  }
+}

@@ -1,0 +1,15 @@
+WICHTIG
+
+Die neue Seite speichert FCM-Geräte-Tokens in der Firestore-Sammlung:
+
+pushAbos
+
+Falls beim Aktivieren die Meldung „Push konnte nicht aktiviert werden“ erscheint,
+blockieren wahrscheinlich deine aktuellen Firestore-Regeln den Schreibzugriff.
+
+Schick mir dann bitte deine aktuellen Firestore-Regeln oder einen Screenshot der
+Fehlermeldung. Die vorhandenen Regeln nicht blind ersetzen.
+
+Gäste werden bereits in der App ausgeschlossen.
+Die automatische Versendung der Spieltags-Erinnerungen folgt in Phase 2 über
+Firebase Functions.

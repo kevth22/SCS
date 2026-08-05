@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Black White Eagles</title>
+
+  <link rel="stylesheet" href="style.css?v=11.1">
+
+<style>
+html,body{min-height:100%;background:#050505!important;color:#fff!important;}
+</style>
+
+<script>
+(async function () {
+  const resetKey = "bwe-cache-reset-v11-1";
+  if (sessionStorage.getItem(resetKey)) return;
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration => registration.unregister()));
+    }
+
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    }
+
+    sessionStorage.setItem(resetKey, "done");
+    const url = new URL(window.location.href);
+    url.searchParams.set("v", "11.1");
+    window.location.replace(url.toString());
+  } catch (error) {
+    console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
+    sessionStorage.setItem(resetKey, "done");
+  }
+})();
+</script>
+
+</head>
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<body class="welcome-page">
+<div id="splashscreen">
+  <img src="black-white-eagles-logo.png?v=11.1" alt="Black White Eagles Logo">
+  <h1>Black White Eagles</h1>
+  <p>Vereinsportal</p>
+</div>  
+
+<div class="welcome-container">
+
+  <img src="black-white-eagles-logo.png?v=11.1" class="welcome-logo">
+
+  <h1>Black White Eagles</h1>
+
+  <p class="welcome-subtitle">
+    Vereinsplattform für Liga, Turniere & Mitglieder
+  </p>
+
+  <div class="welcome-buttons">
+
+    <a href="login.html" class="welcome-btn member"
+onclick="
+  localStorage.removeItem('bweGast');
+  sessionStorage.setItem('splashGesehen','ja');
+">
+  🔐 Mitglied Login
+</a>
+
+   <a href="index.html"
+   class="welcome-btn guest"
+   onclick="
+     localStorage.removeItem('bweLogin');
+     localStorage.removeItem('bweReminder');
+     localStorage.setItem('bweGast','true');
+     sessionStorage.removeItem('user');
+     sessionStorage.removeItem('rolle');
+     sessionStorage.setItem('splashGesehen','ja');
+   ">
+  🌐 Als Gast fortfahren
+</a>
+
+  </div>
+
+</div>
+
+<script type="module" src="push-foreground.js?v=10.0.1"></script>
+</body>
+</html>
