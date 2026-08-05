@@ -75,3 +75,32 @@
 @media(max-width:720px){
   .prepared-head{flex-direction:column}
 }
+
+.danger-button{
+  background:#fff!important;
+  color:#000!important;
+  border:2px solid #fff!important;
+  border-radius:11px;
+  padding:11px 14px;
+  font-weight:900;
+}
+#currentDayAdminActions{
+  margin-top:14px;
+}
+.delete-days-list{
+  display:grid;
+  gap:9px;
+  margin-top:12px;
+}
+.delete-day-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:12px;
+  border:1px solid #3b3b3b;
+  border-radius:12px;
+  background:#171717;
+}
+.delete-day-row small{color:#bbb}
+.history-delete{margin-top:10px}

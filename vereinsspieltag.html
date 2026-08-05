@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsspieltag.css?v=11.4">
+  <link rel="stylesheet" href="vereinsspieltag.css?v=11.5">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -100,6 +100,9 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
   <section id="tab-spieltag" class="serie-panel">
     <div class="panel-head"><div><h2 id="currentDayTitle">Aktueller Spieltag</h2><p id="currentDayInfo">Kein Spieltag gestartet.</p></div><span class="pill" id="currentStatus">Bereit</span></div>
     <div id="dayWorkspace"></div>
+    <div id="currentDayAdminActions" class="workspace-actions admin-only" hidden>
+      <button id="deleteCurrentDayBtn" class="danger-button">Spieltag löschen</button>
+    </div>
   </section>
 
   <section id="tab-historie" class="serie-panel">
@@ -173,6 +176,12 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
         <button id="startDayBtn" class="primary">Spieltag einrichten</button>
       </article>
     </div>
+
+      <article class="config-card admin-only">
+        <h2>Spieltage löschen</h2>
+        <p class="hint">Admins und Captains können offene oder abgeschlossene Spieltage mit Sicherheitsabfrage löschen.</p>
+        <div id="deleteDaysList" class="delete-days-list"></div>
+      </article>
   </section>
 </main>
 
@@ -192,6 +201,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=11.4"></script>
+<script type="module" src="vereinsspieltag.js?v=11.5"></script>
 </body>
 </html>

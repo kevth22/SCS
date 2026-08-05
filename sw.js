@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v11-4-prepare-draw";
+const VERSION = "bwe-v11-5-sync-delete";
 
 const CORE_FILES = [
   "./",
