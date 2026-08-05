@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v12-full-modes";
+const VERSION = "bwe-v12-2-doubleko-auto";
 
 const CORE_FILES = [
   "./",

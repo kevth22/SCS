@@ -108,3 +108,20 @@
 .attendance-list{max-height:420px;overflow:auto}
 .two-cols.compact{margin:8px 0}.round-column.wide{min-width:min(560px,90vw)}
 .doubleko-summary{margin-bottom:14px}.participant-picker{background:#151515;border:1px solid #444;border-radius:14px;padding:14px}
+
+.bye{
+  font-weight:800;
+}
+.match-card p{
+  line-height:1.35;
+}
+
+.doubleko-progress{
+  margin-top:12px;
+  padding:11px 13px;
+  border:1px solid #444;
+  border-radius:11px;
+  background:#151515;
+  color:#ddd;
+  font-weight:700;
+}
