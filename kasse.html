@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kasse | Black White Eagles</title>
+  <meta name="theme-color" content="#e00022">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="konto.css">
+  <link rel="stylesheet" href="kasse.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<header class="app-header">
+  <img src="black-white-eagles-logo.png" class="logo" alt="Black White Eagles Logo">
+  <h1>Kassen-Center</h1>
+  <p>Beiträge, Einnahmen und Ausgaben</p>
+</header>
+
+<main class="app-container kasse-app" id="kasseApp" hidden>
+  <section class="kasse-headline">
+    <div>
+      <p class="eyebrow">Black White Eagles Vereinskasse</p>
+      <h2 id="welcomeText">Übersicht</h2>
+    </div>
+    <span id="roleBadge" class="role-badge"></span>
+  </section>
+
+  <section class="kasse-summary" aria-label="Kassenübersicht">
+    <article class="summary-card balance-card">
+      <span>Kassenstand</span>
+      <strong id="balanceValue">0,00 €</strong>
+    </article>
+    <article class="summary-card">
+      <span>Einnahmen</span>
+      <strong id="incomeValue">0,00 €</strong>
+    </article>
+    <article class="summary-card">
+      <span>Ausgaben</span>
+      <strong id="expenseValue">0,00 €</strong>
+    </article>
+    <article class="summary-card warning-card">
+      <span>Offene Beiträge</span>
+      <strong id="openValue">0 · 0,00 €</strong>
+    </article>
+  </section>
+
+
+
+  <section class="kasse-panel" id="cashCheckPanel">
+    <div class="panel-header">
+      <div><p class="eyebrow">Kassenprüfung</p><h2>Startbestand und gezählter Bestand</h2></div>
+    </div>
+    <form id="cashCheckForm" class="cash-check-form">
+      <label>Startbestand<div class="money-input"><input id="openingBalance" type="number" step="0.01" inputmode="decimal"><span>€</span></div></label>
+      <label>Gezählter Istbestand<div class="money-input"><input id="countedBalance" type="number" step="0.01" inputmode="decimal"><span>€</span></div></label>
+      <div class="cash-result"><span>Erwarteter Bestand</span><strong id="expectedBalance">0,00 €</strong></div>
+      <div class="cash-result"><span>Differenz</span><strong id="cashDifference">0,00 €</strong></div>
+      <button class="main-button" type="submit">Bestände speichern</button>
+    </form>
+    <p id="cashCheckReadOnly" class="table-hint" hidden>Nur Admin und Kassenwart können Bestände speichern.</p>
+  </section>
+
+  <section class="kasse-panel booking-panel" id="bookingPanel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Neue Buchung</p>
+        <h2>Einnahme oder Ausgabe hinzufügen</h2>
+      </div>
+    </div>
+
+    <form id="bookingForm" class="booking-form">
+      <label>
+        Art
+        <select id="bookingType" required>
+          <option value="einnahme">➕ Einnahme</option>
+          <option value="ausgabe">➖ Ausgabe</option>
+        </select>
+      </label>
+
+      <label>
+        Kategorie
+        <select id="bookingCategory" required></select>
+      </label>
+
+      <label>
+        Stand
+        <select id="bookingStatus" required>
+          <option value="ist">Ist – bereits bezahlt</option>
+          <option value="soll">Soll – noch geplant/offen</option>
+        </select>
+      </label>
+
+      <label>
+        Betrag
+        <div class="money-input"><input id="bookingAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required><span>€</span></div>
+      </label>
+
+      <label>
+        Datum
+        <input id="bookingDate" type="date" required>
+      </label>
+
+      <label class="booking-note">
+        Notiz / Beschreibung
+        <textarea id="bookingNote" rows="3" maxlength="300" placeholder="Zum Beispiel: Automatenabgabe Juli oder Preisgeld Turnier" required></textarea>
+      </label>
+
+      <button class="main-button booking-submit" type="submit">Buchung speichern</button>
+    </form>
+    <p id="bookingReadOnly" class="table-hint" hidden>Captains können die Kasse ansehen, aber keine Buchungen hinzufügen.</p>
+  </section>
+
+  <section class="kasse-panel monthly-panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Monatsauswertung</p>
+        <h2>Zahlungen im ausgewählten Monat</h2>
+      </div>
+      <label class="month-picker">
+        Monat
+        <input id="journalMonthPicker" type="month">
+      </label>
+    </div>
+
+    <div class="monthly-summary">
+      <article><span>Plus im Monat</span><strong id="monthIncomeValue">0,00 €</strong></article>
+      <article><span>Minus im Monat</span><strong id="monthExpenseValue">0,00 €</strong></article>
+      <article><span>Monatsergebnis</span><strong id="monthBalanceValue">0,00 €</strong></article>
+      <article><span>Noch im Soll</span><strong id="monthPlannedValue">0,00 €</strong></article>
+    </div>
+
+    <div id="monthlyBookingList" class="journal-list">
+      <p class="empty-cell">Noch keine Zahlungen in diesem Monat.</p>
+    </div>
+  </section>
+
+
+  <section class="kasse-panel closing-panel" id="closingPanel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Kassenabschluss</p>
+        <h2>Neue Buchungen als PDF sichern</h2>
+      </div>
+      <button id="downloadClosingPdf" class="main-button closing-button" type="button">📄 PDF-Abschluss erstellen</button>
+    </div>
+    <div class="closing-info">
+      <div><span>Noch nicht abgeschlossen</span><strong id="unexportedCount">0 Buchungen</strong></div>
+      <p>Der PDF-Abschluss enthält alle seit dem letzten Abschluss angelegten Buchungen. Danach beginnt automatisch ein neuer Abschlusszeitraum.</p>
+    </div>
+    <p id="closingReadOnly" class="table-hint" hidden>Nur Admin und Kassenwart können einen Kassenabschluss erstellen.</p>
+  </section>
+
+  <section class="kasse-panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Mitgliedsbeiträge</p>
+        <h2>Monatsübersicht</h2>
+      </div>
+      <label class="month-picker">
+        Monat
+        <input id="monthPicker" type="month">
+      </label>
+    </div>
+
+    <div class="contribution-stats">
+      <span><b id="paidCount">0</b> bezahlt</span>
+      <span><b id="openCount">0</b> offen</span>
+      <span><b id="exemptCount">0</b> befreit</span>
+    </div>
+
+    <p class="table-hint" id="tableHint">Der Monatsbeitrag ist jeweils am 1. fällig. Gäste werden nicht aufgeführt.</p>
+
+    <div class="member-table-wrap">
+      <table class="member-table">
+        <thead>
+          <tr>
+            <th>Mitglied</th>
+            <th>Beitrag</th>
+            <th>Status</th>
+            <th class="edit-column">Details</th>
+          </tr>
+        </thead>
+        <tbody id="memberRows">
+          <tr><td colspan="4" class="empty-cell">Beiträge werden geladen …</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="status-legend">
+      <span><i class="status-dot status-open"></i> Offen</span>
+      <span><i class="status-dot status-paid">✓</i> Bezahlt</span>
+      <span><i class="status-dot status-exempt">−</i> Befreit</span>
+    </div>
+  </section>
+
+  <section class="kasse-panel">
+    <div class="panel-header">
+      <div><p class="eyebrow">Kassenjournal</p><h2>Buchungen suchen und filtern</h2></div>
+    </div>
+    <div class="journal-filters">
+      <input id="journalSearch" type="search" placeholder="Name, Notiz oder Belegnummer suchen">
+      <select id="journalTypeFilter"><option value="">Alle Arten</option><option value="einnahme">Einnahmen</option><option value="ausgabe">Ausgaben</option></select>
+      <select id="journalStatusFilter"><option value="">Alle Status</option><option value="ist">Ist</option><option value="soll">Soll</option><option value="storniert">Storniert</option></select>
+    </div>
+    <div id="journalList" class="journal-list">
+      <p class="empty-cell">Noch keine Buchungen vorhanden.</p>
+    </div>
+  </section>
+
+  <p id="kasseMessage" class="kasse-message" aria-live="polite"></p>
+</main>
+
+<section id="accessDenied" class="access-screen" hidden>
+  <div class="access-card">
+    <div class="access-icon">🔒</div>
+    <h1>Kein Zugriff</h1>
+    <p>Die Kasse ist nur für Admin, Captain und Kassenwart sichtbar.</p>
+    <a class="main-button" href="index.html">Zur Startseite</a>
+  </div>
+</section>
+
+<div id="memberModal" class="modal-overlay" hidden>
+  <form id="memberForm" class="kasse-modal">
+    <button class="modal-close" type="button" id="closeMemberModal" aria-label="Fenster schließen">×</button>
+    <p class="eyebrow">Mitglied bearbeiten</p>
+    <h2 id="memberModalTitle">Mitglied</h2>
+    <input id="memberUsername" type="hidden">
+
+    <label>
+      Monatsbeitrag
+      <div class="money-input"><input id="memberAmount" type="number" min="0" step="0.01" inputmode="decimal" required><span>€</span></div>
+    </label>
+
+    <label>
+      Gültig ab
+      <input id="memberValidFrom" type="month" required>
+    </label>
+
+    <label class="switch-row">
+      <input id="memberExempt" type="checkbox">
+      <span>Von Mitgliedsbeiträgen befreit</span>
+    </label>
+
+    <label>
+      Notizen
+      <textarea id="memberNotes" rows="4" maxlength="500" placeholder="Zum Beispiel: zahlt bar oder ermäßigter Beitrag"></textarea>
+    </label>
+
+    <button class="main-button" type="submit">Speichern</button>
+  </form>
+</div>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠<br>Home</a>
+  <a href="spieltag-center.html">🚌<br>Spieltag</a>
+  <a href="kalender.html">📅<br>Kalender</a>
+  <a href="liga.html">🏆<br>Liga</a>
+  <a href="kasse.html" class="active">💰<br>Kasse</a>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script type="module" src="kasse.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Black White Eagles</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="konto.css">
+</head>
+<body>
+<header class="app-header">
+  <img src="black-white-eagles-logo.png" class="logo" alt="Black White Eagles Logo">
+  <h1>Black White Eagles Login</h1>
+  <p>Für Mitglieder und registrierte Gäste</p>
+</header>
+
+<main class="app-container konto-container">
+  <section id="loginBox" class="info-card konto-card">
+    <h2>🔐 Einloggen</h2>
+
+    <label for="loginUser">Nickname / Benutzername</label>
+    <input id="loginUser" type="text" autocomplete="username" maxlength="30">
+
+    <label for="loginPass">Passwort</label>
+    <input id="loginPass" type="password" autocomplete="current-password" maxlength="100">
+
+    <label class="konto-check">
+      <input id="rememberLogin" type="checkbox" checked>
+      <span>Angemeldet bleiben</span>
+    </label>
+
+    <button id="loginButton" type="button">Einloggen</button>
+    <a class="konto-link-button" href="registrieren.html">Neues Gastkonto erstellen</a>
+    <button class="secondary-button" type="button" id="guestButton">Ohne Konto fortfahren</button>
+
+    <p class="konto-hinweis">
+      Passwort vergessen? Kontaktiere einen Administrator persönlich.
+    </p>
+    <p id="loginFehler" class="konto-meldung fehler" hidden></p>
+  </section>
+
+  <section id="passwortBox" class="info-card konto-card" hidden>
+    <h2>🔁 Neues Passwort festlegen</h2>
+    <p>Dein Passwort wurde durch einen Administrator zurückgesetzt.</p>
+
+    <label for="neuesPasswort">Neues Passwort</label>
+    <input id="neuesPasswort" type="password" autocomplete="new-password">
+
+    <label for="neuesPasswort2">Passwort wiederholen</label>
+    <input id="neuesPasswort2" type="password" autocomplete="new-password">
+
+    <button id="passwordChangeButton" type="button">Passwort speichern</button>
+    <p id="passwortFehler" class="konto-meldung fehler" hidden></p>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠<br>Home</a>
+  <a href="vereinsspieltag.html">🎖️<br>Vereins-Serie</a>
+  <a href="liga.html">🏆<br>Liga</a>
+  <a href="kader.html">👥<br>Kader</a>
+</nav>
+
+<script type="module" src="login.js"></script>
+<script type="module" src="push-foreground.js?v=10.0.1"></script>
+</body>
+</html>

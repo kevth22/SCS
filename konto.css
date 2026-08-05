@@ -1,0 +1,133 @@
+/* Verhindert, dass .konto-card das HTML-Attribut hidden überschreibt */
+[hidden] {
+  display: none !important;
+}
+
+.konto-container {
+  max-width: 620px;
+}
+
+.konto-card {
+  display: grid;
+  gap: 12px;
+}
+
+.konto-card h2 {
+  margin-bottom: 8px;
+}
+
+.konto-card label:not(.konto-check) {
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.konto-card small,
+.konto-hinweis {
+  color: #aaa;
+  line-height: 1.45;
+}
+
+.konto-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #333;
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  line-height: 1.4;
+}
+
+.konto-check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.konto-check a {
+  color: #ff4964;
+  text-decoration: underline;
+}
+
+.konto-link-button {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #e00022;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.secondary-button {
+  background: #292929;
+}
+
+.secondary-button:hover {
+  background: #3a3a3a;
+}
+
+.konto-meldung {
+  padding: 13px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+
+.konto-meldung.fehler {
+  background: rgba(224,0,34,.14);
+  border: 1px solid #e00022;
+  color: #ff9aaa;
+}
+
+.konto-meldung.erfolg {
+  background: rgba(57,255,90,.12);
+  border: 1px solid #39ff5a;
+  color: #b9ffc4;
+}
+
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.account-controls {
+  max-width: 520px;
+  margin: 0 auto 18px;
+  padding: 0 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.account-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 12px;
+}
+
+.account-summary span {
+  color: #aaa;
+  text-transform: capitalize;
+}
+
+.account-controls a,
+.account-login-button {
+  display: block;
+  padding: 13px 15px;
+  border: 1px solid #333;
+  border-radius: 12px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .konto-container {
+    padding: 14px;
+  }
+}

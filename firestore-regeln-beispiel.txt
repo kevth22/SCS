@@ -1,0 +1,21 @@
+// Beispiel für Firestore-Regeln.
+// ACHTUNG: Da dieses Kontosystem ohne Firebase Authentication arbeitet,
+// können Firestore-Regeln keine echten Adminrechte zuverlässig beweisen.
+// Diese Regeln sind nur ein Übergang und sollten nicht ungeprüft veröffentlicht werden.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /mitglieder/{username} {
+      allow read: if true;
+      allow create: if
+        request.resource.data.rolle == "gast"
+        && request.resource.data.aktiv == true
+        && request.resource.data.benutzername == username;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Bestehende Regeln für andere Sammlungen hier beibehalten.
+  }
+}

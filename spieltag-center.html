@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spieltag-Center</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#c40030">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+
+<body class="spieltag-page">
+
+<header class="app-header">
+  <img src="black-white-eagles-logo.png" class="logo" alt="Logo">
+
+  <h1>Spieltag-Center</h1>
+
+  <p>Nächste Liga-Spiele & Infos</p>
+
+  <p id="userInfo" class="user-info"></p>
+</header>
+
+<main class="app-container">
+
+  <section class="info-card spieltag-center-card">
+
+    <div class="spieltag-nav">
+      <button onclick="vorherigerSpieltag()">◀</button>
+
+      <span id="spieltagCounter">
+        Spieltag 1 / 1
+      </span>
+
+      <button onclick="naechsterSpieltag()">▶</button>
+    </div>
+
+    <div id="spieltagAnzeige">
+  <h2>Keine Spieltage vorhanden</h2>
+</div>
+
+<div id="spieltagRueckmeldungen"></div>
+
+<div id="rueckmeldungNamenListe"></div>
+
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠<br>Home</a>
+  <a href="kalender.html">📅<br>Kalender</a>
+  <a href="liga.html">🏆<br>Liga</a>
+  <a href="vereinsspieltag.html">🎖️<br>Vereins-Serie</a>
+  <a href="kader.html">👥<br>Kader</a>
+</nav>
+
+<script type="module" src="spieltag-center.js"></script>
+
+<script type="module" src="push-foreground.js?v=10.0.1"></script>
+</body>
+</html>

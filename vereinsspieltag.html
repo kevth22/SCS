@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Internes Vereinsturnier</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="vereinsspieltag.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e00022">
+</head>
+<body>
+<header class="app-header">
+  <img src="black-white-eagles-logo.png" class="logo" alt="Vereinslogo">
+  <h1>Internes Vereinsturnier</h1>
+  <p>Premier-League-Modus für bis zu 16 Spieler</p>
+</header>
+<main class="app-container serie-wrap">
+  <section class="serie-tabs" aria-label="Bereiche">
+    <button data-tab="rangliste" class="active">Rangliste</button>
+    <button data-tab="spieltag">Spieltag</button>
+    <button data-tab="verwaltung" class="admin-only">Verwaltung</button>
+  </section>
+
+  <section id="tab-rangliste" class="serie-panel active">
+    <div class="serie-head"><div><h2 id="serieName">Vereins-Premier-League</h2><p id="serieMeta">Noch nicht eingerichtet</p></div><span class="pill" id="spieltagNummer">0 Spieltage</span></div>
+    <div class="table-scroll"><table class="ranking-table"><thead><tr><th>#</th><th>Spieler</th><th>Spieltage</th><th>Siege</th><th>Turniersiege</th><th>Legs</th><th>Diff.</th><th>Punkte</th></tr></thead><tbody id="rankingBody"></tbody></table></div>
+    <div class="legend"><strong>Punkte:</strong> 13–16 Spieler: 20/15/11/7/3 · 9–12: 18/13/9/5/3 · 5–8: 15/10/6/2 · 3–4: 10/6/2. Jeder echte Matchsieg: +1. Freilos: kein Siegpunkt.</div>
+  </section>
+
+  <section id="tab-spieltag" class="serie-panel">
+    <div class="serie-head"><div><h2>Aktueller Spieltag</h2><p id="currentDayInfo">Kein Spieltag gestartet</p></div><span class="pill" id="currentStatus">Bereit</span></div>
+    <div id="bracket" class="bracket"></div>
+    <div id="finishBox" class="finish-box admin-only" hidden><button id="finishDayBtn" class="primary">Spieltag abschließen & Punkte buchen</button></div>
+  </section>
+
+  <section id="tab-verwaltung" class="serie-panel admin-only">
+    <div class="admin-grid">
+      <article class="config-card">
+        <h2>Serie einrichten</h2>
+        <label>Name<input id="configName" maxlength="60" value="Vereins-Premier-League"></label>
+        <div class="two-cols"><label>Spielmodus<select id="gameOut"><option>Double Out</option><option>Master Out</option><option>Single Out</option></select></label><label>Max. Spieler<input id="maxPlayers" type="number" min="3" max="16" value="16"></label></div>
+        <h3>Legs und Sets je Runde</h3>
+        <div id="roundSettings" class="round-settings"></div>
+        <button id="saveConfigBtn" class="primary">Einstellungen speichern</button>
+      </article>
+
+      <article class="config-card">
+        <h2>Teilnehmer</h2>
+        <div class="inline-add"><input id="playerName" maxlength="40" placeholder="Spielername"><button id="addPlayerBtn">Hinzufügen</button></div>
+        <p class="hint">Maximal 16 Spieler. Die Anwesenheit wird vor jedem Spieltag neu gewählt.</p>
+        <div id="playersAdmin" class="players-admin"></div>
+      </article>
+    </div>
+
+    <article class="config-card day-setup">
+      <h2>Neuen Spieltag starten</h2>
+      <label>Datum<input id="dayDate" type="date"></label>
+      <div id="attendanceList" class="attendance-list"></div>
+      <div class="draw-row"><label>Auslosung<select id="drawMode"><option value="random">Zufällig</option><option value="ranking">Nach Rangliste gesetzt</option></select></label><label>Freilose<select id="byeMode"><option value="ranking">Bestplatzierte</option><option value="random">Zufällig</option></select></label></div>
+      <button id="startDayBtn" class="primary">Anwesende auslosen & Spieltag starten</button>
+      <p class="hint">Mindestens 3 anwesende Spieler. Das Feld wird automatisch auf 4, 8 oder 16 Plätze aufgefüllt.</p>
+    </article>
+  </section>
+</main>
+<nav class="bottom-nav"><a href="index.html">🏠<br>Home</a><a href="spieltag-center.html">🚌<br>Spieltag</a><a href="liga.html">🏆<br>Liga</a><a href="vereinsspieltag.html">🎖️<br>Vereins-Serie</a><a href="kader.html">👥<br>Kader</a></nav>
+<div id="toast" class="serie-toast"></div>
+<script type="module" src="vereinsspieltag.js?v=1"></script>
+</body>
+</html>

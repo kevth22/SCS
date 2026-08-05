@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Captain-Center</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#c40030">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+
+<body>
+
+<header class="app-header">
+  <img src="black-white-eagles-logo.png" class="logo" alt="Black White Eagles Logo">
+  <h1>Captain-Center</h1>
+  <p>Aufstellungen testen & Spielsystem planen</p>
+  <p id="userInfo" class="user-info"></p>
+</header>
+
+<main class="app-container">
+
+  <section class="info-card">
+    <h2>🎯 Spieltag auswählen</h2>
+
+    <select id="spieltagSelect" onchange="spieltagAuswaehlen()">
+      <option value="">Spieltag wählen</option>
+    </select>
+    <label>Ligasystem</label>
+
+<select id="systemSelect" onchange="spielplanAktualisieren()">
+
+  <option value="rheinruhr">
+    Rhein Ruhr
+  </option>
+
+  <option value="ruhrpott">
+    Ruhrpott
+  </option>
+
+  <option value="herner">
+    Herner
+  </option>
+
+</select>
+  </section>
+
+  <section class="info-card">
+    <h2>✅ Verfügbare Spieler</h2>
+    <div id="verfuegbareSpieler">
+      <p>Bitte Spieltag auswählen.</p>
+    </div>
+  </section>
+
+  <section class="info-card">
+    <h2>🧠 Aufstellung</h2>
+
+    <div id="teamRolleInfo">
+      <p>Noch kein Spieltag ausgewählt.</p>
+    </div>
+
+    <div class="aufstellung-grid" id="aufstellungGrid"></div>
+    <div class="sonder-spiele">
+
+  <h3>🎯 Cricket</h3>
+
+  <div class="aufstellung-grid">
+
+    <div class="aufstellung-slot">
+      <label>Cricket 1</label>
+      <select id="cricket1" onchange="spielplanAktualisieren()"></select>
+    </div>
+
+    <div class="aufstellung-slot">
+      <label>Cricket 2</label>
+      <select id="cricket2" onchange="spielplanAktualisieren()"></select>
+    </div>
+
+  </div>
+
+  <h3>🤝 Doppel 1</h3>
+
+  <div class="aufstellung-grid">
+
+    <div class="aufstellung-slot">
+      <label>Doppel 1A</label>
+      <select id="doppel1a" onchange="spielplanAktualisieren()"></select>
+    </div>
+
+    <div class="aufstellung-slot">
+      <label>Doppel 1B</label>
+      <select id="doppel1b" onchange="spielplanAktualisieren()"></select>
+    </div>
+
+  </div>
+
+  <h3>🤝 Doppel 2</h3>
+
+  <div class="aufstellung-grid">
+
+    <div class="aufstellung-slot">
+      <label>Doppel 2A</label>
+      <select id="doppel2a" onchange="spielplanAktualisieren()"></select>
+    </div>
+
+    <div class="aufstellung-slot">
+      <label>Doppel 2B</label>
+      <select id="doppel2b" onchange="spielplanAktualisieren()"></select>
+    </div>
+
+  </div>
+
+</div>
+  </section>
+
+  <section class="info-card">
+    <h2>📋 Spielplan-Vorschau</h2>
+    <div id="spielplanVorschau">
+      <p>Aufstellung wählen, dann erscheint hier die Vorschau.</p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠<br>Home</a>
+  <a href="spieltag-center.html">🚌<br>Spieltag</a>
+  <a href="kalender.html">📅<br>Kalender</a>
+  <a href="liga.html">🏆<br>Liga</a>
+  <a href="kader.html">👥<br>Kader</a>
+</nav>
+
+<script type="module" src="captain-center.js"></script>
+
+<script type="module" src="push-foreground.js?v=10.0.1"></script>
+</body>
+</html>

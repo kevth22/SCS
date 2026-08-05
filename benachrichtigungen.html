@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Benachrichtigungen | Black White Eagles</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="konto.css">
+  <link rel="stylesheet" href="benachrichtigungen.css?v=6">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e00022">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<header class="app-header">
+  <img src="black-white-eagles-logo.png" class="logo" alt="Black White Eagles Logo">
+  <h1>Benachrichtigungen</h1>
+  <p>Spieltage und Vereinsmeldungen</p>
+</header>
+
+<main class="app-container push-container">
+  <section id="loginRequired" class="info-card" hidden>
+    <h2>🔐 Anmeldung erforderlich</h2>
+    <p>Bitte melde dich zuerst mit deinem Konto an.</p>
+    <a href="login.html" class="main-button">Anmelden</a>
+  </section>
+
+  <section id="guestBlocked" class="info-card" hidden>
+    <h2>🔕 Keine Spieltagsmeldungen für Gäste</h2>
+    <p>Gastkonten erhalten keine Push-Benachrichtigungen für Spieltage.</p>
+    <a href="index.html" class="main-button">Zur Startseite</a>
+  </section>
+
+  <section id="pushPanel" class="info-card push-card" hidden>
+    <div class="push-icon">🔔</div>
+    <h2>Push-Benachrichtigungen</h2>
+    <p>Aktiviere Push, damit du Erinnerungen zu Spieltagen und wichtigen Vereinsmeldungen erhältst.</p>
+
+    <div class="push-status">
+      <span>Status</span>
+      <strong id="pushStatus">Wird geprüft …</strong>
+    </div>
+
+    <button id="enablePushButton" class="main-button" type="button">
+      Benachrichtigungen aktivieren
+    </button>
+
+    <button id="testPushButton" class="secondary-button" type="button" hidden>
+      Testbenachrichtigung anzeigen
+    </button>
+
+    <button id="disablePushButton" class="secondary-button danger-button" type="button" hidden>
+      Benachrichtigungen deaktivieren
+    </button>
+
+    <p id="pushMessage" class="konto-meldung" hidden></p>
+
+    <div class="push-help">
+      <h3>iPhone-Hinweis</h3>
+      <p>Öffne Black White Eagles über das Symbol auf deinem Home-Bildschirm. Erst dann kann iOS Push-Benachrichtigungen erlauben.</p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠<br>Home</a>
+  <a href="spieltag-center.html">🚌<br>Spieltag</a>
+  <a href="kalender.html">📅<br>Kalender</a>
+  <a href="kader.html">👥<br>Kader</a>
+</nav>
+
+<script type="module" src="benachrichtigungen.js?v=8"></script>
+<script src="pwa.js?v=7" defer></script>
+<script type="module" src="push-foreground.js?v=10.0.1"></script>
+</body>
+</html>
