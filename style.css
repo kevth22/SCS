@@ -2418,3 +2418,20 @@ input, select, textarea {
   .liga-iframe-card { padding: 8px; }
   .liga-iframe-card iframe { height: 78vh; border-radius: 10px; }
 }
+
+
+/* BWE V9 – Login/Registrierung endgültig Schwarz-Weiß */
+body .konto-card,
+body .konto-container .info-card { background:#151515 !important; border:1px solid #555 !important; }
+body .konto-card input,
+body .konto-card select { background:#101010 !important; color:#fff !important; border:1px solid #666 !important; }
+body .konto-card button,
+body .konto-card #loginButton,
+body .konto-card #passwordChangeButton,
+body .konto-card #registerButton { background:#fff !important; color:#000 !important; border:1px solid #fff !important; }
+body .konto-link-button { background:#161616 !important; color:#fff !important; border:1px solid #fff !important; }
+body .konto-check a { color:#fff !important; text-decoration:underline; }
+body .konto-meldung.fehler { background:#252525 !important; color:#fff !important; border:1px solid #aaa !important; }
+body .konto-meldung.erfolg { background:#202020 !important; color:#fff !important; border:1px solid #fff !important; }
+body .app-header { background:linear-gradient(145deg,#000,#242424) !important; }
+body .app-header::before, body .app-header::after { display:none !important; }

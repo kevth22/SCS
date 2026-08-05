@@ -46,7 +46,7 @@
 }
 
 .konto-check a {
-  color: #ff4964;
+  color: #ffffff;
   text-decoration: underline;
 }
 
@@ -75,15 +75,15 @@
 }
 
 .konto-meldung.fehler {
-  background: rgba(224,0,34,.14);
+  background: #252525;
   border: 1px solid #ffffff;
-  color: #ff9aaa;
+  color: #ffffff;
 }
 
 .konto-meldung.erfolg {
-  background: rgba(57,255,90,.12);
-  border: 1px solid #39ff5a;
-  color: #b9ffc4;
+  background: #202020;
+  border: 1px solid #ffffff;
+  color: #ffffff;
 }
 
 .honeypot {

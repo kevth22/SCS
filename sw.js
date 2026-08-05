@@ -48,13 +48,13 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v4-internes-turnier";
+const VERSION = "bwe-v9-design-format";
 
 const CORE_FILES = [
   "./",
   "./index.html",
-  "./style.css",
-  "./konto.css",
+  "./style.css?v=9",
+  "./konto.css?v=9",
   "./manifest.json",
   "./pwa.js",
   "./auth-utils.js",
@@ -71,7 +71,7 @@ const CORE_FILES = [
   "./login.js",
   "./icon-192.png",
   "./icon-512.png",
-  "./black-white-eagles-logo.png",
+  "./black-white-eagles-logo.png?v=9",
   "./offline.html"
 ];
 
