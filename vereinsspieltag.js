@@ -22,7 +22,7 @@ let login = getLogin();
 let currentRole = String(login?.rolle || '').toLowerCase();
 let canManage = ['admin', 'captain'].includes(currentRole);
 let state = { members: [], seasons: [], activeSeasonId: null, current: null };
-let tournamentView = 'results';
+let tournamentView = 'tree';
 
 function toast(message) {
   const el = $('toast');
@@ -844,11 +844,7 @@ function renderCurrent() {
 
   updateTournamentViewTabs();
 
-  if (tournamentView === 'tree') {
-    renderTournamentTree(day);
-  } else {
-    renderResultsEntry(day);
-  }
+  renderTournamentTree(day);
 }
 
 function updateTournamentViewTabs() {
@@ -996,75 +992,271 @@ function renderDoubleKOResults(day) {
   document.querySelectorAll('[data-de-save]').forEach(button => button.onclick = () => saveDoubleKOMatch(+button.dataset.deSave));
 }
 
-function treeMatchCard(match) {
+function treeMatchCard(match, options = {}) {
+  const {
+    editable = false,
+    prefix = `tree-${match.id}`,
+    saveAttr = '',
+    saveValue = '',
+    label = ''
+  } = options;
+
   const p1 = match.p1 ? memberName(match.p1) : 'Offen';
   const p2 = match.p2 ? memberName(match.p2) : 'Offen';
-  const score = match.completed && !match.bye ? `<strong>${match.s1}:${match.s2}</strong>` : '';
   const winnerClass1 = match.winner === match.p1 ? 'tree-winner' : '';
   const winnerClass2 = match.winner === match.p2 ? 'tree-winner' : '';
-  if (match.bye) return `<article class="tree-match bye-card"><div class="tree-player tree-winner">${esc(memberName(match.winner || match.p1))}</div><small>Freilos – automatisch weiter</small></article>`;
-  return `<article class="tree-match">
-    <div class="tree-player ${winnerClass1}"><span>${esc(p1)}</span><b>${match.completed ? match.s1 : ''}</b></div>
-    <div class="tree-player ${winnerClass2}"><span>${esc(p2)}</span><b>${match.completed ? match.s2 : ''}</b></div>
-    ${score ? `<small>Ergebnis ${score}</small>` : ''}
+  const ready = Boolean(match.p1 && match.p2);
+  const canEditMatch = editable && canManage && ready && !match.completed;
+
+  if (match.bye) {
+    return `<article class="tree-match bye-card">
+      ${label ? `<small>${esc(label)}</small>` : ''}
+      <div class="tree-player tree-winner">
+        <span>${esc(memberName(match.winner || match.p1 || match.p2))}</span>
+        <b>Freilos</b>
+      </div>
+      <small>Automatisch weiter</small>
+    </article>`;
+  }
+
+  return `<article class="tree-match ${canEditMatch ? 'tree-match-editable' : ''}">
+    ${label ? `<small>${esc(label)}</small>` : ''}
+    <div class="tree-player ${winnerClass1}">
+      <span>${esc(p1)}</span>
+      ${canEditMatch
+        ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}">`
+        : `<b>${match.completed ? match.s1 : ''}</b>`}
+    </div>
+    <div class="tree-player ${winnerClass2}">
+      <span>${esc(p2)}</span>
+      ${canEditMatch
+        ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}">`
+        : `<b>${match.completed ? match.s2 : ''}</b>`}
+    </div>
+    ${canEditMatch ? `<button class="tree-save-button" ${saveAttr}="${saveValue}">Ergebnis speichern</button>` : ''}
+    ${match.completed
+      ? `<small>Ergebnis ${match.s1}:${match.s2}</small>`
+      : (!ready ? '<small>Wartet auf vorherige Partie</small>' : '')}
   </article>`;
 }
 
 function renderKOTree(day) {
   advanceKO(day);
-  $('dayWorkspace').innerHTML = `<div class="tournament-tree-scroll"><div class="tournament-tree">${day.rounds.map(round =>
-    `<section class="tree-round"><h3>${esc(round)}</h3>${day.matches[round].map(treeMatchCard).join('')}</section>`
-  ).join('')}</div></div>`;
+  $('dayWorkspace').innerHTML = `
+    <div class="tournament-tree-scroll">
+      <div class="tournament-tree">
+        ${day.rounds.map(round => `
+          <section class="tree-round">
+            <h3>${esc(round)}</h3>
+            ${day.matches[round].map((match, index) => treeMatchCard(match, {
+              editable: true,
+              prefix: `ko-${match.id}`,
+              saveAttr: 'data-ko-save',
+              saveValue: `${round}|${index}`,
+              label: round
+            })).join('')}
+          </section>`).join('')}
+      </div>
+    </div>
+    <div class="workspace-actions admin-only">
+      <button id="finishCurrent" class="primary" ${
+        day.matches[day.rounds.at(-1)][0]?.completed ? '' : 'disabled'
+      }>Spieltag abschließen</button>
+    </div>`;
+
+  document.querySelectorAll('[data-ko-save]').forEach(button => {
+    button.onclick = () => saveKOMatch(button.dataset.koSave);
+  });
+  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
 function renderSwissTree(day) {
   const standings = swissStats(day);
+  const currentRoundIndex = day.swissRoundsData.length - 1;
+
   $('dayWorkspace').innerHTML = `
     <div class="swiss-tree-layout">
       <section>
         <h3>Aktuelle Tabelle</h3>
-        <div class="table-scroll"><table class="swiss-table"><thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Buchholz</th><th>Siege</th><th>Diff.</th></tr></thead>
-        <tbody>${standings.map((row, i) => `<tr><td>${i+1}</td><td>${esc(memberName(row.id))}</td><td>${row.mp}</td><td>${row.buchholz}</td><td>${row.wins}</td><td>${row.legsFor-row.legsAgainst}</td></tr>`).join('')}</tbody></table></div>
+        <div class="table-scroll">
+          <table class="swiss-table">
+            <thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Buchholz</th><th>Siege</th><th>Diff.</th></tr></thead>
+            <tbody>${standings.map((row, i) => `
+              <tr><td>${i+1}</td><td>${esc(memberName(row.id))}</td><td>${row.mp}</td>
+              <td>${row.buchholz}</td><td>${row.wins}</td><td>${row.legsFor-row.legsAgainst}</td></tr>`
+            ).join('')}</tbody>
+          </table>
+        </div>
       </section>
       <section class="swiss-round-history">
         <h3>Runden und Paarungen</h3>
-        ${day.swissRoundsData.map((round, ri) => `<div class="swiss-tree-round"><h4>Runde ${ri+1}</h4>${round.map(treeMatchCard).join('')}</div>`).join('')}
+        ${day.swissRoundsData.map((round, ri) => `
+          <div class="swiss-tree-round">
+            <h4>Runde ${ri+1}</h4>
+            ${round.map((match, index) => treeMatchCard(match, {
+              editable: ri === currentRoundIndex,
+              prefix: `sw-${match.id}`,
+              saveAttr: 'data-sw-save',
+              saveValue: index,
+              label: `Runde ${ri+1}`
+            })).join('')}
+          </div>`).join('')}
       </section>
+    </div>
+    <div class="workspace-actions admin-only">
+      ${day.swissRoundsData.at(-1)?.every(match => match.completed)
+        ? (day.swissRoundsData.length < day.totalRounds
+          ? '<button id="nextSwiss" class="primary">Nächste Runde auslosen</button>'
+          : '<button id="finishCurrent" class="primary">Spieltag abschließen</button>')
+        : ''}
     </div>`;
+
+  document.querySelectorAll('[data-sw-save]').forEach(button => {
+    button.onclick = () => saveSwissMatch(+button.dataset.swSave);
+  });
+  if ($('nextSwiss')) $('nextSwiss').onclick = async () => { pairSwissRound(day); await save(); };
+  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
 function renderGroupsTree(day) {
-  const groupHtml = `<div class="groups-grid">${day.groups.map(group => `
-    <section class="group-card"><h3>${esc(group.name)}</h3>
-      <table><thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Diff.</th></tr></thead>
-      <tbody>${groupTable(group).map((row,i)=>`<tr><td>${i+1}</td><td>${esc(memberName(row.id))}</td><td>${row.mp}</td><td>${row.legsFor-row.legsAgainst}</td></tr>`).join('')}</tbody></table>
-      <div class="group-tree-matches">${group.matches.map(treeMatchCard).join('')}</div>
+  const groupHtml = `<div class="groups-grid">${day.groups.map((group, gi) => `
+    <section class="group-card">
+      <h3>${esc(group.name)}</h3>
+      <table>
+        <thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Diff.</th></tr></thead>
+        <tbody>${groupTable(group).map((row,i)=>`
+          <tr><td>${i+1}</td><td>${esc(memberName(row.id))}</td><td>${row.mp}</td>
+          <td>${row.legsFor-row.legsAgainst}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="group-tree-matches">
+        ${group.matches.map((match, mi) => treeMatchCard(match, {
+          editable: !day.groupPhaseDone,
+          prefix: `gr-${match.id}`,
+          saveAttr: 'data-gr-save',
+          saveValue: `${gi}|${mi}`,
+          label: group.name
+        })).join('')}
+      </div>
     </section>`).join('')}</div>`;
+
   if (!day.groupPhaseDone || !day.ko) {
-    $('dayWorkspace').innerHTML = groupHtml;
+    $('dayWorkspace').innerHTML = `${groupHtml}
+      <div class="workspace-actions admin-only">
+        <button id="startGroupsKO" class="primary" ${allGroupsDone(day) ? '' : 'disabled'}>
+          K.-o.-Phase auslosen
+        </button>
+      </div>`;
+    document.querySelectorAll('[data-gr-save]').forEach(button => {
+      button.onclick = () => saveGroupMatch(button.dataset.grSave);
+    });
+    if ($('startGroupsKO')) $('startGroupsKO').onclick = async () => {
+      buildGroupsKO(day);
+      await save();
+    };
     return;
   }
-  $('dayWorkspace').innerHTML = `${groupHtml}<h2 class="ko-tree-heading">K.-o.-Baum</h2>
-    <div class="tournament-tree-scroll"><div class="tournament-tree">${day.ko.rounds.map(round =>
-      `<section class="tree-round"><h3>${esc(round)}</h3>${day.ko.matches[round].map(treeMatchCard).join('')}</section>`
-    ).join('')}</div></div>`;
+
+  $('dayWorkspace').innerHTML = `${groupHtml}
+    <h2 class="ko-tree-heading">K.-o.-Baum</h2>
+    <div class="tournament-tree-scroll">
+      <div class="tournament-tree">
+        ${day.ko.rounds.map(round => `
+          <section class="tree-round">
+            <h3>${esc(round)}</h3>
+            ${day.ko.matches[round].map((match, index) => treeMatchCard(match, {
+              editable: true,
+              prefix: `gko-${match.id}`,
+              saveAttr: 'data-gko-save',
+              saveValue: `${round}|${index}`,
+              label: round
+            })).join('')}
+          </section>`).join('')}
+      </div>
+    </div>
+    <div class="workspace-actions admin-only">
+      <button id="finishCurrent" class="primary" ${
+        day.ko.matches[day.ko.rounds.at(-1)][0]?.completed ? '' : 'disabled'
+      }>Spieltag abschließen</button>
+    </div>`;
+
+  document.querySelectorAll('[data-gko-save]').forEach(button => {
+    button.onclick = () => saveGroupKOMatch(button.dataset.gkoSave);
+  });
+  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
 function renderDoubleKOTree(day) {
   continueCompletedDoubleKORounds(day);
+
+  if (day.de.champion) {
+    $('dayWorkspace').innerHTML = `
+      <div class="empty-state"><h2>Sieger: ${esc(memberName(day.de.champion))}</h2></div>
+      <div class="workspace-actions admin-only">
+        <button id="finishCurrent" class="primary">Spieltag abschließen</button>
+      </div>`;
+    $('finishCurrent').onclick = finishDay;
+    return;
+  }
+
+  const currentRound = day.de.rounds.at(-1);
   const winners = [];
   const losers = [];
   const finals = [];
 
   day.de.rounds.forEach(round => {
-    const target = /final/i.test(round.title) ? finals : (/verlierer/i.test(round.title) ? losers : winners);
-    target.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${round.matches.map(treeMatchCard).join('')}</section>`);
+    const winnerMatches = [];
+    const loserMatches = [];
+    const finalMatches = [];
+
+    round.matches.forEach((match, index) => {
+      const bracket = String(match.bracket || round.title || '').toLowerCase();
+      const card = treeMatchCard(match, {
+        editable: round === currentRound,
+        prefix: `de-${match.id}`,
+        saveAttr: 'data-de-save',
+        saveValue: index,
+        label: match.bracket || round.title
+      });
+
+      if (bracket.includes('final')) finalMatches.push(card);
+      else if (bracket.includes('verlierer')) loserMatches.push(card);
+      else winnerMatches.push(card);
+    });
+
+    if (winnerMatches.length) {
+      winners.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${winnerMatches.join('')}</section>`);
+    }
+    if (loserMatches.length) {
+      losers.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${loserMatches.join('')}</section>`);
+    }
+    if (finalMatches.length) {
+      finals.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${finalMatches.join('')}</section>`);
+    }
   });
 
   $('dayWorkspace').innerHTML = `
-    <div class="double-tree-section"><h2>Gewinnerbaum</h2><div class="tournament-tree-scroll"><div class="tournament-tree">${winners.join('') || '<p>Noch keine Runde.</p>'}</div></div></div>
-    <div class="double-tree-section"><h2>Verliererbaum</h2><div class="tournament-tree-scroll"><div class="tournament-tree">${losers.join('') || '<p>Noch keine Runde.</p>'}</div></div></div>
-    <div class="double-tree-section"><h2>Finale</h2><div class="tournament-tree-scroll"><div class="tournament-tree">${finals.join('') || '<p>Noch kein Finale.</p>'}</div></div></div>`;
+    <div class="double-tree-section">
+      <h2>Gewinnerbaum</h2>
+      <div class="tournament-tree-scroll"><div class="tournament-tree">
+        ${winners.join('') || '<p>Noch keine Partie.</p>'}
+      </div></div>
+    </div>
+    <div class="double-tree-section">
+      <h2>Verliererbaum</h2>
+      <div class="tournament-tree-scroll"><div class="tournament-tree">
+        ${losers.join('') || '<p>Noch keine Partie im Verliererbaum.</p>'}
+      </div></div>
+    </div>
+    <div class="double-tree-section">
+      <h2>Finale</h2>
+      <div class="tournament-tree-scroll"><div class="tournament-tree">
+        ${finals.join('') || '<p>Noch kein Finale.</p>'}
+      </div></div>
+    </div>`;
+
+  document.querySelectorAll('[data-de-save]').forEach(button => {
+    button.onclick = () => saveDoubleKOMatch(+button.dataset.deSave);
+  });
 }
 
 function scoreInputs(match, config, prefix) {
@@ -1346,7 +1538,7 @@ async function drawAndStart() {
       return toast('Unbekannter Turniermodus.');
     }
 
-    tournamentView = 'results';
+    tournamentView = 'tree';
     await save();
     document.querySelector('[data-tab="spieltag"]')?.click();
     renderCurrent();
@@ -1446,7 +1638,6 @@ $('syncMembersBtn')?.addEventListener('click', () => syncMembers(true));
 $('finishSeasonBtn')?.addEventListener('click', finishSeason);
 $('deleteSeasonBtn')?.addEventListener('click', deleteSeason);
 $('deleteCurrentDayBtn')?.addEventListener('click', deleteCurrentDay);
-$('resultsEntryTab')?.addEventListener('click', () => setTournamentView('results'));
 $('tournamentTreeTab')?.addEventListener('click', () => setTournamentView('tree'));
 $('modeFilter')?.addEventListener('change', renderRanking);
 $('dayMode')?.addEventListener('change', updateModeFields);

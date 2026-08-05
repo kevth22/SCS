@@ -303,3 +303,29 @@
   color:#000;
   font-weight:900;
 }
+
+.tree-match-editable{
+  border-color:#fff;
+  box-shadow:0 0 0 1px #fff2;
+}
+.tree-player input{
+  width:58px;
+  box-sizing:border-box;
+  border:1px solid #666;
+  border-radius:7px;
+  background:#050505;
+  color:#fff;
+  padding:7px 5px;
+  text-align:center;
+  font-weight:900;
+}
+.tree-save-button{
+  width:100%;
+  margin-top:8px;
+  border:1px solid #fff;
+  border-radius:8px;
+  background:#fff;
+  color:#000;
+  padding:9px;
+  font-weight:900;
+}

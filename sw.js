@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v13-4-audited";
+const VERSION = "bwe-v14-tree-entry";
 
 const CORE_FILES = [
   "./",
