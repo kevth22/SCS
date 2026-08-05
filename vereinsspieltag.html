@@ -10,6 +10,7 @@
   <meta name="theme-color" content="#000000">
 </head>
 <body>
+<button id="seriesAdminMenuBtn" class="series-admin-menu-btn admin-only" type="button" aria-label="Spieltagsverwaltung öffnen">☰</button>
 <header class="app-header">
   <img src="black-white-eagles-logo.png?v=9" class="logo" alt="Black White Eagles Logo">
   <h1>Vereinsrangliste</h1>
@@ -79,7 +80,9 @@
         <label>Neue Saison<input id="newSeasonName" maxlength="50" placeholder="z. B. Saison 2026/27"></label>
         <button id="createSeasonBtn" class="primary">Neue Saison anlegen</button>
         <button id="syncMembersBtn">Mitglieder jetzt synchronisieren</button>
-        <p class="hint">Aufgenommen werden nur aktive Konten mit Rolle Mitglied, Captain oder Kassenwart. Admin und Gast bleiben außen vor.</p>
+        <button id="finishSeasonBtn">Saison abschließen</button>
+        <button id="deleteSeasonBtn" class="danger">Saison löschen</button>
+        <p class="hint">Aktive Mitglieder, Captains, Kassenwarte und Admins können für einzelne Spieltage ausgewählt werden. Admins werden nicht automatisch als dauerhafte Spieler gewertet.</p>
       </article>
 
       <article class="config-card">
@@ -132,17 +135,28 @@
           <div class="round-setting-row" data-round-config="Halbfinale"><strong>Halbfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="4"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
           <div class="round-setting-row" data-round-config="Finale"><strong>Finale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="5"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
         </div>
-        <div id="attendanceList" class="attendance-list"></div>
-        <button id="startDayBtn" class="primary">Anwesende auswählen und starten</button>
+        <button id="startDayBtn" class="primary">Spieltag einrichten</button>
       </article>
     </div>
   </section>
 </main>
 
+<div id="seriesAdminDrawerBackdrop" class="series-admin-drawer-backdrop" hidden></div>
+<aside id="seriesAdminDrawer" class="series-admin-drawer" aria-hidden="true">
+  <div class="series-admin-drawer-head"><h2>Spieltagsverwaltung</h2><button id="closeSeriesAdminDrawer" type="button">×</button></div>
+  <p>Admins und Captains können Spieltage öffnen, Ergebnisse nachtragen und korrigieren.</p>
+  <div class="series-admin-drawer-actions">
+    <button data-drawer-tab="verwaltung">Neuen Spieltag einrichten</button>
+    <button data-drawer-tab="spieltag">Aktuellen Spieltag öffnen</button>
+    <button data-drawer-tab="historie">Abgeschlossene Spieltage</button>
+  </div>
+  <div id="seriesAdminDayList" class="series-admin-day-list"></div>
+</aside>
+
 <nav class="bottom-nav"><a href="index.html">🏠<br>Home</a><a href="spieltag-center.html">🚌<br>Spieltag</a><a href="liga.html">🏆<br>Liga</a><a href="vereinsspieltag.html">🎖️<br>Vereins-Serie</a></nav>
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=10"></script>
+<script type="module" src="vereinsspieltag.js?v=11"></script>
 </body>
 </html>
