@@ -206,6 +206,7 @@ function makeSingleElimination(ids, seededOrder = null) {
 
   const day = { engine: 'ko', rounds: names, matches, size, byeCount };
   advanceKO(day);
+  validateDoubleKOByes(day, players.length);
   return day;
 }
 function advanceKO(day) {
@@ -404,13 +405,85 @@ function groupsResults(day) {
 // ---------- Doppel-K.-o. ----------
 // Dynamische Doppel-K.-o.-Engine: Nach jeder Runde werden Spieler nach Verlusten gepaart.
 // 0 Niederlagen = Gewinnerseite, 1 Niederlage = Verliererseite, 2 Niederlagen = ausgeschieden.
-function setupDoubleKO(day) {
-  day.de = {
-    losses: Object.fromEntries(day.attendees.map(id => [id, 0])),
-    stats: Object.fromEntries(day.attendees.map(id => [id, { id, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedAt: null }])),
-    played: [], rounds: [], phase: 'normal', champion: null
+
+function validateDoubleKOByes(day, expectedPlayers) {
+  const first = day?.de?.rounds?.[0]?.matches || [];
+  const actualByes = first.filter(match => match.bye).length;
+  const expected = powerOfTwo(expectedPlayers) - expectedPlayers;
+  if (actualByes !== expected) {
+    console.error('Doppel-KO-Freilosfehler', { expected, actualByes, expectedPlayers, day });
+  }
+  return actualByes === expected;
+}
+
+function makeDoubleKO(ids) {
+  const players = shuffled(ids);
+  const size = powerOfTwo(players.length);
+  const byeCount = size - players.length;
+
+  // Erstrundenplätze so verteilen, dass jeder leere Platz einem echten Spieler
+  // als Freilos gegenübersteht. Keine komplett leeren Partien.
+  const slots = [];
+  let index = 0;
+
+  for (let matchIndex = 0; matchIndex < size / 2; matchIndex++) {
+    if (matchIndex < byeCount) {
+      slots.push(players[index++] || null, null);
+    } else {
+      slots.push(players[index++] || null, players[index++] || null);
+    }
+  }
+
+  const firstRoundMatches = Array.from({ length: size / 2 }, (_, matchIndex) => ({
+    id: uid(),
+    p1: slots[matchIndex * 2],
+    p2: slots[matchIndex * 2 + 1],
+    s1: null,
+    s2: null,
+    legs1: 0,
+    legs2: 0,
+    winner: null,
+    loser: null,
+    completed: false,
+    bye: false,
+    bracket: 'Gewinnerbaum'
+  }));
+
+  // Echte Freilose sofort als gewonnen markieren.
+  firstRoundMatches.forEach(match => {
+    if (Boolean(match.p1) !== Boolean(match.p2)) {
+      match.winner = match.p1 || match.p2;
+      match.completed = true;
+      match.bye = true;
+      match.s1 = match.p1 ? 1 : 0;
+      match.s2 = match.p2 ? 1 : 0;
+    }
+  });
+
+  const day = {
+    engine: 'doubleko',
+    byeCount,
+    de: {
+      size,
+      losses: Object.fromEntries(players.map(id => [id, 0])),
+      eliminated: [],
+      champion: null,
+      rounds: [{
+        id: uid(),
+        title: 'Gewinnerbaum Runde 1',
+        stage: 'winners',
+        matches: firstRoundMatches
+      }]
+    }
   };
-  createDoubleKORound(day);
+
+  // Wenn die komplette erste Runde nur aus Freilosen besteht oder bereits
+  // vollständig entschieden ist, sofort die nächste Runde erzeugen.
+  if (doubleKORoundDone(day)) {
+    applyDoubleKORound(day);
+  }
+
+  return day;
 }
 function pairPoolAvoidRepeat(pool, playedSet) {
   const ids = [...pool];
@@ -811,7 +884,7 @@ function treeMatchCard(match) {
   const score = match.completed && !match.bye ? `<strong>${match.s1}:${match.s2}</strong>` : '';
   const winnerClass1 = match.winner === match.p1 ? 'tree-winner' : '';
   const winnerClass2 = match.winner === match.p2 ? 'tree-winner' : '';
-  if (match.bye) return `<article class="tree-match bye-card"><div class="tree-player tree-winner">${esc(memberName(match.winner || match.p1))}</div><small>Freilos</small></article>`;
+  if (match.bye) return `<article class="tree-match bye-card"><div class="tree-player tree-winner">${esc(memberName(match.winner || match.p1))}</div><small>Freilos – automatisch weiter</small></article>`;
   return `<article class="tree-match">
     <div class="tree-player ${winnerClass1}"><span>${esc(p1)}</span><b>${match.completed ? match.s1 : ''}</b></div>
     <div class="tree-player ${winnerClass2}"><span>${esc(p2)}</span><b>${match.completed ? match.s2 : ''}</b></div>
@@ -1122,7 +1195,7 @@ async function drawAndStart() {
   } else if (day.mode === 'groupsko') {
     day.engine = 'groups'; setupGroups(day);
   } else if (day.mode === 'doubleko') {
-    day.engine = 'doubleko'; setupDoubleKO(day);
+    day.engine = 'doubleko'; makeDoubleKO(day);
   } else {
     Object.assign(day, makeSingleElimination(ids));
   }

@@ -293,3 +293,13 @@
     grid-template-columns:1fr;
   }
 }
+
+.doubleko-summary .bye-count{
+  display:inline-block;
+  margin-left:8px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#fff;
+  color:#000;
+  font-weight:900;
+}
