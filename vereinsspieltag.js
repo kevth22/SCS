@@ -160,10 +160,15 @@ function powerOfTwo(n) {
   return value;
 }
 function roundNames(size) {
-  if (size <= 2) return ['Finale'];
-  if (size <= 4) return ['Halbfinale', 'Finale'];
-  if (size <= 8) return ['Viertelfinale', 'Halbfinale', 'Finale'];
-  return ['Achtelfinale', 'Viertelfinale', 'Halbfinale', 'Finale'];
+  const names = [];
+  if (size >= 128) names.push('Runde der 128');
+  if (size >= 64) names.push('Runde der 64');
+  if (size >= 32) names.push('Runde der 32');
+  if (size >= 16) names.push('Achtelfinale');
+  if (size >= 8) names.push('Viertelfinale');
+  if (size >= 4) names.push('Halbfinale');
+  names.push('Finale');
+  return names;
 }
 function shuffled(array) {
   const result = [...array];
@@ -206,7 +211,6 @@ function makeSingleElimination(ids, seededOrder = null) {
 
   const day = { engine: 'ko', rounds: names, matches, size, byeCount };
   advanceKO(day);
-  validateDoubleKOByes(day, players.length);
   return day;
 }
 function advanceKO(day) {
@@ -264,7 +268,6 @@ function swissStats(day) {
     if (!match.completed) return;
     if (match.bye) {
       stats[match.p1].mp += 2;
-      stats[match.p1].wins += 1;
       stats[match.p1].byeCount += 1;
       return;
     }
@@ -289,24 +292,62 @@ function swissStats(day) {
 function pairSwissRound(day) {
   const standings = swissStats(day);
   const played = new Set();
-  (day.swissRoundsData || []).flat().forEach(m => {
-    if (m.p1 && m.p2) played.add([m.p1, m.p2].sort().join('|'));
+  (day.swissRoundsData || []).flat().forEach(match => {
+    if (match.p1 && match.p2) played.add([match.p1, match.p2].sort().join('|'));
   });
-  const pool = standings.map(x => x.id);
+
+  const pool = standings.map(row => row.id);
   const matches = [];
+
   if (pool.length % 2 === 1) {
-    const byeIndex = [...standings].reverse().findIndex(x => x.byeCount === 0);
-    const actualIndex = byeIndex < 0 ? pool.length - 1 : pool.length - 1 - byeIndex;
+    // Das Freilos erhält bevorzugt der am schlechtesten platzierte Spieler,
+    // der bisher noch kein Freilos hatte.
+    let actualIndex = -1;
+    for (let index = standings.length - 1; index >= 0; index--) {
+      if (standings[index].byeCount === 0) {
+        actualIndex = pool.indexOf(standings[index].id);
+        break;
+      }
+    }
+    if (actualIndex < 0) actualIndex = pool.length - 1;
     const byePlayer = pool.splice(actualIndex, 1)[0];
-    matches.push({ id: uid(), p1: byePlayer, p2: null, winner: byePlayer, completed: true, bye: true, s1: 1, s2: 0, legs1: 0, legs2: 0 });
+    matches.push({
+      id: uid(), p1: byePlayer, p2: null, winner: byePlayer,
+      completed: true, bye: true, s1: 1, s2: 0, legs1: 0, legs2: 0
+    });
   }
-  while (pool.length) {
-    const p1 = pool.shift();
-    let index = pool.findIndex(p2 => !played.has([p1, p2].sort().join('|')));
-    if (index < 0) index = 0;
-    const p2 = pool.splice(index, 1)[0];
-    matches.push({ id: uid(), p1, p2, winner: null, completed: false, bye: false, s1: null, s2: null, legs1: 0, legs2: 0 });
+
+  // Globale Paarungssuche statt einfacher Greedy-Logik. Dadurch werden
+  // Wiederholungsgegner vermieden, solange irgendeine gültige Paarung existiert.
+  function bestPairing(ids) {
+    if (!ids.length) return { pairs: [], repeats: 0 };
+    const p1 = ids[0];
+    let best = null;
+
+    for (let index = 1; index < ids.length; index++) {
+      const p2 = ids[index];
+      const key = [p1, p2].sort().join('|');
+      const repeat = played.has(key) ? 1 : 0;
+      const rest = ids.slice(1, index).concat(ids.slice(index + 1));
+      const sub = bestPairing(rest);
+      const candidate = {
+        pairs: [[p1, p2], ...sub.pairs],
+        repeats: repeat + sub.repeats
+      };
+      if (!best || candidate.repeats < best.repeats) best = candidate;
+      if (best.repeats === 0) break;
+    }
+    return best;
   }
+
+  const pairing = bestPairing(pool);
+  (pairing?.pairs || []).forEach(([p1, p2]) => {
+    matches.push({
+      id: uid(), p1, p2, winner: null, loser: null,
+      completed: false, bye: false, s1: null, s2: null, legs1: 0, legs2: 0
+    });
+  });
+
   day.swissRoundsData ||= [];
   day.swissRoundsData.push(matches);
 }
@@ -395,11 +436,44 @@ function buildGroupsKO(day) {
     if (opponentIndex >= 0) ordered.push(remaining.splice(opponentIndex, 1)[0].id);
   }
   day.ko = makeSingleElimination(qualified.map(x => x.id), ordered);
+  day.ko.attendees = qualified.map(x => x.id);
   day.groupPhaseDone = true;
 }
 function groupsResults(day) {
-  const ko = { ...day, ...day.ko, attendees: day.attendees };
+  if (!day.groupPhaseDone || !day.ko) return [];
+  const ko = { ...day, ...day.ko, attendees: day.ko.attendees || [] };
   return koResults(ko);
+}
+
+
+function makeSwiss(ids, totalRounds = 4) {
+  const day = {
+    engine: 'swiss',
+    attendees: [...ids],
+    totalRounds: Math.max(1, +totalRounds || 4),
+    swissRoundsData: []
+  };
+  pairSwissRound(day);
+  return day;
+}
+
+function makeGroupsKO(ids, sourceDay = {}) {
+  const day = {
+    engine: 'groups',
+    attendees: [...ids],
+    groupCount: sourceDay.groupCount || 'auto',
+    groupDrawMode: sourceDay.groupDrawMode || 'random',
+    qualifyPlaces: Array.isArray(sourceDay.qualifyPlaces) && sourceDay.qualifyPlaces.length
+      ? [...sourceDay.qualifyPlaces]
+      : [1, 2],
+    groupFormat: sourceDay.groupFormat || { format: 'legs', win: 3, legsPerSet: 3 },
+    roundConfig: sourceDay.roundConfig || {},
+    groups: [],
+    groupPhaseDone: false,
+    ko: null
+  };
+  setupGroups(day);
+  return day;
 }
 
 // ---------- Doppel-K.-o. ----------
@@ -466,7 +540,16 @@ function makeDoubleKO(ids) {
     de: {
       size,
       losses: Object.fromEntries(players.map(id => [id, 0])),
+      stats: Object.fromEntries(players.map(id => [id, {
+        id,
+        wins: 0,
+        legsFor: 0,
+        legsAgainst: 0,
+        eliminatedAt: null
+      }])),
+      played: [],
       eliminated: [],
+      phase: 'normal',
       champion: null,
       rounds: [{
         id: uid(),
@@ -500,7 +583,9 @@ function pairPoolAvoidRepeat(pool, playedSet) {
 }
 function createDoubleKORound(day) {
   const de = day.de;
-  const alive = day.attendees.filter(id => de.losses[id] < 2);
+  de.played ||= [];
+  de.phase ||= 'normal';
+  const alive = (day.attendees || []).filter(id => (de.losses[id] ?? 0) < 2);
   if (alive.length <= 1) {
     de.champion = alive[0] || null;
     return;
@@ -517,7 +602,13 @@ function createDoubleKORound(day) {
     const wb = pairPoolAvoidRepeat(shuffled(zero), playedSet).map(m => ({ ...m, bracket: 'Gewinnerseite' }));
     const lb = pairPoolAvoidRepeat(shuffled(one), playedSet).map(m => ({ ...m, bracket: 'Verliererseite' }));
     matches = [...wb, ...lb];
-    title = `Runde ${de.rounds.length + 1}`;
+    const hasWinners = wb.length > 0;
+    const hasLosers = lb.length > 0;
+    title = hasWinners && hasLosers
+      ? `Gewinner- und Verliererbaum Runde ${de.rounds.length + 1}`
+      : hasWinners
+        ? `Gewinnerbaum Runde ${de.rounds.length + 1}`
+        : `Verliererbaum Runde ${de.rounds.length + 1}`;
   }
   de.rounds.push({ id: uid(), title, matches });
 }
@@ -526,11 +617,37 @@ function doubleKORoundDone(day) {
 }
 function applyDoubleKORound(day) {
   const de = day.de;
+
+  // Alte oder unvollständig gespeicherte Spieltage automatisch reparieren.
+  de.played ||= [];
+  de.phase ||= 'normal';
+  de.stats ||= Object.fromEntries((day.attendees || []).map(id => [id, {
+    id,
+    wins: 0,
+    legsFor: 0,
+    legsAgainst: 0,
+    eliminatedAt: null
+  }]));
+  (day.attendees || []).forEach(id => {
+    de.losses[id] ??= 0;
+    de.stats[id] ??= {
+      id,
+      wins: 0,
+      legsFor: 0,
+      legsAgainst: 0,
+      eliminatedAt: null
+    };
+  });
+
   const round = de.rounds.at(-1);
   round.matches.forEach(match => {
     if (!match.completed || match.applied) return;
     match.applied = true;
-    if (match.bye) return;
+    if (match.bye) {
+      // Freilos: Spieler bleibt mit 0 Niederlagen im Turnier und wird
+      // bei der nächsten Rundenerstellung normal berücksichtigt.
+      return;
+    }
     de.played.push([match.p1, match.p2]);
     de.stats[match.winner].wins++;
     de.stats[match.p1].legsFor += match.legs1 || match.s1 || 0;
@@ -1177,12 +1294,6 @@ const renderGroups = renderGroupsEditor;
 const renderDoubleKO = renderDoubleKOEditor;
 
 
-if (typeof makeSwiss !== 'function' && typeof createSwiss === 'function') {
-  var makeSwiss = createSwiss;
-}
-if (typeof makeGroupsKO !== 'function' && typeof createGroupsKO === 'function') {
-  var makeGroupsKO = createGroupsKO;
-}
 
 // ---------- Aktionen ----------
 function selectedAttendees() {

@@ -1,0 +1,51 @@
+BLACK WHITE EAGLES V13.4 – TESTBERICHT
+
+Erfolgreich geprüft:
+
+1. Dateistruktur
+- Alle in HTML eingebundenen lokalen CSS-, JavaScript-, Bild- und Seiten-Dateien vorhanden.
+- Keine fehlenden lokalen Verweise gefunden.
+
+2. JavaScript
+- Alle JavaScript-Dateien mit node --check geprüft.
+- Keine Syntaxfehler gefunden.
+
+3. Premier League / Einfach-K.-o.
+- Getestet mit 2, 3, 5, 6, 7, 10, 12, 16 und 32 Spielern.
+- Freilose entsprechen jeweils der nächsten Zweierpotenz.
+- Spieler mit Freilos werden automatisch weitergesetzt.
+- Turnier läuft bis zum Finale.
+- Jeder Teilnehmer erscheint genau einmal in der Endplatzierung.
+
+4. Schweizer System
+- Getestet mit 5 Spielern über 4 Runden.
+- Ungerade Spielerzahl erzeugt genau ein Freilos je Runde.
+- Freilose werden möglichst nicht doppelt vergeben.
+- Wiederholungsgegner werden verhindert, solange eine alternative Paarung möglich ist.
+- Tabelle und Endplatzierung enthalten alle Spieler.
+- Freilos zählt nicht als echter Matchsieg.
+
+5. Gruppen + K.-o.
+- Getestet mit 10 Spielern, 3 Gruppen und Top 2 je Gruppe.
+- Jeder-gegen-jeden-Partien werden vollständig erstellt.
+- Gruppentabellen werden berechnet.
+- 6 Qualifizierte erzeugen einen 8er-K.-o.-Baum mit 2 Freilosen.
+- Nur die qualifizierten Spieler gelangen in die K.-o.-Endplatzierung.
+- K.-o.-Phase läuft bis zum Finale.
+
+6. Doppel-K.-o.
+- Getestet mit 3, 5, 6, 7 und 10 Spielern.
+- Erstrunden-Freilose korrekt.
+- Freilos-Spieler bleiben bei 0 Niederlagen und werden weitergeführt.
+- Gewinner- und Verliererseite werden automatisch neu gepaart.
+- Nach der zweiten Niederlage scheidet der Spieler aus.
+- Grand Final und möglicher Reset werden verarbeitet.
+- Am Ende bleibt genau ein Champion übrig.
+- Endplatzierung enthält jeden Teilnehmer genau einmal.
+
+Nicht automatisiert prüfbar:
+- Echte Firestore-Verbindung und veröffentlichte Regeln im Firebase-Projekt.
+- Safari-/iPhone-Darstellung auf einem realen Gerät.
+- Gleichzeitige Eingaben von mehreren Geräten.
+
+Diese Punkte müssen nach dem Hochladen einmal kurz im echten Firebase-/GitHub-Umfeld getestet werden.
