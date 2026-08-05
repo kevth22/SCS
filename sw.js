@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v13-1-doubleko-byes";
+const VERSION = "bwe-v13-2-draw-fix";
 
 const CORE_FILES = [
   "./",

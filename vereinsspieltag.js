@@ -720,7 +720,8 @@ function renderCurrent() {
   if (day.status === 'vorbereitung' || day.engine === 'draft') {
     $('dayWorkspace').innerHTML = participantPicker(day);
     $('saveParticipantsBtn')?.addEventListener('click', saveParticipants);
-    $('drawDayBtn')?.addEventListener('click', drawAndStart);
+    const drawButton = $('drawDayBtn');
+    if (drawButton) drawButton.onclick = drawAndStart;
     return;
   }
 
@@ -1175,6 +1176,14 @@ const renderSwiss = renderSwissEditor;
 const renderGroups = renderGroupsEditor;
 const renderDoubleKO = renderDoubleKOEditor;
 
+
+if (typeof makeSwiss !== 'function' && typeof createSwiss === 'function') {
+  var makeSwiss = createSwiss;
+}
+if (typeof makeGroupsKO !== 'function' && typeof createGroupsKO === 'function') {
+  var makeGroupsKO = createGroupsKO;
+}
+
 // ---------- Aktionen ----------
 function selectedAttendees() {
   return [...document.querySelectorAll('[data-attend]:checked')].map(input => input.dataset.attend);
@@ -1185,21 +1194,56 @@ async function saveParticipants() {
   await save(); toast('Teilnehmer gespeichert.');
 }
 async function drawAndStart() {
-  if (!canManage || !state.current) return;
-  const ids = selectedAttendees();
-  if (ids.length < 2) return toast('Bitte mindestens zwei Teilnehmer auswählen.');
+  if (!canManage) return toast('Nur Admins und Captains dürfen auslosen.');
+
   const day = state.current;
-  day.attendees = ids; day.status = 'laeuft'; day.startedAt = new Date().toISOString();
-  if (day.mode === 'swiss') {
-    day.engine = 'swiss'; day.swissRoundsData = []; pairSwissRound(day);
-  } else if (day.mode === 'groupsko') {
-    day.engine = 'groups'; setupGroups(day);
-  } else if (day.mode === 'doubleko') {
-    day.engine = 'doubleko'; makeDoubleKO(day);
-  } else {
-    Object.assign(day, makeSingleElimination(ids));
+  if (!day) return toast('Kein vorbereiteter Spieltag vorhanden.');
+
+  const selected = [...document.querySelectorAll('[data-attend]:checked')]
+    .map(input => input.dataset.attend);
+
+  if (selected.length < 2) {
+    return toast('Bitte mindestens zwei Teilnehmer auswählen.');
   }
-  tournamentView = 'results'; await save(); toast('Turnier ausgelost und gestartet.');
+
+  day.attendees = selected;
+  day.status = 'laeuft';
+  day.startedAt = new Date().toISOString();
+
+  try {
+    if (day.mode === 'premier') {
+      Object.assign(day, makeSingleElimination(selected));
+      day.mode = 'premier';
+      day.status = 'laeuft';
+      day.attendees = selected;
+    } else if (day.mode === 'swiss') {
+      Object.assign(day, makeSwiss(selected, day.totalRounds || 4));
+      day.mode = 'swiss';
+      day.status = 'laeuft';
+      day.attendees = selected;
+    } else if (day.mode === 'groupsko') {
+      Object.assign(day, makeGroupsKO(selected, day));
+      day.mode = 'groupsko';
+      day.status = 'laeuft';
+      day.attendees = selected;
+    } else if (day.mode === 'doubleko') {
+      Object.assign(day, makeDoubleKO(selected));
+      day.mode = 'doubleko';
+      day.status = 'laeuft';
+      day.attendees = selected;
+    } else {
+      return toast('Unbekannter Turniermodus.');
+    }
+
+    tournamentView = 'results';
+    await save();
+    document.querySelector('[data-tab="spieltag"]')?.click();
+    renderCurrent();
+    toast('Turnier wurde ausgelost und gestartet.');
+  } catch (error) {
+    console.error('Auslosung fehlgeschlagen:', error);
+    toast(`Auslosung fehlgeschlagen: ${error?.message || 'Unbekannter Fehler'}`);
+  }
 }
 async function createDay() {
   if (!canManage) return toast('Nur Admins und Captains dürfen Spieltage einrichten.');
