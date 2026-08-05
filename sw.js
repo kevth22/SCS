@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v11-5-sync-delete";
+const VERSION = "bwe-v11-6-syntax-fix";
 
 const CORE_FILES = [
   "./",
