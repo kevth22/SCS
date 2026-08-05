@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsspieltag.css?v=11.7">
+  <link rel="stylesheet" href="vereinsspieltag.css?v=12.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -158,12 +158,18 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
             <label><input type="checkbox" data-qualify-place value="3"> Platz 3</label>
             <label><input type="checkbox" data-qualify-place value="4"> Platz 4</label>
           </fieldset>
-          <label>Gewinn-Legs in der Gruppenphase<input id="groupLegsToWin" type="number" min="1" max="15" value="3"></label>
+          <div class="two-cols">
+            <label>Wertung in der Gruppenphase<select id="groupFormat"><option value="legs">Legs</option><option value="sets">Sets</option></select></label>
+            <label>Gewinn-Legs / Gewinn-Sets<input id="groupLegsToWin" type="number" min="1" max="15" value="3"></label>
+            <label>Legs je Set<input id="groupLegsPerSet" type="number" min="1" max="9" value="3"></label>
+          </div>
           <p class="hint">Die App verteilt alle Anwesenden möglichst gleichmäßig. Die K.-o.-Größe und Freilose werden automatisch berechnet.</p>
         </div>
 
         <div id="swissFormatWrap" class="two-cols" hidden>
-          <label>Gewinn-Legs je Partie<input id="swissLegsToWin" type="number" min="1" max="15" value="3"></label>
+          <label>Wertung<select id="swissFormat"><option value="legs">Legs</option><option value="sets">Sets</option></select></label>
+          <label>Gewinn-Legs / Gewinn-Sets<input id="swissLegsToWin" type="number" min="1" max="15" value="3"></label>
+          <label>Legs je Set<input id="swissLegsPerSet" type="number" min="1" max="9" value="3"></label>
         </div>
 
         <div id="koRoundSettings" class="round-settings">
@@ -201,6 +207,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=11.7"></script>
+<script type="module" src="vereinsspieltag.js?v=12.0"></script>
 </body>
 </html>

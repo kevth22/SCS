@@ -1,591 +1,883 @@
 import { db, getLogin } from './auth-utils.js';
-import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import {
+  doc, getDoc, setDoc, serverTimestamp, collection, getDocs
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const REF=doc(db,'vereinsspielserie','hauptserie');
-const MODES={premier:'Premier League',swiss:'Schweizer System',doubleko:'Doppel-K.-o.',groupsko:'Gruppen + K.-o.'};
-const allowedRoles=['mitglied','captain','kassenwart','admin'];
-const login=getLogin();
-let currentRole=String(login?.rolle||'').toLowerCase();
-let canManage=['admin','captain'].includes(currentRole);
+const REF = doc(db, 'vereinsspielserie', 'hauptserie');
+const MODES = {
+  premier: 'Premier League',
+  swiss: 'Schweizer System',
+  doubleko: 'Doppel-K.-o.',
+  groupsko: 'Gruppen + K.-o.'
+};
+const PLAYER_ROLES = ['mitglied', 'captain', 'kassenwart'];
+const SELECTABLE_ROLES = [...PLAYER_ROLES, 'admin'];
+const $ = id => document.getElementById(id);
+const uid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[ch]));
 
-async function refreshSeriesPermission(){
-  if(!login?.benutzername) {
-    currentRole='';
-    canManage=false;
+let login = getLogin();
+let currentRole = String(login?.rolle || '').toLowerCase();
+let canManage = ['admin', 'captain'].includes(currentRole);
+let state = { members: [], seasons: [], activeSeasonId: null, current: null };
+
+function toast(message) {
+  const el = $('toast');
+  if (!el) return;
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function blankStats() {
+  return { points: 0, days: 0, wins: 0, titles: 0, legsFor: 0, legsAgainst: 0, byMode: {}, history: [] };
+}
+function blankSeason(name = 'Saison 2026/27') {
+  return { id: uid(), name, status: 'aktiv', createdAt: new Date().toISOString(), ranking: {}, days: [] };
+}
+function season() {
+  return state.seasons.find(s => s.id === state.activeSeasonId) || state.seasons[0] || null;
+}
+function memberName(id) {
+  return state.members.find(m => m.id === id)?.name || id || 'Offen';
+}
+function isRankingEligible(memberId) {
+  const member = state.members.find(m => m.id === memberId);
+  if (!member) return true; // Historische Spieler erhalten ihre Einträge.
+  if (PLAYER_ROLES.includes(member.rolle)) return true;
+  const stats = season()?.ranking?.[memberId];
+  return Boolean(stats?.days || stats?.points || stats?.history?.length);
+}
+
+async function refreshPermission() {
+  login = getLogin();
+  currentRole = String(login?.rolle || '').toLowerCase();
+  if (!login?.benutzername) {
+    canManage = false;
     return;
   }
-
   try {
-    const accountSnap=await getDoc(doc(db,'mitglieder',login.benutzername));
-    if(accountSnap.exists()){
-      currentRole=String(accountSnap.data().rolle||'gast').trim().toLowerCase();
-      canManage=['admin','captain'].includes(currentRole);
-
-      // Den gespeicherten Login aktualisieren, damit die neue Rolle auch
-      // auf anderen Seiten sofort gilt.
-      const updatedLogin={...login,rolle:currentRole};
-      const serialized=JSON.stringify(updatedLogin);
-      sessionStorage.setItem('bweLogin',serialized);
-      sessionStorage.setItem('user',serialized);
-      sessionStorage.setItem('rolle',currentRole);
-      if(localStorage.getItem('bweLogin')){
-        localStorage.setItem('bweLogin',serialized);
-      }
-    } else {
-      canManage=false;
+    const snap = await getDoc(doc(db, 'mitglieder', login.benutzername));
+    if (snap.exists()) {
+      currentRole = String(snap.data().rolle || 'gast').toLowerCase();
+      canManage = ['admin', 'captain'].includes(currentRole);
     }
-  } catch(error){
-    console.error('Rolle konnte nicht neu geladen werden:',error);
-    // Bei einem kurzfristigen Lesefehler bleibt die Rolle aus dem Login aktiv.
-    canManage=['admin','captain'].includes(currentRole);
+  } catch (error) {
+    console.warn('Rolle konnte nicht aktualisiert werden:', error);
   }
 }
-const $=id=>document.getElementById(id);
 
-function updateModeFields(){
-  const mode=$('dayMode')?.value||'premier';
-  const swissWrap=$('swissRoundsWrap');
-  const groupWrap=$('groupsSettingsWrap');
-  const koWrap=$('koSettingsWrap');
-
-  if(swissWrap) swissWrap.hidden = mode !== 'swiss';
-  if(groupWrap) groupWrap.hidden = mode !== 'groupsko';
-
-  // K.-o.-Rundeneinstellungen gelten für Premier League, Doppel-K.-o.
-  // und Gruppen + K.-o., aber nicht für das reine Schweizer System.
-  if(koWrap) koWrap.hidden = mode === 'swiss';
-}
-let state={members:[],seasons:[],activeSeasonId:null,current:null};
-
-const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
-function season(){return state.seasons.find(s=>s.id===state.activeSeasonId)||state.seasons[0]||null}
-function blankSeason(name='Saison 2026/27'){return{id:uid(),name,status:'aktiv',createdAt:new Date().toISOString(),ranking:{},days:[]}}
-async function save(){await setDoc(REF,{...state,updatedAt:serverTimestamp()});renderAll()}
-async function load(){await refreshSeriesPermission();const snap=await getDoc(REF);if(snap.exists())state={...state,...snap.data()};if(!state.seasons?.length){const s=blankSeason();state.seasons=[s];state.activeSeasonId=s.id;await save()}await syncMembers(false);renderAll()}
-
-async function syncMembers(show=true){
-  const qs=await getDocs(collection(db,'mitglieder'));
-  const next=[];
-  qs.forEach(d=>{const x=d.data();const role=String(x.rolle||'').toLowerCase();if(x.aktiv!==false&&allowedRoles.includes(role)){next.push({id:d.id,name:x.nickname||x.spitzname||x.benutzername||d.id,rolle:role})}});
-  next.sort((a,b)=>a.name.localeCompare(b.name,'de'));
-  state.members=next;
-  const s=season();if(s){s.ranking??={};next.forEach(m=>s.ranking[m.id]??=emptyStats())}
-  await setDoc(REF,{...state,updatedAt:serverTimestamp()});
-  if(show)toast(`${next.length} Spieler synchronisiert.`)
+async function save({ render = true } = {}) {
+  await setDoc(REF, { ...state, updatedAt: serverTimestamp() });
+  if (render) renderAll();
 }
 
-
-function currentSeasonDayCount(){
-  const s=season();
-  const completed=Array.isArray(s?.days)?s.days.length:0;
-  const open=(state.current && state.current.seasonId===s?.id && state.current.status!=='abgeschlossen')?1:0;
-  return completed+open;
-}
-
-function currentDayBelongsToSeason(){
-  const s=season();
-  return !!(state.current && s && (!state.current.seasonId || state.current.seasonId===s.id));
-}
-
-function updateSeasonSummaryFromSingleSource(){
-  const s=season();
-  if($('summaryDays')) $('summaryDays').textContent=currentSeasonDayCount();
-
-  if($('summaryMode')){
-    if(currentDayBelongsToSeason() && state.current?.mode){
-      $('summaryMode').textContent=MODES[state.current.mode]||state.current.mode;
-    }else if(s?.days?.length){
-      const last=s.days[s.days.length-1];
-      $('summaryMode').textContent=MODES[last.mode]||last.mode||'–';
-    }else{
-      $('summaryMode').textContent='–';
+async function syncMembers(showToast = true) {
+  const snapshot = await getDocs(collection(db, 'mitglieder'));
+  const members = [];
+  snapshot.forEach(item => {
+    const data = item.data();
+    const role = String(data.rolle || '').toLowerCase();
+    if (data.aktiv !== false && SELECTABLE_ROLES.includes(role)) {
+      members.push({
+        id: item.id,
+        name: data.nickname || data.spitzname || data.benutzername || item.id,
+        rolle: role
+      });
     }
-  }
-}
-
-async function deleteCurrentDay(){
-  if(!canManage) return toast('Nur Admins und Captains dürfen Spieltage löschen.');
-  const c=state.current;
-  if(!c) return toast('Kein aktueller Spieltag vorhanden.');
-  const label=`${c.date||''} · ${MODES[c.mode]||c.mode||'Spieltag'}`;
-  if(!confirm(`Spieltag ${label} wirklich löschen?\n\nAlle Paarungen und noch nicht gewerteten Ergebnisse dieses Spieltags werden entfernt.`)) return;
-
-  state.current=null;
-  await save();
-  toast('Spieltag gelöscht.');
-}
-
-async function deleteCompletedDay(dayId){
-  if(!canManage) return toast('Nur Admins und Captains dürfen Spieltage löschen.');
-  const s=season();
-  if(!s?.days?.length) return toast('Kein abgeschlossener Spieltag vorhanden.');
-  const day=s.days.find(x=>x.id===dayId);
-  if(!day) return toast('Spieltag wurde nicht gefunden.');
-
-  const label=`${day.date||''} · ${MODES[day.mode]||day.mode||'Spieltag'}`;
-  if(!confirm(`Abgeschlossenen Spieltag ${label} wirklich löschen?\n\nDie dafür vergebenen Ranglistenpunkte werden ebenfalls zurückgerechnet.`)) return;
-
-  rollbackDayFromRanking(s,day);
-  s.days=s.days.filter(x=>x.id!==dayId);
-  await save();
-  toast('Abgeschlossener Spieltag gelöscht und Rangliste neu berechnet.');
-}
-
-function rollbackDayFromRanking(s,day){
-  if(!s?.ranking || !day) return;
-
-  // Preferred source: saved per-player result rows.
-  const results=Array.isArray(day.results)?day.results:[];
-  if(results.length){
-    results.forEach(r=>{
-      const st=s.ranking[r.id];
-      if(!st) return;
-      const pts=Number(r.points||0);
-      const wins=Number(r.wins||0);
-      const lf=Number(r.legsFor||0);
-      const la=Number(r.legsAgainst||0);
-      const title=Number(r.place)===1?1:0;
-
-      st.points=Math.max(0,Number(st.points||0)-pts);
-      st.days=Math.max(0,Number(st.days||0)-1);
-      st.wins=Math.max(0,Number(st.wins||0)-wins);
-      st.titles=Math.max(0,Number(st.titles||0)-title);
-      st.legsFor=Math.max(0,Number(st.legsFor||0)-lf);
-      st.legsAgainst=Math.max(0,Number(st.legsAgainst||0)-la);
-
-      if(st.byMode?.[day.mode]){
-        const bm=st.byMode[day.mode];
-        bm.points=Math.max(0,Number(bm.points||0)-pts);
-        bm.days=Math.max(0,Number(bm.days||0)-1);
-        bm.wins=Math.max(0,Number(bm.wins||0)-wins);
-        bm.titles=Math.max(0,Number(bm.titles||0)-title);
-        bm.legsFor=Math.max(0,Number(bm.legsFor||0)-lf);
-        bm.legsAgainst=Math.max(0,Number(bm.legsAgainst||0)-la);
-      }
-
-      st.history=(st.history||[]).filter(h=>h.dayId!==day.id);
-    });
-    return;
-  }
-
-  // Fallback for older stored days: remove matching history rows and rebuild totals.
-  Object.values(s.ranking).forEach(st=>{
-    if(!st) return;
-    st.history=(st.history||[]).filter(h=>h.dayId!==day.id);
-    const all=st.history||[];
-    st.points=all.reduce((n,h)=>n+Number(h.points||0),0);
-    st.days=all.length;
-    st.wins=all.reduce((n,h)=>n+Number(h.wins||0),0);
-    st.titles=all.reduce((n,h)=>n+(Number(h.place)===1?1:0),0);
-    st.legsFor=all.reduce((n,h)=>n+Number(h.legsFor||0),0);
-    st.legsAgainst=all.reduce((n,h)=>n+Number(h.legsAgainst||0),0);
-
-    Object.keys(st.byMode||{}).forEach(mode=>{
-      const rows=all.filter(h=>h.mode===mode);
-      st.byMode[mode]={
-        ...emptyStats(),
-        points:rows.reduce((n,h)=>n+Number(h.points||0),0),
-        days:rows.length,
-        wins:rows.reduce((n,h)=>n+Number(h.wins||0),0),
-        titles:rows.reduce((n,h)=>n+(Number(h.place)===1?1:0),0),
-        legsFor:rows.reduce((n,h)=>n+Number(h.legsFor||0),0),
-        legsAgainst:rows.reduce((n,h)=>n+Number(h.legsAgainst||0),0),
-        history:rows
-      };
-    });
   });
+  members.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  state.members = members;
+  const currentSeason = season();
+  if (currentSeason) {
+    currentSeason.ranking ||= {};
+    members.filter(m => PLAYER_ROLES.includes(m.rolle)).forEach(m => {
+      currentSeason.ranking[m.id] ||= blankStats();
+    });
+  }
+  await save({ render: false });
+  if (showToast) toast(`${members.length} Spieler synchronisiert.`);
 }
 
-function activePreparedDay(){
-  return state.current && state.current.status === 'vorbereitung' ? state.current : null;
+async function load() {
+  await refreshPermission();
+  const snap = await getDoc(REF);
+  if (snap.exists()) state = { ...state, ...snap.data() };
+  state.members ||= [];
+  state.seasons ||= [];
+  if (!state.seasons.length) {
+    const first = blankSeason();
+    state.seasons = [first];
+    state.activeSeasonId = first.id;
+  }
+  if (!state.activeSeasonId || !state.seasons.some(s => s.id === state.activeSeasonId)) {
+    state.activeSeasonId = state.seasons[0].id;
+  }
+  await syncMembers(false);
+  renderAll();
 }
 
-function collectRoundSettings(){
-  const result={};
-  document.querySelectorAll('[data-round-setting]').forEach(row=>{
-    const key=row.dataset.roundSetting;
-    result[key]={
-      system: row.querySelector('[data-field="system"]')?.value || 'legs',
-      win: +(row.querySelector('[data-field="win"]')?.value || 3),
-      legsPerSet: +(row.querySelector('[data-field="legsPerSet"]')?.value || 3)
+// ---------- Format / Ergebnis ----------
+function collectRoundConfig() {
+  const config = {};
+  document.querySelectorAll('[data-round-config]').forEach(row => {
+    const key = row.dataset.roundConfig;
+    config[key] = {
+      format: row.querySelector('[data-format]')?.value || 'legs',
+      win: Math.max(1, +(row.querySelector('[data-win]')?.value || 3)),
+      legsPerSet: Math.max(1, +(row.querySelector('[data-legs-set]')?.value || 3))
     };
   });
+  return config;
+}
+function roundConfigFor(day, roundName) {
+  return day.roundConfig?.[roundName] || { format: 'legs', win: 3, legsPerSet: 3 };
+}
+function formatLabel(config) {
+  return config.format === 'sets'
+    ? `First to ${config.win} Sets · First to ${config.legsPerSet} Legs je Set`
+    : `First to ${config.win} Legs`;
+}
+function validateScore(a, b, config) {
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a === b) return false;
+  return Math.max(a, b) === config.win;
+}
+function totalLegsFromScore(a, b, config, explicitA, explicitB) {
+  if (config.format === 'sets') {
+    return [Math.max(0, +explicitA || 0), Math.max(0, +explicitB || 0)];
+  }
+  return [a, b];
+}
+
+// ---------- Basis-K.-o. (Premier League + Gruppen-KO) ----------
+function powerOfTwo(n) {
+  let value = 2;
+  while (value < n) value *= 2;
+  return value;
+}
+function roundNames(size) {
+  if (size <= 2) return ['Finale'];
+  if (size <= 4) return ['Halbfinale', 'Finale'];
+  if (size <= 8) return ['Viertelfinale', 'Halbfinale', 'Finale'];
+  return ['Achtelfinale', 'Viertelfinale', 'Halbfinale', 'Finale'];
+}
+function shuffled(array) {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
   return result;
 }
-
-function selectedAttendees(){
-  return [...document.querySelectorAll('[data-attend]:checked')].map(x=>x.dataset.attend);
+function makeSingleElimination(ids, seededOrder = null) {
+  const size = powerOfTwo(ids.length);
+  const names = roundNames(size);
+  const slots = (seededOrder ? [...seededOrder] : shuffled(ids)).concat(Array(size - ids.length).fill(null));
+  const matches = {};
+  names.forEach((round, roundIndex) => {
+    const count = size / (2 ** (roundIndex + 1));
+    matches[round] = Array.from({ length: count }, (_, index) => ({
+      id: uid(),
+      p1: roundIndex === 0 ? slots[index * 2] : null,
+      p2: roundIndex === 0 ? slots[index * 2 + 1] : null,
+      s1: null, s2: null, legs1: 0, legs2: 0,
+      winner: null, loser: null, completed: false, bye: false
+    }));
+  });
+  return { engine: 'ko', rounds: names, matches, size };
+}
+function advanceKO(day) {
+  day.rounds.forEach((round, ri) => {
+    day.matches[round].forEach((match, mi) => {
+      if (ri === 0 && !match.completed && Boolean(match.p1) !== Boolean(match.p2)) {
+        match.winner = match.p1 || match.p2;
+        match.completed = true;
+        match.bye = true;
+      }
+      if (match.completed && match.winner && ri < day.rounds.length - 1) {
+        const next = day.matches[day.rounds[ri + 1]][Math.floor(mi / 2)];
+        if (mi % 2 === 0) next.p1 = match.winner;
+        else next.p2 = match.winner;
+      }
+    });
+  });
+}
+function koResults(day) {
+  const stats = Object.fromEntries(day.attendees.map(id => [id, { id, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedRound: -1 }]));
+  day.rounds.forEach((round, ri) => day.matches[round].forEach(m => {
+    if (!m.completed || m.bye) return;
+    stats[m.winner].wins++;
+    stats[m.p1].legsFor += m.legs1 || m.s1 || 0;
+    stats[m.p1].legsAgainst += m.legs2 || m.s2 || 0;
+    stats[m.p2].legsFor += m.legs2 || m.s2 || 0;
+    stats[m.p2].legsAgainst += m.legs1 || m.s1 || 0;
+    stats[m.loser].eliminatedRound = ri;
+  }));
+  const final = day.matches[day.rounds.at(-1)][0];
+  const winner = final.winner;
+  const runnerUp = final.loser;
+  const rest = Object.values(stats)
+    .filter(x => x.id !== winner && x.id !== runnerUp)
+    .sort((a, b) => b.eliminatedRound - a.eliminatedRound || b.wins - a.wins || (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst));
+  return [stats[winner], stats[runnerUp], ...rest].filter(Boolean).map((x, i) => ({ ...x, place: i + 1 }));
 }
 
-function readPreparationSettings(){
-  const mode=$('dayMode')?.value || state.current?.mode || 'premier';
-  return {
-    date:$('dayDate')?.value || state.current?.date || new Date().toISOString().slice(0,10),
-    mode,
-    out:$('gameOut')?.value || 'Double Out',
-    swissRounds:+($('swissRounds')?.value || 4),
-    legsToWin:+($('legsToWin')?.value || 3),
-    groupCount:$('groupCount')?.value || 'auto',
-    groupQualifiers:[...document.querySelectorAll('[data-group-qualifier]:checked')].map(x=>+x.value),
-    groupDraw:$('groupDraw')?.value || 'random',
-    groupSystem:$('groupSystem')?.value || 'legs',
-    groupWin:+($('groupWin')?.value || 3),
-    groupLegsPerSet:+($('groupLegsPerSet')?.value || 3),
-    roundSettings:collectRoundSettings(),
-    targetSize:+($('daySize')?.value || 0)
+// ---------- Schweizer System ----------
+function swissStats(day) {
+  const stats = Object.fromEntries(day.attendees.map(id => [id, {
+    id, mp: 0, wins: 0, legsFor: 0, legsAgainst: 0, opponents: [], byeCount: 0, buchholz: 0
+  }]));
+  (day.swissRoundsData || []).flat().forEach(match => {
+    if (!match.completed) return;
+    if (match.bye) {
+      stats[match.p1].mp += 2;
+      stats[match.p1].wins += 1;
+      stats[match.p1].byeCount += 1;
+      return;
+    }
+    const a = stats[match.p1], b = stats[match.p2];
+    a.opponents.push(match.p2); b.opponents.push(match.p1);
+    a.legsFor += match.legs1 || match.s1 || 0;
+    a.legsAgainst += match.legs2 || match.s2 || 0;
+    b.legsFor += match.legs2 || match.s2 || 0;
+    b.legsAgainst += match.legs1 || match.s1 || 0;
+    stats[match.winner].mp += 2;
+    stats[match.winner].wins += 1;
+  });
+  Object.values(stats).forEach(row => {
+    row.buchholz = row.opponents.reduce((sum, opponent) => sum + (stats[opponent]?.mp || 0), 0);
+  });
+  return Object.values(stats).sort((a, b) =>
+    b.mp - a.mp || b.buchholz - a.buchholz ||
+    (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
+    b.legsFor - a.legsFor || memberName(a.id).localeCompare(memberName(b.id), 'de')
+  );
+}
+function pairSwissRound(day) {
+  const standings = swissStats(day);
+  const played = new Set();
+  (day.swissRoundsData || []).flat().forEach(m => {
+    if (m.p1 && m.p2) played.add([m.p1, m.p2].sort().join('|'));
+  });
+  const pool = standings.map(x => x.id);
+  const matches = [];
+  if (pool.length % 2 === 1) {
+    const byeIndex = [...standings].reverse().findIndex(x => x.byeCount === 0);
+    const actualIndex = byeIndex < 0 ? pool.length - 1 : pool.length - 1 - byeIndex;
+    const byePlayer = pool.splice(actualIndex, 1)[0];
+    matches.push({ id: uid(), p1: byePlayer, p2: null, winner: byePlayer, completed: true, bye: true, s1: 1, s2: 0, legs1: 0, legs2: 0 });
+  }
+  while (pool.length) {
+    const p1 = pool.shift();
+    let index = pool.findIndex(p2 => !played.has([p1, p2].sort().join('|')));
+    if (index < 0) index = 0;
+    const p2 = pool.splice(index, 1)[0];
+    matches.push({ id: uid(), p1, p2, winner: null, completed: false, bye: false, s1: null, s2: null, legs1: 0, legs2: 0 });
+  }
+  day.swissRoundsData ||= [];
+  day.swissRoundsData.push(matches);
+}
+function swissResults(day) {
+  return swissStats(day).map((row, index) => ({
+    id: row.id, place: index + 1, wins: row.wins,
+    legsFor: row.legsFor, legsAgainst: row.legsAgainst
+  }));
+}
+
+// ---------- Gruppen + K.-o. ----------
+function autoGroupCount(playerCount) {
+  if (playerCount <= 8) return 2;
+  if (playerCount <= 12) return 3;
+  return 4;
+}
+function seededGroupOrder(ids) {
+  const rank = rankingRows('all').map(x => x.m.id);
+  return [...ids].sort((a, b) => {
+    const ai = rank.indexOf(a), bi = rank.indexOf(b);
+    return (ai < 0 ? 9999 : ai) - (bi < 0 ? 9999 : bi);
+  });
+}
+function setupGroups(day) {
+  const count = day.groupCount === 'auto' ? autoGroupCount(day.attendees.length) : Math.max(2, +day.groupCount || 2);
+  const groups = Array.from({ length: Math.min(count, day.attendees.length) }, (_, index) => ({
+    id: `G${index + 1}`, name: `Gruppe ${String.fromCharCode(65 + index)}`, players: [], matches: []
+  }));
+  const source = day.groupDrawMode === 'seeded' ? seededGroupOrder(day.attendees) : shuffled(day.attendees);
+  source.forEach((id, index) => {
+    const cycle = Math.floor(index / groups.length);
+    const position = cycle % 2 === 0 ? index % groups.length : groups.length - 1 - (index % groups.length);
+    groups[position].players.push(id);
+  });
+  groups.forEach(group => {
+    for (let i = 0; i < group.players.length; i++) {
+      for (let j = i + 1; j < group.players.length; j++) {
+        group.matches.push({
+          id: uid(), p1: group.players[i], p2: group.players[j],
+          s1: null, s2: null, legs1: 0, legs2: 0,
+          winner: null, completed: false
+        });
+      }
+    }
+  });
+  day.groups = groups;
+  day.groupPhaseDone = false;
+  day.ko = null;
+}
+function groupTable(group) {
+  const rows = Object.fromEntries(group.players.map(id => [id, { id, mp: 0, wins: 0, legsFor: 0, legsAgainst: 0 }]));
+  group.matches.forEach(match => {
+    if (!match.completed) return;
+    rows[match.p1].legsFor += match.legs1 || match.s1 || 0;
+    rows[match.p1].legsAgainst += match.legs2 || match.s2 || 0;
+    rows[match.p2].legsFor += match.legs2 || match.s2 || 0;
+    rows[match.p2].legsAgainst += match.legs1 || match.s1 || 0;
+    rows[match.winner].mp += 2;
+    rows[match.winner].wins += 1;
+  });
+  return Object.values(rows).sort((a, b) =>
+    b.mp - a.mp || (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
+    b.legsFor - a.legsFor || memberName(a.id).localeCompare(memberName(b.id), 'de')
+  );
+}
+function allGroupsDone(day) {
+  return day.groups.every(group => group.matches.every(match => match.completed));
+}
+function buildGroupsKO(day) {
+  const qualified = [];
+  day.groups.forEach(group => {
+    const table = groupTable(group);
+    (day.qualifyPlaces || [1, 2]).forEach(place => {
+      const row = table[place - 1];
+      if (row) qualified.push({ id: row.id, group: group.id, place });
+    });
+  });
+  qualified.sort((a, b) => a.place - b.place);
+  // Beste Platzierungen bekommen Freilose; gleiche Gruppen werden soweit möglich getrennt.
+  const ordered = [];
+  const remaining = [...qualified];
+  while (remaining.length) {
+    const first = remaining.shift();
+    ordered.push(first.id);
+    const opponentIndex = remaining.findIndex(x => x.group !== first.group && x.place !== first.place);
+    if (opponentIndex >= 0) ordered.push(remaining.splice(opponentIndex, 1)[0].id);
+  }
+  day.ko = makeSingleElimination(qualified.map(x => x.id), ordered);
+  day.groupPhaseDone = true;
+}
+function groupsResults(day) {
+  const ko = { ...day, ...day.ko, attendees: day.attendees };
+  return koResults(ko);
+}
+
+// ---------- Doppel-K.-o. ----------
+// Dynamische Doppel-K.-o.-Engine: Nach jeder Runde werden Spieler nach Verlusten gepaart.
+// 0 Niederlagen = Gewinnerseite, 1 Niederlage = Verliererseite, 2 Niederlagen = ausgeschieden.
+function setupDoubleKO(day) {
+  day.de = {
+    losses: Object.fromEntries(day.attendees.map(id => [id, 0])),
+    stats: Object.fromEntries(day.attendees.map(id => [id, { id, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedAt: null }])),
+    played: [], rounds: [], phase: 'normal', champion: null
   };
+  createDoubleKORound(day);
 }
-
-function renderPreparedDayEditor(){
-  const box=$('preparedDayEditor');
-  if(!box) return;
-  const c=activePreparedDay();
-  if(!c){
-    box.hidden=true;
-    box.innerHTML='';
+function pairPoolAvoidRepeat(pool, playedSet) {
+  const ids = [...pool];
+  const matches = [];
+  while (ids.length > 1) {
+    const p1 = ids.shift();
+    let index = ids.findIndex(p2 => !playedSet.has([p1, p2].sort().join('|')));
+    if (index < 0) index = 0;
+    const p2 = ids.splice(index, 1)[0];
+    matches.push({ id: uid(), p1, p2, s1: null, s2: null, legs1: 0, legs2: 0, winner: null, loser: null, completed: false, bye: false });
+  }
+  if (ids.length) matches.push({ id: uid(), p1: ids[0], p2: null, winner: ids[0], completed: true, bye: true, s1: 1, s2: 0, legs1: 0, legs2: 0 });
+  return matches;
+}
+function createDoubleKORound(day) {
+  const de = day.de;
+  const alive = day.attendees.filter(id => de.losses[id] < 2);
+  if (alive.length <= 1) {
+    de.champion = alive[0] || null;
     return;
   }
-
-  const attendees=c.attendees || [];
-  box.hidden=false;
-  box.innerHTML=`
-    <div class="prepared-head">
-      <div>
-        <span class="eyebrow">Vorbereitung</span>
-        <h3>${esc(MODES[c.mode]||c.mode)} · ${esc(c.date)}</h3>
-        <p>Modus steht fest. Größe, Teilnehmer und Einstellungen dürfen bis zur Auslosung geändert werden.</p>
-      </div>
-      <span class="pill">Noch nicht ausgelost</span>
-    </div>
-
-    <label>Geplante Turniergröße
-      <input id="preparedSize" type="number" min="2" max="128" value="${c.targetSize || attendees.length || ''}" placeholder="z. B. 16">
-    </label>
-
-    <div class="prepared-actions">
-      <button id="savePreparationBtn">Einstellungen speichern</button>
-      <button id="drawPreparedDayBtn" class="primary">Auslosen und starten</button>
-      <button id="cancelPreparedDayBtn" class="danger-soft">Spieltag löschen</button>
-    </div>
-    <p class="hint">${attendees.length} Spieler ausgewählt. Die Größe ist nur eine Planung; ausgelost werden die tatsächlich ausgewählten Spieler.</p>
-  `;
-
-  $('savePreparationBtn').onclick=savePreparation;
-  $('drawPreparedDayBtn').onclick=drawPreparedDay;
-  $('cancelPreparedDayBtn').onclick=cancelPreparedDay;
-}
-
-async function savePreparation(){
-  if(!canManage) return toast('Nur Admins und Captains dürfen Spieltage bearbeiten.');
-  const c=activePreparedDay();
-  if(!c) return toast('Kein vorbereiteter Spieltag vorhanden.');
-
-  const settings=readPreparationSettings();
-  settings.targetSize=+($('preparedSize')?.value || settings.targetSize || 0);
-  const attendees=selectedAttendees();
-
-  Object.assign(c,settings,{
-    attendees,
-    status:'vorbereitung',
-    updatedAt:new Date().toISOString()
-  });
-
-  await save();
-  toast('Vorbereitung gespeichert.');
-}
-
-async function drawPreparedDay(){
-  if(!canManage) return toast('Nur Admins und Captains dürfen auslosen.');
-  const c=activePreparedDay();
-  if(!c) return toast('Kein vorbereiteter Spieltag vorhanden.');
-
-  const attendees=selectedAttendees();
-  if(attendees.length < 2) return toast('Bitte mindestens zwei Spieler auswählen.');
-
-  const settings=readPreparationSettings();
-  settings.targetSize=+($('preparedSize')?.value || settings.targetSize || attendees.length);
-  Object.assign(c,settings,{attendees,status:'laeuft',startedAt:new Date().toISOString()});
-
-  if(c.mode==='swiss'){
-    c.engine='swiss';
-    c.totalRounds=Math.max(1,c.swissRounds||4);
-    c.swissMatches=[];
-    pairSwiss(c);
-  } else if(c.mode==='groupsko'){
-    c.engine='groups';
-    setupGroupsDay(c);
-  } else if(c.mode==='doubleko'){
-    // Existing version uses manual placement for Doppel-K.-o.
-    // Keep that engine, but only create it now after explicit drawing.
-    c.engine='manual';
-    c.manualType='doubleko';
+  const zero = alive.filter(id => de.losses[id] === 0);
+  const one = alive.filter(id => de.losses[id] === 1);
+  const playedSet = new Set(de.played.map(pair => pair.sort().join('|')));
+  let matches = [];
+  let title = '';
+  if (alive.length === 2 && zero.length === 1 && one.length === 1) {
+    title = de.phase === 'reset' ? 'Grand Final – Entscheidung' : 'Grand Final';
+    matches = [{ id: uid(), p1: zero[0], p2: one[0], s1: null, s2: null, legs1: 0, legs2: 0, winner: null, loser: null, completed: false, bye: false, grandFinal: true }];
   } else {
-    Object.assign(c,makeKO(attendees,c.mode));
-    c.status='laeuft';
-    c.date=settings.date;
-    c.out=settings.out;
-    c.legsToWin=settings.legsToWin;
-    c.roundSettings=settings.roundSettings;
-    c.targetSize=settings.targetSize;
+    const wb = pairPoolAvoidRepeat(shuffled(zero), playedSet).map(m => ({ ...m, bracket: 'Gewinnerseite' }));
+    const lb = pairPoolAvoidRepeat(shuffled(one), playedSet).map(m => ({ ...m, bracket: 'Verliererseite' }));
+    matches = [...wb, ...lb];
+    title = `Runde ${de.rounds.length + 1}`;
   }
-
-  await save();
-  toast('Turnier wurde ausgelost und gestartet.');
+  de.rounds.push({ id: uid(), title, matches });
 }
-
-async function cancelPreparedDay(){
-  await deleteCurrentDay();
+function doubleKORoundDone(day) {
+  return day.de.rounds.at(-1)?.matches.every(m => m.completed) || false;
 }
+function applyDoubleKORound(day) {
+  const de = day.de;
+  const round = de.rounds.at(-1);
+  round.matches.forEach(match => {
+    if (!match.completed || match.applied) return;
+    match.applied = true;
+    if (match.bye) return;
+    de.played.push([match.p1, match.p2]);
+    de.stats[match.winner].wins++;
+    de.stats[match.p1].legsFor += match.legs1 || match.s1 || 0;
+    de.stats[match.p1].legsAgainst += match.legs2 || match.s2 || 0;
+    de.stats[match.p2].legsFor += match.legs2 || match.s2 || 0;
+    de.stats[match.p2].legsAgainst += match.legs1 || match.s1 || 0;
 
-function emptyStats(){return{points:0,days:0,wins:0,titles:0,legsFor:0,legsAgainst:0,byMode:{},history:[]}}
-function statFor(s,id,mode='all'){const base=s.ranking?.[id]||emptyStats();return mode==='all'?base:{...emptyStats(),...(base.byMode?.[mode]||{}),history:(base.history||[]).filter(h=>h.mode===mode)}}
-function rankingRows(){const s=season(),filter=$('modeFilter')?.value||'all';return state.members.map(m=>({m,st:statFor(s,m.id,filter)})).sort((a,b)=>b.st.points-a.st.points||b.st.titles-a.st.titles||(b.st.legsFor-b.st.legsAgainst)-(a.st.legsFor-a.st.legsAgainst)||a.m.name.localeCompare(b.m.name,'de'))}
-
-
-function renderDeleteDaysList(){
-  const box=$('deleteDaysList');
-  if(!box) return;
-  if(!canManage){
-    box.innerHTML='';
-    return;
-  }
-  const s=season();
-  const rows=[];
-  if(state.current){
-    rows.push(`<div class="delete-day-row"><div><strong>Aktueller Spieltag</strong><br><small>${esc(state.current.date||'')} · ${esc(MODES[state.current.mode]||state.current.mode||'')}</small></div><button id="deleteOpenDayFromList" class="danger-button">Löschen</button></div>`);
-  }
-  (s?.days||[]).slice().reverse().forEach(d=>{
-    rows.push(`<div class="delete-day-row"><div><strong>Abgeschlossen</strong><br><small>${esc(d.date||'')} · ${esc(MODES[d.mode]||d.mode||'')}</small></div><button class="danger-soft" data-delete-day="${d.id}">Löschen</button></div>`);
+    if (match.grandFinal && de.losses[match.p1] === 0 && match.winner === match.p2 && de.phase !== 'reset') {
+      de.losses[match.p1] = 1;
+      de.phase = 'reset';
+      return;
+    }
+    de.losses[match.loser]++;
+    if (de.losses[match.loser] >= 2) de.stats[match.loser].eliminatedAt = de.rounds.length;
   });
-  box.innerHTML=rows.length?rows.join(''):'<p class="hint">Keine Spieltage vorhanden.</p>';
-  if($('deleteOpenDayFromList')) $('deleteOpenDayFromList').onclick=deleteCurrentDay;
+  const alive = day.attendees.filter(id => de.losses[id] < 2);
+  if (alive.length === 1) de.champion = alive[0];
+  else createDoubleKORound(day);
+}
+function doubleKOResults(day) {
+  const stats = Object.values(day.de.stats);
+  const champion = day.de.champion;
+  const others = stats.filter(x => x.id !== champion).sort((a, b) =>
+    (b.eliminatedAt || 999) - (a.eliminatedAt || 999) || b.wins - a.wins ||
+    (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst)
+  );
+  return [day.de.stats[champion], ...others].filter(Boolean).map((x, i) => ({ ...x, place: i + 1 }));
 }
 
-function renderAll(){updateModeFields();
-  document.querySelectorAll('.admin-only').forEach(el=>el.hidden=!canManage);
-  const permissionHint=document.getElementById('seriesPermissionHint');
-  if(permissionHint){
-    permissionHint.hidden=canManage;
-    permissionHint.textContent=login
-      ? `Deine aktuell geladene Rolle ist „${currentRole||'gast'}“. Nur Admins und Captains können Spieltage anlegen und Ergebnisse bearbeiten.`
-      : 'Bitte anmelden. Nur Admins und Captains können Spieltage anlegen und Ergebnisse bearbeiten.';
-  }renderSeason();updateSeasonSummaryFromSingleSource();renderRanking();renderCurrent();renderHistory();renderPreparedDayEditor();renderDeleteDaysList();renderSeriesAdminDrawerList()}
-function renderSeason(){const s=season();$('seasonTitle').textContent=s?`${s.name}${s.status==='abgeschlossen'?' · Abgeschlossen':''}`:'Keine Saison';$('seasonPickerButton').textContent=`${s?.name||'Saison auswählen'} ▾`;$('seasonPickerMenu').innerHTML=state.seasons.map(x=>`<button type="button" role="option" data-season-id="${x.id}" class="${x.id===state.activeSeasonId?'active':''}">${esc(x.name)}</button>`).join('');document.querySelectorAll('[data-season-id]').forEach(b=>b.onclick=()=>{state.activeSeasonId=b.dataset.seasonId;closeSeasonPicker();renderAll()});const rows=rankingRows();$('summaryPlayers').textContent=state.members.length;$('summaryDays').textContent=currentSeasonDayCount();$('summaryLeader').textContent=rows[0]?.st.points>0?rows[0].m.name:'–';$('summaryMode').textContent=s?.days?.length?MODES[s.days[s.days.length-1].mode]:'–'}
-function renderRanking(){const rows=rankingRows();$('rankingBody').innerHTML=rows.length?rows.map((x,i)=>`<tr data-player="${x.m.id}"><td>${i+1}</td><td><strong>${esc(x.m.name)}</strong><br><small>${esc(x.m.rolle)}</small></td><td>${x.st.days||0}</td><td>${x.st.wins||0}</td><td>${x.st.titles||0}</td><td>${x.st.legsFor||0}:${x.st.legsAgainst||0}</td><td>${(x.st.legsFor||0)-(x.st.legsAgainst||0)}</td><td><strong>${x.st.points||0}</strong></td></tr>`).join(''):'<tr><td colspan="8">Noch keine spielberechtigten Mitglieder vorhanden.</td></tr>';document.querySelectorAll('[data-player]').forEach(r=>r.onclick=()=>openProfile(r.dataset.player))}
-function renderAttendance(){
-  const list=$('attendanceList');
-  if(!list) return;
-  const selected=new Set(state.current?.attendees||[]);
-  list.innerHTML=state.members.length
-    ? state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${esc(m.rolle)})</small></span><input type="checkbox" data-attend="${m.id}" ${selected.size?(selected.has(m.id)?'checked':''):'checked'}></label>`).join('')
-    : '<p class="hint">Noch keine aktiven Mitglieder, Captains, Kassenwarte oder Admins gefunden.</p>';
+// ---------- Punkte ----------
+function placementPoints(count, place) {
+  const scale = count >= 13 ? [20, 15, 11, 9, 7, 6, 5, 4, 3, 2, 1]
+    : count >= 9 ? [18, 13, 9, 7, 5, 4, 3, 2, 1]
+    : count >= 5 ? [15, 10, 6, 4, 2, 1]
+    : [10, 6, 3, 1];
+  return scale[Math.min(place - 1, scale.length - 1)] || 1;
 }
-function renderCurrent(){
-  const c=state.current;
-  const currentActions=$('currentDayAdminActions');
-  if(currentActions) currentActions.hidden=!(canManage&&c);
+function dayResults(day) {
+  if (day.mode === 'swiss') return swissResults(day);
+  if (day.mode === 'groupsko') return groupsResults(day);
+  if (day.mode === 'doubleko') return doubleKOResults(day);
+  return koResults(day);
+}
+async function finishDay() {
+  if (!canManage) return;
+  const day = state.current;
+  const currentSeason = season();
+  if (!day || !currentSeason) return;
+  const results = dayResults(day);
+  results.forEach(result => {
+    const points = placementPoints(day.attendees.length, result.place) + (result.wins || 0);
+    const base = currentSeason.ranking[result.id] || blankStats();
+    base.points += points; base.days++; base.wins += result.wins || 0;
+    base.titles += result.place === 1 ? 1 : 0;
+    base.legsFor += result.legsFor || 0; base.legsAgainst += result.legsAgainst || 0;
+    base.byMode ||= {};
+    const byMode = base.byMode[day.mode] || blankStats();
+    byMode.points += points; byMode.days++; byMode.wins += result.wins || 0;
+    byMode.titles += result.place === 1 ? 1 : 0;
+    byMode.legsFor += result.legsFor || 0; byMode.legsAgainst += result.legsAgainst || 0;
+    base.byMode[day.mode] = byMode;
+    base.history ||= [];
+    base.history.push({
+      dayId: day.id, date: day.date, mode: day.mode, place: result.place,
+      points, wins: result.wins || 0, legsFor: result.legsFor || 0, legsAgainst: result.legsAgainst || 0
+    });
+    currentSeason.ranking[result.id] = base;
+    result.points = points;
+  });
+  currentSeason.days.push({ ...day, status: 'abgeschlossen', results, finishedAt: new Date().toISOString() });
+  state.current = null;
+  await save();
+  toast('Spieltag abgeschlossen und Rangliste aktualisiert.');
+  selectTab('historie');
+}
+function rollbackDay(currentSeason, day) {
+  (day.results || []).forEach(result => {
+    const base = currentSeason.ranking[result.id];
+    if (!base) return;
+    const points = Number(result.points || placementPoints(day.attendees.length, result.place) + (result.wins || 0));
+    base.points = Math.max(0, base.points - points);
+    base.days = Math.max(0, base.days - 1);
+    base.wins = Math.max(0, base.wins - (result.wins || 0));
+    base.titles = Math.max(0, base.titles - (result.place === 1 ? 1 : 0));
+    base.legsFor = Math.max(0, base.legsFor - (result.legsFor || 0));
+    base.legsAgainst = Math.max(0, base.legsAgainst - (result.legsAgainst || 0));
+    const bm = base.byMode?.[day.mode];
+    if (bm) {
+      bm.points = Math.max(0, bm.points - points); bm.days = Math.max(0, bm.days - 1);
+      bm.wins = Math.max(0, bm.wins - (result.wins || 0));
+      bm.titles = Math.max(0, bm.titles - (result.place === 1 ? 1 : 0));
+      bm.legsFor = Math.max(0, bm.legsFor - (result.legsFor || 0));
+      bm.legsAgainst = Math.max(0, bm.legsAgainst - (result.legsAgainst || 0));
+    }
+    base.history = (base.history || []).filter(h => h.dayId !== day.id);
+  });
+}
 
-  if(!c){
-    $('currentDayTitle').textContent='Aktueller Spieltag';
-    $('currentDayInfo').textContent='Kein Spieltag eingerichtet.';
-    $('currentStatus').textContent='Bereit';
-    $('dayWorkspace').innerHTML='<div class="empty-state">Richte zuerst im Bereich Verwaltung einen Spieltag ein. Danach wählst du hier die anwesenden Spieler aus.</div>';
+// ---------- Render ----------
+function statFor(currentSeason, id, mode = 'all') {
+  const base = currentSeason?.ranking?.[id] || blankStats();
+  return mode === 'all' ? base : { ...blankStats(), ...(base.byMode?.[mode] || {}) };
+}
+function rankingRows(filter = $('modeFilter')?.value || 'all') {
+  const currentSeason = season();
+  return state.members.filter(m => isRankingEligible(m.id)).map(m => ({ m, st: statFor(currentSeason, m.id, filter) }))
+    .sort((a, b) => b.st.points - a.st.points || b.st.titles - a.st.titles ||
+      (b.st.legsFor - b.st.legsAgainst) - (a.st.legsFor - a.st.legsAgainst) ||
+      a.m.name.localeCompare(b.m.name, 'de'));
+}
+function renderPermissions() {
+  document.querySelectorAll('.admin-only').forEach(el => el.hidden = !canManage);
+  const hint = $('seriesPermissionHint');
+  if (hint) {
+    hint.hidden = canManage;
+    hint.textContent = login
+      ? `Aktuelle Rolle: ${currentRole || 'gast'}. Nur Admins und Captains verwalten Spieltage.`
+      : 'Bitte anmelden. Nur Admins und Captains verwalten Spieltage.';
+  }
+}
+function renderSeason() {
+  const currentSeason = season();
+  $('seasonTitle').textContent = currentSeason ? `${currentSeason.name}${currentSeason.status === 'abgeschlossen' ? ' · Abgeschlossen' : ''}` : 'Keine Saison';
+  $('seasonPickerButton').textContent = `${currentSeason?.name || 'Saison auswählen'} ▾`;
+  $('seasonPickerMenu').innerHTML = state.seasons.map(item => `<button type="button" data-season-id="${item.id}" class="${item.id === state.activeSeasonId ? 'active' : ''}">${esc(item.name)}</button>`).join('');
+  document.querySelectorAll('[data-season-id]').forEach(button => button.onclick = () => {
+    state.activeSeasonId = button.dataset.seasonId;
+    closeSeasonPicker(); renderAll();
+  });
+  const rows = rankingRows();
+  $('summaryPlayers').textContent = state.members.filter(m => PLAYER_ROLES.includes(m.rolle)).length;
+  $('summaryDays').textContent = (currentSeason?.days?.length || 0) + (state.current?.seasonId === currentSeason?.id ? 1 : 0);
+  $('summaryLeader').textContent = rows[0]?.st.points > 0 ? rows[0].m.name : '–';
+  const lastMode = state.current?.seasonId === currentSeason?.id ? state.current.mode : currentSeason?.days?.at(-1)?.mode;
+  $('summaryMode').textContent = lastMode ? MODES[lastMode] : '–';
+}
+function renderRanking() {
+  const rows = rankingRows();
+  $('rankingBody').innerHTML = rows.length ? rows.map((row, i) => `<tr data-player="${row.m.id}"><td>${i + 1}</td><td><strong>${esc(row.m.name)}</strong><br><small>${esc(row.m.rolle)}</small></td><td>${row.st.days || 0}</td><td>${row.st.wins || 0}</td><td>${row.st.titles || 0}</td><td>${row.st.legsFor || 0}:${row.st.legsAgainst || 0}</td><td>${(row.st.legsFor || 0) - (row.st.legsAgainst || 0)}</td><td><strong>${row.st.points || 0}</strong></td></tr>`).join('') : '<tr><td colspan="8">Noch keine spielberechtigten Mitglieder vorhanden.</td></tr>';
+  document.querySelectorAll('[data-player]').forEach(row => row.onclick = () => openProfile(row.dataset.player));
+}
+function participantPicker(day) {
+  const selected = new Set(day.attendees || []);
+  return `<div class="participant-picker"><h3>Teilnehmer auswählen</h3><p>Mitglieder, Captains, Kassenwarte und Admins können für diesen Spieltag ausgewählt werden.</p><div class="attendance-list">${state.members.map(member => `<label class="attendance-row"><span>${esc(member.name)} <small>(${esc(member.rolle)})</small></span><input type="checkbox" data-attend="${member.id}" ${selected.has(member.id) ? 'checked' : ''}></label>`).join('') || '<p>Keine Konten gefunden.</p>'}</div><div class="workspace-actions"><button id="saveParticipantsBtn">Auswahl speichern</button><button id="drawDayBtn" class="primary">Auslosen und starten</button></div></div>`;
+}
+function renderCurrent() {
+  const day = state.current;
+  const actions = $('currentDayAdminActions');
+  if (actions) actions.hidden = !(canManage && day);
+  if (!day) {
+    $('currentDayTitle').textContent = 'Aktueller Spieltag';
+    $('currentDayInfo').textContent = 'Kein Spieltag eingerichtet.';
+    $('currentStatus').textContent = 'Bereit';
+    $('dayWorkspace').innerHTML = '<div class="empty-state">Im Bereich Verwaltung kannst du einen Spieltag anlegen.</div>';
     return;
   }
-
-  if(c.engine==='draft' || c.status==='vorbereitung'){
-    renderDraftParticipants(c);
+  $('currentDayTitle').textContent = MODES[day.mode];
+  $('currentDayInfo').textContent = `${day.date} · ${(day.attendees || []).length} Teilnehmer · ${day.out || ''}`;
+  $('currentStatus').textContent = day.status === 'vorbereitung' ? 'Vorbereitung' : 'Läuft';
+  if (day.status === 'vorbereitung' || day.engine === 'draft') {
+    $('dayWorkspace').innerHTML = participantPicker(day);
+    $('saveParticipantsBtn')?.addEventListener('click', saveParticipants);
+    $('drawDayBtn')?.addEventListener('click', drawAndStart);
     return;
   }
-
-  $('currentDayTitle').textContent=MODES[c.mode]||c.mode;
-  $('currentDayInfo').textContent=`${c.date} · ${(c.attendees||[]).length} Teilnehmer · ${c.out||''}`;
-  $('currentStatus').textContent=c.paused?'Pausiert':'Läuft';
-
-  if(c.engine==='ko') renderKO(c);
-  else if(c.engine==='swiss') renderSwiss(c);
-  else if(c.engine==='groups') renderGroups(c);
-  else renderManual(c);
+  if (day.mode === 'swiss') renderSwiss(day);
+  else if (day.mode === 'groupsko') renderGroups(day);
+  else if (day.mode === 'doubleko') renderDoubleKO(day);
+  else renderKO(day);
 }
-function renderDraftParticipants(c){
-  const selected=new Set(c.attendees||[]);
-  $('currentDayTitle').textContent=`${MODES[c.mode]} einrichten`;
-  $('currentDayInfo').textContent=`${c.date} · ${c.out} · Spieler für diesen Spieltag auswählen`;
-  $('currentStatus').textContent='Teilnehmer wählen';
-  $('dayWorkspace').innerHTML=`<div class="config-card"><h3>Anwesende Spieler</h3><p class="hint">Wähle jetzt die Spieler aus, die an diesem Tag wirklich dabei sind. Auch ein Admin kann optional mitspielen.</p><div class="attendance-list">${state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${esc(m.rolle)})</small></span><input type="checkbox" data-draft-attend="${m.id}" ${selected.has(m.id)?'checked':''}></label>`).join('')||'<p class="hint">Keine auswählbaren Konten vorhanden.</p>'}</div><div class="workspace-actions"><button id="launchDraftDay" class="primary">Spieler übernehmen und Turnier starten</button><button id="cancelDraftDay">Spieltag verwerfen</button></div></div>`;
-  $('launchDraftDay').onclick=launchDraftDay;
-  $('cancelDraftDay').onclick=async()=>{if(confirm('Eingerichteten Spieltag wirklich verwerfen?')){state.current=null;await save()}};
+function scoreInputs(match, config, prefix) {
+  const disabled = match.completed || !canManage;
+  const setsExtra = config.format === 'sets' ? `<div class="two-cols compact"><label>Gesamtlegs ${esc(memberName(match.p1))}<input id="${prefix}-l1" type="number" min="0" value="${match.legs1 || ''}" ${disabled ? 'disabled' : ''}></label><label>Gesamtlegs ${esc(memberName(match.p2))}<input id="${prefix}-l2" type="number" min="0" value="${match.legs2 || ''}" ${disabled ? 'disabled' : ''}></label></div>` : '';
+  return `<small>${formatLabel(config)}</small><div class="match-player"><span>${esc(memberName(match.p1))}</span><input id="${prefix}-s1" type="number" min="0" value="${match.s1 ?? ''}" ${disabled ? 'disabled' : ''}></div><div class="match-player"><span>${esc(memberName(match.p2))}</span><input id="${prefix}-s2" type="number" min="0" value="${match.s2 ?? ''}" ${disabled ? 'disabled' : ''}></div>${setsExtra}`;
 }
-async function launchDraftDay(){const c=state.current,ids=[...document.querySelectorAll('[data-draft-attend]:checked')].map(x=>x.dataset.draftAttend);if(ids.length<2)return toast('Mindestens 2 Spieler auswählen.');if(ids.length>16)return toast('Maximal 16 Spieler möglich.');const base={...c,status:'laeuft',attendees:ids,startedAt:new Date().toISOString()};delete base.engine;if(c.mode==='premier')state.current={...base,...makeKO(ids,c.mode)};else if(c.mode==='swiss'){state.current={...base,engine:'swiss',swissMatches:[]};pairSwiss(state.current)}else if(c.mode==='groupsko'){const count=c.groupCount==='auto'?autoGroupCount(ids.length):+c.groupCount;if(count<2||count>ids.length)return toast('Die Gruppenanzahl passt nicht zur Teilnehmerzahl.');const groups=makeGroups(ids,count,c.groupDrawMode);const minSize=Math.min(...groups.map(g=>g.players.length));if(c.qualifyPlaces.some(x=>x>minSize))return toast(`Die kleinste Gruppe hat nur ${minSize} Spieler.`);state.current={...base,engine:'groups',groups}}else state.current={...base,engine:'manual'};await save();toast('Turnier gestartet.')}
-function renderKO(c){autoAdvance(c);$('dayWorkspace').innerHTML=`<div class="bracket">${c.rounds.map(r=>`<div class="round-column"><h3>${r}</h3>${c.matches[r].map((m,i)=>koMatch(r,m,i)).join('')}</div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;document.querySelectorAll('[data-ko-save]').forEach(b=>b.onclick=()=>saveKOMatch(b.dataset.round,+b.dataset.index));const final=c.matches[c.rounds.at(-1)][0];$('finishCurrent').disabled=!final?.completed;$('finishCurrent').onclick=finishCurrent}
-function koMatch(r,m,i){const ready=m.p1&&m.p2&&!m.completed,rule=roundRule(state.current,r),setMode=rule.format==='sets';return`<div class="match-card"><small>${r} ${i+1}</small><span class="match-rule">${ruleText(rule)}</span><div class="match-player ${m.winner===m.p1?'winner':''}"><span>${m.p1?esc(memberName(m.p1)):'—'}</span><input id="a-${m.id}" type="number" min="0" value="${m.s1??''}" ${!ready||!canManage?'disabled':''}></div><div class="match-player ${m.winner===m.p2?'winner':''}"><span>${m.p2?esc(memberName(m.p2)):'—'}</span><input id="b-${m.id}" type="number" min="0" value="${m.s2??''}" ${!ready||!canManage?'disabled':''}></div>${setMode&&ready?`<div class="set-leg-inputs"><label>Legs ${esc(memberName(m.p1))}<input id="la-${m.id}" type="number" min="0" value="${m.legs1??''}"></label><label>Legs ${esc(memberName(m.p2))}<input id="lb-${m.id}" type="number" min="0" value="${m.legs2??''}"></label></div>`:''}${m.bye?'<div class="bye">Freilos</div>':`<button data-ko-save="1" data-round="${r}" data-index="${i}" ${!ready||!canManage?'disabled':''}>Ergebnis speichern</button>`}</div>`}
-async function saveKOMatch(r,i){const m=state.current.matches[r][i],rule=roundRule(state.current,r),a=+$(`a-${m.id}`).value,b=+$(`b-${m.id}`).value;if(a===b||a<0||b<0)return toast('Bitte ein eindeutiges Ergebnis eintragen.');if(Math.max(a,b)!==rule.toWin||Math.min(a,b)>=rule.toWin)return toast(`Der Sieger muss genau ${rule.toWin} ${rule.format==='sets'?'Sets':'Legs'} erreichen.`);m.s1=a;m.s2=b;m.legs1=rule.format==='sets'?+( $(`la-${m.id}`)?.value||0):a;m.legs2=rule.format==='sets'?+( $(`lb-${m.id}`)?.value||0):b;m.winner=a>b?m.p1:m.p2;m.completed=true;autoAdvance(state.current);await save();toast('Ergebnis gespeichert.')}
-
-function renderSwiss(c){const standings=swissStandings(c),round=c.swissMatches.length,current=c.swissMatches.at(-1)||[];const roundDone=current.length&&current.every(m=>m.completed);$('dayWorkspace').innerHTML=`<div class="swiss-header"><h3>Runde ${round} von ${c.totalRounds}</h3><span class="pill">Schweizer System</span></div><div class="table-scroll"><table class="swiss-table"><thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Buchholz</th><th>Siege</th><th>Leg-Diff.</th></tr></thead><tbody>${standings.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(memberName(x.id))}</td><td>${x.mp}</td><td>${x.buchholz}</td><td>${x.wins}</td><td>${x.legsFor-x.legsAgainst}</td></tr>`).join('')}</tbody></table></div><h3>Paarungen Runde ${round}</h3>${current.map((m,i)=>swissMatch(m,i)).join('')}<div class="workspace-actions admin-only">${round<c.totalRounds?`<button id="nextSwiss" class="primary" ${!roundDone?'disabled':''}>Nächste Runde auslosen</button>`:`<button id="finishCurrent" class="primary" ${!roundDone?'disabled':''}>Spieltag abschließen</button>`}</div>`;document.querySelectorAll('[data-swiss-save]').forEach(b=>b.onclick=()=>saveSwissMatch(+b.dataset.index));if($('nextSwiss'))$('nextSwiss').onclick=async()=>{pairSwiss(c);await save()};if($('finishCurrent'))$('finishCurrent').onclick=finishCurrent}
-function swissMatch(m,i){if(m.bye)return`<div class="swiss-match"><strong>${esc(memberName(m.p1))}</strong> – Freilos</div>`;return`<div class="swiss-match"><div class="match-player"><span>${esc(memberName(m.p1))}</span><input id="sa-${m.id}" type="number" min="0" value="${m.s1??''}" ${m.completed||!canManage?'disabled':''}></div><div class="match-player"><span>${esc(memberName(m.p2))}</span><input id="sb-${m.id}" type="number" min="0" value="${m.s2??''}" ${m.completed||!canManage?'disabled':''}></div><button data-swiss-save="1" data-index="${i}" ${m.completed||!canManage?'disabled':''}>Ergebnis speichern</button></div>`}
-async function saveSwissMatch(i){const m=state.current.swissMatches.at(-1)[i],a=+$(`sa-${m.id}`).value,b=+$(`sb-${m.id}`).value;if(a===b||a<0||b<0)return toast('Bitte ein eindeutiges Ergebnis eintragen.');const target=state.current.legsToWin||3;if(Math.max(a,b)!==target||Math.min(a,b)>=target)return toast(`Der Sieger muss genau ${target} Legs erreichen.`);m.s1=a;m.s2=b;m.winner=a>b?m.p1:m.p2;m.completed=true;await save()}
-
-
-function autoGroupCount(n){return n<=8?2:n<=12?3:4}
-function rankingPoints(id){return season()?.ranking?.[id]?.points||0}
-function makeGroups(ids,count,drawMode){
-  let ordered=drawMode==='seeded'?[...ids].sort((a,b)=>rankingPoints(b)-rankingPoints(a)||memberName(a).localeCompare(memberName(b),'de')):shuffle(ids);
-  const groups=Array.from({length:count},(_,i)=>({id:String.fromCharCode(65+i),players:[],matches:[]}));
-  if(drawMode==='seeded'){
-    let index=0,dir=1;
-    ordered.forEach(id=>{groups[index].players.push(id);if(dir===1&&index===groups.length-1)dir=-1;else if(dir===-1&&index===0)dir=1;else index+=dir});
-  }else ordered.forEach((id,i)=>groups[i%count].players.push(id));
-  groups.forEach(g=>{for(let i=0;i<g.players.length;i++)for(let j=i+1;j<g.players.length;j++)g.matches.push({id:uid(),p1:g.players[i],p2:g.players[j],s1:null,s2:null,winner:null,completed:false})});
-  return groups;
+function readMatchScore(prefix, config) {
+  const a = +$(`${prefix}-s1`).value, b = +$(`${prefix}-s2`).value;
+  if (!validateScore(a, b, config)) return null;
+  const [legs1, legs2] = totalLegsFromScore(a, b, config, $(`${prefix}-l1`)?.value, $(`${prefix}-l2`)?.value);
+  if (config.format === 'sets' && legs1 + legs2 <= 0) return null;
+  return { a, b, legs1, legs2 };
 }
-function groupStandings(g){
-  const map={};g.players.forEach(id=>map[id]={id,mp:0,wins:0,legsFor:0,legsAgainst:0});
-  g.matches.forEach(m=>{if(!m.completed)return;map[m.p1].legsFor+=m.s1;map[m.p1].legsAgainst+=m.s2;map[m.p2].legsFor+=m.s2;map[m.p2].legsAgainst+=m.s1;map[m.winner].mp+=2;map[m.winner].wins++});
-  return Object.values(map).sort((a,b)=>b.mp-a.mp||(b.legsFor-b.legsAgainst)-(a.legsFor-a.legsAgainst)||b.legsFor-a.legsFor||memberName(a.id).localeCompare(memberName(b.id),'de'));
+function renderKO(day) {
+  advanceKO(day);
+  $('dayWorkspace').innerHTML = `<div class="bracket">${day.rounds.map(round => `<div class="round-column"><h3>${round}</h3>${day.matches[round].map((match, index) => {
+    if (match.bye) return `<article class="match-card"><strong>${esc(memberName(match.winner))}</strong><p>Freilos</p></article>`;
+    if (!match.p1 || !match.p2) return '<article class="match-card"><p>Wartet auf vorherige Partie</p></article>';
+    const config = roundConfigFor(day, round), prefix = `ko-${match.id}`;
+    return `<article class="match-card">${scoreInputs(match, config, prefix)}<button data-ko-save="${round}|${index}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
+  }).join('')}</div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;
+  document.querySelectorAll('[data-ko-save]').forEach(button => button.onclick = () => saveKOMatch(button.dataset.koSave));
+  const final = day.matches[day.rounds.at(-1)][0];
+  $('finishCurrent').disabled = !final?.completed;
+  $('finishCurrent').onclick = finishDay;
 }
-function allGroupMatchesDone(c){return c.groups.every(g=>g.matches.every(m=>m.completed))}
-function renderGroups(c){
-  const done=allGroupMatchesDone(c);
-  $('dayWorkspace').innerHTML=`<div class="group-phase-head"><div><h3>Gruppenphase</h3><p>${c.groups.length} Gruppen · Weiter: ${c.qualifyPlaces.map(x=>'Platz '+x).join(', ')}</p></div><span class="pill">${done?'Bereit für K.-o.':'Läuft'}</span></div><div class="group-grid">${c.groups.map(g=>groupCard(c,g)).join('')}</div><div class="workspace-actions admin-only"><button id="createGroupKO" class="primary" ${!done?'disabled':''}>K.-o.-Phase erstellen</button></div>`;
-  document.querySelectorAll('[data-group-save]').forEach(b=>b.onclick=()=>saveGroupMatch(b.dataset.group,+b.dataset.index));
-  $('createGroupKO').onclick=createGroupKO;
+async function saveKOMatch(key) {
+  const [round, indexString] = key.split('|');
+  const match = state.current.matches[round][+indexString];
+  const config = roundConfigFor(state.current, round), prefix = `ko-${match.id}`;
+  const score = readMatchScore(prefix, config);
+  if (!score) return toast('Bitte ein gültiges eindeutiges Ergebnis eintragen.');
+  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
+  advanceKO(state.current); await save();
 }
-function groupCard(c,g){const standings=groupStandings(g);return`<article class="group-card"><h3>Gruppe ${g.id}</h3><table class="group-table"><thead><tr><th>#</th><th>Spieler</th><th>SP</th><th>S</th><th>Diff.</th></tr></thead><tbody>${standings.map((x,i)=>`<tr class="${c.qualifyPlaces.includes(i+1)?'qualified-row':''}"><td>${i+1}</td><td>${esc(memberName(x.id))}</td><td>${x.mp}</td><td>${x.wins}</td><td>${x.legsFor-x.legsAgainst}</td></tr>`).join('')}</tbody></table>${g.matches.map((m,i)=>groupMatch(c,g,m,i)).join('')}</article>`}
-function groupMatch(c,g,m,i){return`<div class="group-match"><div class="match-player ${m.winner===m.p1?'winner':''}"><span>${esc(memberName(m.p1))}</span><input id="ga-${m.id}" type="number" min="0" value="${m.s1??''}" ${m.completed||!canManage?'disabled':''}></div><div class="match-player ${m.winner===m.p2?'winner':''}"><span>${esc(memberName(m.p2))}</span><input id="gb-${m.id}" type="number" min="0" value="${m.s2??''}" ${m.completed||!canManage?'disabled':''}></div><button data-group-save="1" data-group="${g.id}" data-index="${i}" ${m.completed||!canManage?'disabled':''}>Ergebnis speichern</button></div>`}
-async function saveGroupMatch(groupId,i){const g=state.current.groups.find(x=>x.id===groupId),m=g.matches[i],a=+$(`ga-${m.id}`).value,b=+$(`gb-${m.id}`).value,target=state.current.groupLegsToWin||3;if(a===b||a<0||b<0)return toast('Bitte ein eindeutiges Ergebnis eintragen.');if(Math.max(a,b)!==target||Math.min(a,b)>=target)return toast(`Der Sieger muss genau ${target} Legs erreichen.`);m.s1=a;m.s2=b;m.winner=a>b?m.p1:m.p2;m.completed=true;await save();toast('Gruppenergebnis gespeichert.')}
-function createGroupKO(){
-  const c=state.current,qualified=[];
-  c.groups.forEach(g=>{const table=groupStandings(g);c.qualifyPlaces.forEach(place=>{const x=table[place-1];if(x)qualified.push({...x,group:g.id,groupPlace:place})})});
-  if(qualified.length<2)return toast('Es kommen zu wenige Spieler weiter.');
-  if(qualified.length>16)return toast('Maximal 16 Spieler können in die K.-o.-Phase einziehen.');
-  qualified.sort((a,b)=>a.groupPlace-b.groupPlace||b.mp-a.mp||(b.legsFor-b.legsAgainst)-(a.legsFor-a.legsAgainst));
-  const size=bracketSize(qualified.length),slots=Array(size).fill(null),pool=[...qualified];
-  for(let i=0;i<Math.ceil(size/2);i++){const a=pool.shift();if(!a)break;slots[i*2]=a.id;let idx=pool.length-1;while(idx>0&&pool[idx].group===a.group)idx--;const b=pool.splice(Math.max(0,idx),1)[0];if(b)slots[i*2+1]=b.id}
-  const names=size===16?['Achtelfinale','Viertelfinale','Halbfinale','Finale']:size===8?['Viertelfinale','Halbfinale','Finale']:['Halbfinale','Finale'],matches={};
-  names.forEach((r,ri)=>matches[r]=Array(size/2**(ri+1)).fill(0).map((_,i)=>({id:uid(),p1:ri?null:slots[i*2],p2:ri?null:slots[i*2+1],s1:null,s2:null,winner:null,completed:false,bye:false})));
-  c.groupData={groups:c.groups,qualifyPlaces:c.qualifyPlaces,groupLegsToWin:c.groupLegsToWin,qualifiedIds:qualified.map(x=>x.id)};c.engine='ko';c.rounds=names;c.matches=matches;c.size=size;autoAdvance(c);save();toast('K.-o.-Phase erstellt.');
+function renderSwiss(day) {
+  const standings = swissStats(day), round = day.swissRoundsData.length, matches = day.swissRoundsData.at(-1) || [];
+  const done = matches.every(m => m.completed);
+  const config = day.swissFormat || { format: 'legs', win: day.legsToWin || 3, legsPerSet: 3 };
+  $('dayWorkspace').innerHTML = `<div class="table-scroll"><table class="swiss-table"><thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Buchholz</th><th>Siege</th><th>Diff.</th></tr></thead><tbody>${standings.map((row, i) => `<tr><td>${i + 1}</td><td>${esc(memberName(row.id))}</td><td>${row.mp}</td><td>${row.buchholz}</td><td>${row.wins}</td><td>${row.legsFor - row.legsAgainst}</td></tr>`).join('')}</tbody></table></div><h3>Runde ${round} von ${day.totalRounds}</h3>${matches.map((match, index) => {
+    if (match.bye) return `<article class="swiss-match"><strong>${esc(memberName(match.p1))}</strong> – Freilos</article>`;
+    const prefix = `sw-${match.id}`;
+    return `<article class="swiss-match">${scoreInputs(match, config, prefix)}<button data-sw-save="${index}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
+  }).join('')}<div class="workspace-actions admin-only">${round < day.totalRounds ? `<button id="nextSwiss" class="primary" ${done ? '' : 'disabled'}>Nächste Runde auslosen</button>` : `<button id="finishCurrent" class="primary" ${done ? '' : 'disabled'}>Spieltag abschließen</button>`}</div>`;
+  document.querySelectorAll('[data-sw-save]').forEach(button => button.onclick = () => saveSwissMatch(+button.dataset.swSave));
+  if ($('nextSwiss')) $('nextSwiss').onclick = async () => { pairSwissRound(day); await save(); };
+  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
-
-function renderManual(c){$('dayWorkspace').innerHTML=`<div class="empty-state"><h3>${MODES[c.mode]}</h3><p>${c.mode==='doubleko'?'Die Partien werden im Doppel-K.-o. gespielt. Nach dem letzten Spiel trägst du hier die endgültigen Platzierungen ein.':'Nach Gruppenphase und K.-o.-Runde trägst du hier die endgültigen Platzierungen ein.'}</p></div><div class="manual-grid">${c.attendees.map(id=>`<div class="manual-row"><strong>#</strong><span>${esc(memberName(id))}</span><select data-place="${id}">${c.attendees.map((_,i)=>`<option value="${i+1}">${i+1}. Platz</option>`).join('')}</select></div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Platzierungen prüfen und Spieltag abschließen</button></div>`;$('finishCurrent').onclick=finishCurrent}
-
-function placementPoints(n,place){const group=n>=13?[20,15,11,11,7,7,7,7,3]:n>=9?[18,13,9,9,5,5,5,5,3]:n>=5?[15,10,6,6,2]:[10,6,2];return group[Math.min(place-1,group.length-1)]||group.at(-1)}
-function resultsFor(c){if(c.engine==='swiss')return swissStandings(c).map((x,i)=>({id:x.id,place:i+1,wins:x.wins,legsFor:x.legsFor,legsAgainst:x.legsAgainst}));if(c.engine==='manual'){const vals=[...document.querySelectorAll('[data-place]')].map(x=>({id:x.dataset.place,place:+x.value}));if(new Set(vals.map(x=>x.place)).size!==vals.length)throw new Error('Jede Platzierung darf nur einmal vergeben werden.');return vals.sort((a,b)=>a.place-b.place).map(x=>({...x,wins:0,legsFor:0,legsAgainst:0}))}const losses={},stats={};c.attendees.forEach(id=>stats[id]={wins:0,legsFor:0,legsAgainst:0});if(c.groupData?.groups)c.groupData.groups.forEach(g=>g.matches.forEach(m=>{if(!m.completed)return;stats[m.winner].wins++;stats[m.p1].legsFor+=m.s1;stats[m.p1].legsAgainst+=m.s2;stats[m.p2].legsFor+=m.s2;stats[m.p2].legsAgainst+=m.s1}));c.rounds.forEach(r=>c.matches[r].forEach(m=>{if(!m.completed)return;const loser=m.winner===m.p1?m.p2:m.p1;if(loser)losses[loser]=r;if(!m.bye&&m.p1&&m.p2){stats[m.winner].wins++;const l1=m.legs1??m.s1,l2=m.legs2??m.s2;stats[m.p1].legsFor+=l1;stats[m.p1].legsAgainst+=l2;stats[m.p2].legsFor+=l2;stats[m.p2].legsAgainst+=l1}}));const final=c.matches[c.rounds.at(-1)][0],winner=final.winner;return c.attendees.map(id=>{let place=id===winner?1:losses[id]==='Finale'?2:losses[id]==='Halbfinale'?3:losses[id]==='Viertelfinale'?5:9;return{id,place,...stats[id]}}).sort((a,b)=>a.place-b.place)}
-async function finishCurrent(){try{const c=state.current,s=season(),results=resultsFor(c);results.forEach(r=>{const base=s.ranking[r.id]||emptyStats(),pts=placementPoints(c.attendees.length,r.place)+(r.wins||0);base.points+=pts;base.days++;base.wins+=r.wins||0;base.titles+=r.place===1?1:0;base.legsFor+=r.legsFor||0;base.legsAgainst+=r.legsAgainst||0;base.byMode??={};const bm=base.byMode[c.mode]||emptyStats();bm.points+=pts;bm.days++;bm.wins+=r.wins||0;bm.titles+=r.place===1?1:0;bm.legsFor+=r.legsFor||0;bm.legsAgainst+=r.legsAgainst||0;base.byMode[c.mode]=bm;base.history??=[];base.history.push({dayId:c.id,date:c.date,mode:c.mode,place:r.place,points:pts});s.ranking[r.id]=base});const day={...c,results,finishedAt:new Date().toISOString()};day.results=results.map(r=>({...r,points:placementPoints(c.attendees.length,r.place)}));
-day.results.forEach(r=>{
-  const st=s.ranking?.[r.id];
-  if(st?.history?.length){
-    const last=[...st.history].reverse().find(h=>!h.dayId && h.date===c.date && h.mode===c.mode);
-    if(last) last.dayId=day.id;
-  }
-});
-s.days.push(day);state.current=null;await save();toast('Spieltag abgeschlossen und Punkte gebucht.')}catch(e){toast(e.message||'Spieltagsabschluss nicht möglich.')}}
-
-function renderHistory(){const s=season(),days=[...(s?.days||[])].reverse();$('historyList').innerHTML=days.length?days.map(d=>{const top=[...(d.results||[])].sort((a,b)=>a.place-b.place).slice(0,3);return`<article class="history-card"><div class="history-card-head"><div><h3>${esc(d.date)}</h3><p>${d.attendees.length} Teilnehmer · ${esc(d.out||'')}</p></div><span class="mode-badge">${MODES[d.mode]}</span></div><div class="history-podium">${top.map(x=>`${x.place}. ${esc(memberName(x.id))}`).join(' · ')}</div>${canManage?`<div class="history-card-actions"><button data-edit-day="${d.id}">Ergebnisse ändern</button></div>`:''}</article>`}).join(''):'<div class="empty-state">Noch keine abgeschlossenen Spieltage.</div>';document.querySelectorAll('[data-edit-day]').forEach(b=>b.onclick=()=>reopenFinishedDay(b.dataset.editDay))}
-function openProfile(id){const m=state.members.find(x=>x.id===id),st=statFor(season(),id,$('modeFilter').value);$('profileContent').innerHTML=`<h2>${esc(m.name)}</h2><p>${esc(m.rolle)}</p><div class="profile-stats"><div><strong>${st.points||0}</strong>Punkte</div><div><strong>${st.days||0}</strong>Spieltage</div><div><strong>${st.wins||0}</strong>Siege</div><div><strong>${st.titles||0}</strong>Titel</div><div><strong>${st.legsFor||0}:${st.legsAgainst||0}</strong>Legs</div><div><strong>${(st.legsFor||0)-(st.legsAgainst||0)}</strong>Leg-Diff.</div></div><div class="profile-history"><h3>Letzte Spieltage</h3>${(st.history||[]).slice(-8).reverse().map(h=>`<div class="profile-history-row"><span>${esc(h.date)}</span><span>${MODES[h.mode]}</span><strong>+${h.points}</strong></div>`).join('')||'<p>Keine Ergebnisse.</p>'}</div>`;$('profileModal').hidden=false}
-
-function closeSeasonPicker(){$('seasonPickerMenu').hidden=true;$('seasonPickerButton').setAttribute('aria-expanded','false')}
-$('seasonPickerButton').onclick=e=>{e.stopPropagation();const menu=$('seasonPickerMenu');menu.hidden=!menu.hidden;$('seasonPickerButton').setAttribute('aria-expanded',String(!menu.hidden))};document.addEventListener('click',e=>{if(!e.target.closest('.season-picker'))closeSeasonPicker()});$('modeFilter').onchange=renderRanking;$('closeProfile').onclick=()=>$('profileModal').hidden=true;$('profileModal').onclick=e=>{if(e.target===$('profileModal'))$('profileModal').hidden=true};
-$('createSeasonBtn').onclick=async()=>{const name=$('newSeasonName').value.trim();if(!name)return toast('Bitte einen Saisonnamen eingeben.');const s=blankSeason(name);state.members.forEach(m=>s.ranking[m.id]=emptyStats());state.seasons.push(s);state.activeSeasonId=s.id;$('newSeasonName').value='';await save();toast('Neue Saison angelegt.')};$('syncMembersBtn').onclick=()=>syncMembers(true);
-$('finishSeasonBtn').onclick=async()=>{const s=season();if(!s)return;if(state.current)return toast('Bitte zuerst den aktuellen Spieltag beenden oder verwerfen.');if(s.status==='abgeschlossen')return toast('Die Saison ist bereits abgeschlossen.');if(!confirm(`${s.name} wirklich abschließen? Danach können keine neuen Spieltage mehr hinzugefügt werden.`))return;s.status='abgeschlossen';s.closedAt=new Date().toISOString();await save();toast('Saison abgeschlossen.')};
-$('deleteSeasonBtn').onclick=async()=>{const s=season();if(!s)return;if(state.current)return toast('Bitte zuerst den aktuellen Spieltag beenden oder verwerfen.');if(!confirm(`${s.name} dauerhaft löschen? Alle Spieltage, Ergebnisse und Punkte dieser Saison gehen verloren.`))return;state.seasons=state.seasons.filter(x=>x.id!==s.id);if(!state.seasons.length){const n=blankSeason();state.seasons=[n]}state.activeSeasonId=state.seasons[0].id;await save();toast('Saison gelöscht.')};
-$('dayMode').onchange=()=>{const mode=$('dayMode').value,swiss=mode==='swiss',groups=mode==='groupsko';$('swissRoundsWrap').hidden = $('dayMode').value !== 'swiss';$('swissFormatWrap').hidden=!swiss;$('groupsConfigWrap').hidden=!groups;$('koRoundSettings').hidden=swiss};
-async function startDay(){
-  if(!canManage){
-    return toast('Nur Admins und Captains dürfen Spieltage einrichten.');
-  }
-
-  const s=season();
-  if(!s){
-    return toast('Bitte zuerst eine Saison erstellen.');
-  }
-  if(s.status==='abgeschlossen'){
-    return toast('Diese Saison ist abgeschlossen.');
-  }
-  if(state.current){
-    return toast('Es gibt bereits einen offenen Spieltag. Öffne oder lösche ihn zuerst.');
-  }
-
-  const mode=$('dayMode').value;
-  const selected=[...document.querySelectorAll('[data-qualify-place]:checked')]
-    .map(x=>+x.value)
-    .sort((a,b)=>a-b);
-
-  if(mode==='groupsko' && !selected.length){
-    return toast('Mindestens eine Gruppenplatzierung auswählen.');
-  }
-
-  state.current={
-    id:uid(),
-    seasonId:s.id,
-    status:'vorbereitung',
-    engine:'draft',
-    date:$('dayDate').value || new Date().toISOString().slice(0,10),
-    mode,
-    out:$('gameOut').value,
-    targetSize:+($('daySize')?.value || 0),
-    legsToWin:+$('swissLegsToWin').value || 3,
-    totalRounds:+$('swissRounds').value || 4,
-    roundConfig:collectRoundConfig(),
-    groupCount:$('groupCount').value,
-    groupDrawMode:$('groupDrawMode').value,
-    qualifyPlaces:selected,
-    groupLegsToWin:+$('groupLegsToWin').value || 3,
-    attendees:[],
-    configuredAt:new Date().toISOString()
-  };
-
-  await save();
-  document.querySelector('[data-tab="spieltag"]')?.click();
-  toast('Spieltag eingerichtet. Jetzt Spieler auswählen.');
-}
-
-$('startDayBtn').onclick=startDay;
-
-document.querySelectorAll('.serie-tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.serie-tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.serie-panel').forEach(x=>x.classList.toggle('active',x.id===`tab-${b.dataset.tab}`))});
-$('dayDate').value=new Date().toISOString().slice(0,10);
-load().catch(e=>{console.error(e);toast(`Daten konnten nicht geladen werden: ${e?.message||'Unbekannter Fehler'}`)});
-
-$('dayMode').onchange();
-
-function openSeriesAdminDrawer(){if(!canManage)return;const drawer=$('seriesAdminDrawer'),backdrop=$('seriesAdminDrawerBackdrop');drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');backdrop.hidden=false;renderSeriesAdminDrawerList()}
-function closeSeriesAdminDrawer(){const drawer=$('seriesAdminDrawer'),backdrop=$('seriesAdminDrawerBackdrop');drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');backdrop.hidden=true}
-function renderSeriesAdminDrawerList(){const box=$('seriesAdminDayList');if(!box)return;const s=season(),days=[...(s?.days||[])].reverse();let html='';if(state.current){html+=`<article class="series-admin-day-card"><h3>Aktueller Spieltag</h3><p>${esc(state.current.date)} · ${MODES[state.current.mode]}</p><button data-open-current>Öffnen und bearbeiten</button></article>`}html+=days.map(d=>`<article class="series-admin-day-card"><h3>${esc(d.date)}</h3><p>${MODES[d.mode]} · ${d.attendees?.length||0} Spieler</p><button data-reopen-day="${d.id}">Ergebnisse ändern</button>${canManage?`<button class="history-delete danger-soft" data-delete-day="${d.id}">Spieltag löschen</button>`:''}</article>`).join('');box.innerHTML=html||'<p>Noch keine Spieltage vorhanden.</p>';box.querySelector('[data-open-current]')?.addEventListener('click',()=>{closeSeriesAdminDrawer();document.querySelector('[data-tab="spieltag"]')?.click()});box.querySelectorAll('[data-reopen-day]').forEach(b=>b.onclick=()=>reopenFinishedDay(b.dataset.reopenDay))}
-function rollbackFinishedDay(day){const s=season();for(const r of day.results||[]){const base=s.ranking?.[r.id];if(!base)continue;const pts=placementPoints(day.attendees.length,r.place)+(r.wins||0);base.points=Math.max(0,(base.points||0)-pts);base.days=Math.max(0,(base.days||0)-1);base.wins=Math.max(0,(base.wins||0)-(r.wins||0));base.titles=Math.max(0,(base.titles||0)-(r.place===1?1:0));base.legsFor=Math.max(0,(base.legsFor||0)-(r.legsFor||0));base.legsAgainst=Math.max(0,(base.legsAgainst||0)-(r.legsAgainst||0));if(base.byMode?.[day.mode]){const bm=base.byMode[day.mode];bm.points=Math.max(0,(bm.points||0)-pts);bm.days=Math.max(0,(bm.days||0)-1);bm.wins=Math.max(0,(bm.wins||0)-(r.wins||0));bm.titles=Math.max(0,(bm.titles||0)-(r.place===1?1:0));bm.legsFor=Math.max(0,(bm.legsFor||0)-(r.legsFor||0));bm.legsAgainst=Math.max(0,(bm.legsAgainst||0)-(r.legsAgainst||0))}base.history=(base.history||[]).filter(h=>h.dayId!==day.id)}}
-async function reopenFinishedDay(dayId){if(!canManage)return;if(state.current)return toast('Bitte zuerst den aktuell laufenden Spieltag abschließen.');const s=season(),idx=(s?.days||[]).findIndex(d=>d.id===dayId);if(idx<0)return toast('Spieltag nicht gefunden.');const day=s.days[idx];if(!confirm(`Spieltag vom ${day.date} zur Bearbeitung öffnen? Die bisherigen Punkte werden vorübergehend zurückgenommen und nach dem erneuten Abschluss neu gebucht.`))return;rollbackFinishedDay(day);s.days.splice(idx,1);state.current={...day,results:undefined,finishedAt:undefined,reopenedAt:new Date().toISOString()};await save();closeSeriesAdminDrawer();document.querySelector('[data-tab="spieltag"]')?.click();toast('Spieltag zur Bearbeitung geöffnet.')}
-$('seriesAdminMenuBtn')?.addEventListener('click',openSeriesAdminDrawer);$('closeSeriesAdminDrawer')?.addEventListener('click',closeSeriesAdminDrawer);$('seriesAdminDrawerBackdrop')?.addEventListener('click',closeSeriesAdminDrawer);document.querySelectorAll('[data-drawer-tab]').forEach(b=>b.addEventListener('click',()=>{closeSeriesAdminDrawer();document.querySelector(`[data-tab="${b.dataset.drawerTab}"]`)?.click()}));
-
-document.addEventListener('DOMContentLoaded',()=>{
-  const modeSelect=$('dayMode');
-  if(modeSelect){
-    modeSelect.addEventListener('change',updateModeFields);
-    updateModeFields();
-  }
-});
-
-async function createPreparedDay(){
-  if(!canManage) return toast('Nur Admins und Captains dürfen Spieltage anlegen.');
-  const s=season();
-  if(!s) return toast('Bitte zuerst eine Saison anlegen.');
-  if(state.current && state.current.status!=='abgeschlossen') return toast('Es gibt bereits einen offenen Spieltag.');
-  state.current={
-    id:uid(),seasonId:s.id,
-    date:$('dayDate')?.value||new Date().toISOString().slice(0,10),
-    mode:$('dayMode')?.value||'premier',
-    status:'vorbereitung',attendees:[],targetSize:0,
-    createdAt:new Date().toISOString(),
-    createdBy:login?.benutzername||''
-  };
+async function saveSwissMatch(index) {
+  const day = state.current, match = day.swissRoundsData.at(-1)[index];
+  const config = day.swissFormat || { format: 'legs', win: day.legsToWin || 3, legsPerSet: 3 };
+  const score = readMatchScore(`sw-${match.id}`, config);
+  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
+  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
   await save();
 }
+function renderGroups(day) {
+  if (!day.groupPhaseDone) {
+    const config = day.groupFormat || { format: 'legs', win: day.groupLegsToWin || 3, legsPerSet: 3 };
+    $('dayWorkspace').innerHTML = `<div class="groups-grid">${day.groups.map((group, gi) => `<section class="group-card"><h3>${group.name}</h3><table><thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Diff.</th></tr></thead><tbody>${groupTable(group).map((row, i) => `<tr><td>${i + 1}</td><td>${esc(memberName(row.id))}</td><td>${row.mp}</td><td>${row.legsFor - row.legsAgainst}</td></tr>`).join('')}</tbody></table>${group.matches.map((match, mi) => {
+      const prefix = `gr-${match.id}`;
+      return `<article class="swiss-match">${scoreInputs(match, config, prefix)}<button data-gr-save="${gi}|${mi}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
+    }).join('')}</section>`).join('')}</div><div class="workspace-actions admin-only"><button id="startGroupsKO" class="primary" ${allGroupsDone(day) ? '' : 'disabled'}>K.-o.-Phase auslosen</button></div>`;
+    document.querySelectorAll('[data-gr-save]').forEach(button => button.onclick = () => saveGroupMatch(button.dataset.grSave));
+    $('startGroupsKO').onclick = async () => { buildGroupsKO(day); await save(); };
+  } else {
+    const koDay = { ...day, ...day.ko };
+    // Render mit Originalreferenzen, damit Speichern in day.ko landet.
+    advanceKO(koDay); day.ko.matches = koDay.matches;
+    $('dayWorkspace').innerHTML = `<h2>K.-o.-Phase</h2><div class="bracket">${day.ko.rounds.map(round => `<div class="round-column"><h3>${round}</h3>${day.ko.matches[round].map((match, index) => {
+      if (match.bye) return `<article class="match-card"><strong>${esc(memberName(match.winner))}</strong><p>Freilos</p></article>`;
+      if (!match.p1 || !match.p2) return '<article class="match-card"><p>Wartet auf vorherige Partie</p></article>';
+      const config = roundConfigFor(day, round), prefix = `gko-${match.id}`;
+      return `<article class="match-card">${scoreInputs(match, config, prefix)}<button data-gko-save="${round}|${index}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
+    }).join('')}</div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;
+    document.querySelectorAll('[data-gko-save]').forEach(button => button.onclick = () => saveGroupKOMatch(button.dataset.gkoSave));
+    $('finishCurrent').disabled = !day.ko.matches[day.ko.rounds.at(-1)][0]?.completed;
+    $('finishCurrent').onclick = finishDay;
+  }
+}
+async function saveGroupMatch(key) {
+  const [gi, mi] = key.split('|').map(Number), day = state.current, match = day.groups[gi].matches[mi];
+  const config = day.groupFormat || { format: 'legs', win: day.groupLegsToWin || 3, legsPerSet: 3 };
+  const score = readMatchScore(`gr-${match.id}`, config);
+  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
+  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, completed: true });
+  await save();
+}
+async function saveGroupKOMatch(key) {
+  const [round, indexString] = key.split('|'), day = state.current, match = day.ko.matches[round][+indexString];
+  const config = roundConfigFor(day, round), score = readMatchScore(`gko-${match.id}`, config);
+  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
+  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
+  const koDay = { ...day, ...day.ko }; advanceKO(koDay); day.ko.matches = koDay.matches;
+  await save();
+}
+function doubleRoundConfig(day) {
+  const alive = day.attendees.filter(id => day.de.losses[id] < 2).length;
+  const name = alive <= 2 ? 'Finale' : alive <= 4 ? 'Halbfinale' : alive <= 8 ? 'Viertelfinale' : 'Achtelfinale';
+  return roundConfigFor(day, name);
+}
+function renderDoubleKO(day) {
+  const round = day.de.rounds.at(-1), config = doubleRoundConfig(day);
+  if (day.de.champion) {
+    $('dayWorkspace').innerHTML = `<div class="empty-state"><h2>Sieger: ${esc(memberName(day.de.champion))}</h2></div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;
+    $('finishCurrent').onclick = finishDay; return;
+  }
+  $('dayWorkspace').innerHTML = `<div class="doubleko-summary"><h3>${esc(round.title)}</h3><p>Spieler mit zwei Niederlagen scheiden aus.</p></div><div class="bracket"><div class="round-column wide">${round.matches.map((match, index) => {
+    if (match.bye) return `<article class="match-card"><strong>${esc(memberName(match.p1))}</strong><p>${match.bracket || ''} · Freilos</p></article>`;
+    const prefix = `de-${match.id}`;
+    return `<article class="match-card"><strong>${match.bracket || round.title}</strong>${scoreInputs(match, config, prefix)}<button data-de-save="${index}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
+  }).join('')}</div></div><div class="workspace-actions admin-only"><button id="nextDERound" class="primary" ${doubleKORoundDone(day) ? '' : 'disabled'}>Runde abschließen und weiter</button></div>`;
+  document.querySelectorAll('[data-de-save]').forEach(button => button.onclick = () => saveDoubleKOMatch(+button.dataset.deSave));
+  $('nextDERound').onclick = async () => { applyDoubleKORound(day); await save(); };
+}
+async function saveDoubleKOMatch(index) {
+  const day = state.current, match = day.de.rounds.at(-1).matches[index], config = doubleRoundConfig(day);
+  const score = readMatchScore(`de-${match.id}`, config);
+  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
+  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
+  await save();
+}
+function renderHistory() {
+  const currentSeason = season();
+  const days = [...(currentSeason?.days || [])].reverse();
+  $('historyList').innerHTML = days.length ? days.map(day => `<article class="history-card"><div class="history-card-head"><div><h3>${esc(day.date)}</h3><p>${MODES[day.mode]} · ${day.attendees?.length || 0} Spieler</p></div><span class="mode-badge">${MODES[day.mode]}</span></div><p class="history-podium">🥇 ${esc(memberName(day.results?.[0]?.id))} · 🥈 ${esc(memberName(day.results?.[1]?.id))}</p>${canManage ? `<button data-reopen-day="${day.id}">Ergebnisse ändern</button> <button class="danger-soft" data-delete-day="${day.id}">Löschen</button>` : ''}</article>`).join('') : '<div class="empty-state">Noch keine abgeschlossenen Spieltage.</div>';
+  document.querySelectorAll('[data-reopen-day]').forEach(button => button.onclick = () => reopenDay(button.dataset.reopenDay));
+  document.querySelectorAll('[data-delete-day]').forEach(button => button.onclick = () => deleteCompletedDay(button.dataset.deleteDay));
+}
+function renderDeleteList() {
+  const box = $('deleteDaysList'); if (!box) return;
+  const currentSeason = season();
+  const rows = [];
+  if (state.current) rows.push(`<div class="delete-day-row"><span>${esc(state.current.date)} · ${MODES[state.current.mode]}</span><button id="deleteOpenDay">Löschen</button></div>`);
+  (currentSeason?.days || []).slice().reverse().forEach(day => rows.push(`<div class="delete-day-row"><span>${esc(day.date)} · ${MODES[day.mode]}</span><button data-delete-day="${day.id}">Löschen</button></div>`));
+  box.innerHTML = rows.join('') || '<p>Keine Spieltage vorhanden.</p>';
+  $('deleteOpenDay')?.addEventListener('click', deleteCurrentDay);
+  box.querySelectorAll('[data-delete-day]').forEach(button => button.onclick = () => deleteCompletedDay(button.dataset.deleteDay));
+}
+function renderAdminDrawer() {
+  const box = $('seriesAdminDayList'); if (!box) return;
+  const days = [...(season()?.days || [])].reverse();
+  let html = state.current ? `<article class="series-admin-day-card"><h3>Aktueller Spieltag</h3><p>${esc(state.current.date)} · ${MODES[state.current.mode]}</p><button data-open-current>Öffnen</button></article>` : '';
+  html += days.map(day => `<article class="series-admin-day-card"><h3>${esc(day.date)}</h3><p>${MODES[day.mode]}</p><button data-reopen-day="${day.id}">Ergebnisse ändern</button></article>`).join('');
+  box.innerHTML = html || '<p>Noch keine Spieltage vorhanden.</p>';
+  box.querySelector('[data-open-current]')?.addEventListener('click', () => { closeDrawer(); selectTab('spieltag'); });
+  box.querySelectorAll('[data-reopen-day]').forEach(button => button.onclick = () => reopenDay(button.dataset.reopenDay));
+}
+function renderAll() {
+  renderPermissions(); renderSeason(); renderRanking(); renderCurrent(); renderHistory(); renderDeleteList(); renderAdminDrawer(); updateModeFields();
+}
 
-document.addEventListener('DOMContentLoaded',()=>{
-  const del=$('deleteCurrentDayBtn');
-  if(del) del.onclick=deleteCurrentDay;
-});
+// ---------- Aktionen ----------
+function selectedAttendees() {
+  return [...document.querySelectorAll('[data-attend]:checked')].map(input => input.dataset.attend);
+}
+async function saveParticipants() {
+  if (!canManage || !state.current) return;
+  state.current.attendees = selectedAttendees();
+  await save(); toast('Teilnehmer gespeichert.');
+}
+async function drawAndStart() {
+  if (!canManage || !state.current) return;
+  const ids = selectedAttendees();
+  if (ids.length < 2) return toast('Bitte mindestens zwei Teilnehmer auswählen.');
+  const day = state.current;
+  day.attendees = ids; day.status = 'laeuft'; day.startedAt = new Date().toISOString();
+  if (day.mode === 'swiss') {
+    day.engine = 'swiss'; day.swissRoundsData = []; pairSwissRound(day);
+  } else if (day.mode === 'groupsko') {
+    day.engine = 'groups'; setupGroups(day);
+  } else if (day.mode === 'doubleko') {
+    day.engine = 'doubleko'; setupDoubleKO(day);
+  } else {
+    Object.assign(day, makeSingleElimination(ids));
+  }
+  await save(); toast('Turnier ausgelost und gestartet.');
+}
+async function createDay() {
+  if (!canManage) return toast('Nur Admins und Captains dürfen Spieltage einrichten.');
+  const currentSeason = season();
+  if (!currentSeason) return toast('Bitte zuerst eine Saison erstellen.');
+  if (currentSeason.status === 'abgeschlossen') return toast('Diese Saison ist abgeschlossen.');
+  if (state.current) { selectTab('spieltag'); return toast('Es gibt bereits einen offenen Spieltag.'); }
+  const mode = $('dayMode')?.value || 'premier';
+  const qualifiers = [...document.querySelectorAll('[data-qualify-place]:checked')].map(x => +x.value).sort((a, b) => a - b);
+  if (mode === 'groupsko' && !qualifiers.length) return toast('Mindestens einen Gruppenplatz auswählen.');
+  const swissFormat = { format: $('swissFormat')?.value || 'legs', win: +($('swissLegsToWin')?.value || 3), legsPerSet: +($('swissLegsPerSet')?.value || 3) };
+  const groupFormat = { format: $('groupFormat')?.value || 'legs', win: +($('groupLegsToWin')?.value || 3), legsPerSet: +($('groupLegsPerSet')?.value || 3) };
+  state.current = {
+    id: uid(), seasonId: currentSeason.id, status: 'vorbereitung', engine: 'draft',
+    date: $('dayDate')?.value || new Date().toISOString().slice(0, 10),
+    targetSize: +($('daySize')?.value || 0), mode, out: $('gameOut')?.value || 'Double Out',
+    totalRounds: +($('swissRounds')?.value || 4), swissFormat,
+    groupCount: $('groupCount')?.value || 'auto', groupDrawMode: $('groupDrawMode')?.value || 'random',
+    qualifyPlaces: qualifiers, groupFormat, roundConfig: collectRoundConfig(), attendees: []
+  };
+  await save(); selectTab('spieltag'); toast('Spieltag angelegt. Jetzt Teilnehmer auswählen.');
+}
+async function deleteCurrentDay() {
+  if (!canManage || !state.current) return;
+  if (!confirm('Aktuellen Spieltag wirklich löschen?')) return;
+  state.current = null; await save(); toast('Spieltag gelöscht.');
+}
+async function deleteCompletedDay(id) {
+  if (!canManage) return;
+  const currentSeason = season(), index = currentSeason.days.findIndex(day => day.id === id);
+  if (index < 0) return;
+  if (!confirm('Abgeschlossenen Spieltag löschen und Punkte zurückrechnen?')) return;
+  rollbackDay(currentSeason, currentSeason.days[index]); currentSeason.days.splice(index, 1); await save();
+}
+async function reopenDay(id) {
+  if (!canManage) return;
+  if (state.current) return toast('Bitte zuerst den offenen Spieltag beenden oder löschen.');
+  const currentSeason = season(), index = currentSeason.days.findIndex(day => day.id === id);
+  if (index < 0) return;
+  if (!confirm('Spieltag zur Bearbeitung öffnen? Punkte werden vorübergehend zurückgenommen.')) return;
+  const day = currentSeason.days[index]; rollbackDay(currentSeason, day); currentSeason.days.splice(index, 1);
+  state.current = { ...day, status: 'laeuft', results: undefined, finishedAt: undefined };
+  await save(); closeDrawer(); selectTab('spieltag');
+}
+async function createSeason() {
+  const name = $('newSeasonName').value.trim(); if (!name) return toast('Bitte Saisonnamen eingeben.');
+  const newSeason = blankSeason(name); state.members.filter(m => PLAYER_ROLES.includes(m.rolle)).forEach(m => newSeason.ranking[m.id] = blankStats());
+  state.seasons.push(newSeason); state.activeSeasonId = newSeason.id; $('newSeasonName').value = ''; await save();
+}
+async function finishSeason() {
+  const currentSeason = season(); if (!currentSeason) return;
+  if (state.current) return toast('Bitte zuerst den offenen Spieltag beenden oder löschen.');
+  if (!confirm(`${currentSeason.name} abschließen?`)) return;
+  currentSeason.status = 'abgeschlossen'; currentSeason.closedAt = new Date().toISOString(); await save();
+}
+async function deleteSeason() {
+  const currentSeason = season(); if (!currentSeason) return;
+  if (state.current?.seasonId === currentSeason.id) return toast('Bitte zuerst den offenen Spieltag löschen.');
+  if (!confirm(`${currentSeason.name} dauerhaft löschen?`)) return;
+  state.seasons = state.seasons.filter(s => s.id !== currentSeason.id);
+  if (!state.seasons.length) state.seasons = [blankSeason()];
+  state.activeSeasonId = state.seasons[0].id; await save();
+}
+function openProfile(id) {
+  const member = state.members.find(m => m.id === id); if (!member) return;
+  const stats = season()?.ranking?.[id] || blankStats();
+  $('profileContent').innerHTML = `<h2>${esc(member.name)}</h2><p>${esc(member.rolle)}</p><div class="profile-stats"><div><strong>${stats.points}</strong>Punkte</div><div><strong>${stats.days}</strong>Spieltage</div><div><strong>${stats.wins}</strong>Siege</div><div><strong>${stats.titles}</strong>Titel</div><div><strong>${stats.legsFor}:${stats.legsAgainst}</strong>Legs</div><div><strong>${stats.legsFor - stats.legsAgainst}</strong>Diff.</div></div>`;
+  $('profileModal').hidden = false;
+}
+function selectTab(name) {
+  document.querySelectorAll('.serie-tabs button').forEach(button => button.classList.toggle('active', button.dataset.tab === name));
+  document.querySelectorAll('.serie-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${name}`));
+}
+function updateModeFields() {
+  const mode = $('dayMode')?.value || 'premier';
+  if ($('swissRoundsWrap')) $('swissRoundsWrap').hidden = mode !== 'swiss';
+  if ($('swissFormatWrap')) $('swissFormatWrap').hidden = mode !== 'swiss';
+  if ($('groupsConfigWrap')) $('groupsConfigWrap').hidden = mode !== 'groupsko';
+  if ($('koRoundSettings')) $('koRoundSettings').hidden = mode === 'swiss';
+}
+function closeSeasonPicker() { $('seasonPickerMenu').hidden = true; $('seasonPickerButton').setAttribute('aria-expanded', 'false'); }
+function openDrawer() { if (!canManage) return; $('seriesAdminDrawer').classList.add('open'); $('seriesAdminDrawerBackdrop').hidden = false; renderAdminDrawer(); }
+function closeDrawer() { $('seriesAdminDrawer').classList.remove('open'); $('seriesAdminDrawerBackdrop').hidden = true; }
 
-document.addEventListener('click',event=>{
-  const button=event.target.closest?.('[data-delete-day]');
-  if(button) deleteCompletedDay(button.dataset.deleteDay);
-});
+// ---------- Events ----------
+$('startDayBtn')?.addEventListener('click', createDay);
+$('createSeasonBtn')?.addEventListener('click', createSeason);
+$('syncMembersBtn')?.addEventListener('click', () => syncMembers(true));
+$('finishSeasonBtn')?.addEventListener('click', finishSeason);
+$('deleteSeasonBtn')?.addEventListener('click', deleteSeason);
+$('deleteCurrentDayBtn')?.addEventListener('click', deleteCurrentDay);
+$('modeFilter')?.addEventListener('change', renderRanking);
+$('dayMode')?.addEventListener('change', updateModeFields);
+$('closeProfile')?.addEventListener('click', () => $('profileModal').hidden = true);
+$('profileModal')?.addEventListener('click', e => { if (e.target === $('profileModal')) $('profileModal').hidden = true; });
+$('seasonPickerButton')?.addEventListener('click', e => { e.stopPropagation(); const menu = $('seasonPickerMenu'); menu.hidden = !menu.hidden; });
+document.addEventListener('click', e => { if (!e.target.closest('.season-picker')) closeSeasonPicker(); });
+document.querySelectorAll('.serie-tabs button').forEach(button => button.addEventListener('click', () => selectTab(button.dataset.tab)));
+$('seriesAdminMenuBtn')?.addEventListener('click', openDrawer);
+$('closeSeriesAdminDrawer')?.addEventListener('click', closeDrawer);
+$('seriesAdminDrawerBackdrop')?.addEventListener('click', closeDrawer);
+document.querySelectorAll('[data-drawer-tab]').forEach(button => button.addEventListener('click', () => { closeDrawer(); selectTab(button.dataset.drawerTab); }));
+
+$('dayDate').value = new Date().toISOString().slice(0, 10);
+updateModeFields();
+load().catch(error => { console.error(error); toast(`Daten konnten nicht geladen werden: ${error?.message || error}`); });
