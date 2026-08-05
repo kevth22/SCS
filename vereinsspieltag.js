@@ -75,6 +75,152 @@ async function syncMembers(show=true){
   await setDoc(REF,{...state,updatedAt:serverTimestamp()});
   if(show)toast(`${next.length} Spieler synchronisiert.`)
 }
+
+function activePreparedDay(){
+  return state.current && state.current.status === 'vorbereitung' ? state.current : null;
+}
+
+function collectRoundSettings(){
+  const result={};
+  document.querySelectorAll('[data-round-setting]').forEach(row=>{
+    const key=row.dataset.roundSetting;
+    result[key]={
+      system: row.querySelector('[data-field="system"]')?.value || 'legs',
+      win: +(row.querySelector('[data-field="win"]')?.value || 3),
+      legsPerSet: +(row.querySelector('[data-field="legsPerSet"]')?.value || 3)
+    };
+  });
+  return result;
+}
+
+function selectedAttendees(){
+  return [...document.querySelectorAll('[data-attend]:checked')].map(x=>x.dataset.attend);
+}
+
+function readPreparationSettings(){
+  const mode=$('dayMode')?.value || state.current?.mode || 'premier';
+  return {
+    date:$('dayDate')?.value || state.current?.date || new Date().toISOString().slice(0,10),
+    mode,
+    out:$('gameOut')?.value || 'Double Out',
+    swissRounds:+($('swissRounds')?.value || 4),
+    legsToWin:+($('legsToWin')?.value || 3),
+    groupCount:$('groupCount')?.value || 'auto',
+    groupQualifiers:[...document.querySelectorAll('[data-group-qualifier]:checked')].map(x=>+x.value),
+    groupDraw:$('groupDraw')?.value || 'random',
+    groupSystem:$('groupSystem')?.value || 'legs',
+    groupWin:+($('groupWin')?.value || 3),
+    groupLegsPerSet:+($('groupLegsPerSet')?.value || 3),
+    roundSettings:collectRoundSettings(),
+    targetSize:+($('daySize')?.value || 0)
+  };
+}
+
+function renderPreparedDayEditor(){
+  const box=$('preparedDayEditor');
+  if(!box) return;
+  const c=activePreparedDay();
+  if(!c){
+    box.hidden=true;
+    box.innerHTML='';
+    return;
+  }
+
+  const attendees=c.attendees || [];
+  box.hidden=false;
+  box.innerHTML=`
+    <div class="prepared-head">
+      <div>
+        <span class="eyebrow">Vorbereitung</span>
+        <h3>${esc(MODES[c.mode]||c.mode)} · ${esc(c.date)}</h3>
+        <p>Modus steht fest. Größe, Teilnehmer und Einstellungen dürfen bis zur Auslosung geändert werden.</p>
+      </div>
+      <span class="pill">Noch nicht ausgelost</span>
+    </div>
+
+    <label>Geplante Turniergröße
+      <input id="preparedSize" type="number" min="2" max="128" value="${c.targetSize || attendees.length || ''}" placeholder="z. B. 16">
+    </label>
+
+    <div class="prepared-actions">
+      <button id="savePreparationBtn">Einstellungen speichern</button>
+      <button id="drawPreparedDayBtn" class="primary">Auslosen und starten</button>
+      <button id="cancelPreparedDayBtn" class="danger-soft">Vorbereitung löschen</button>
+    </div>
+    <p class="hint">${attendees.length} Spieler ausgewählt. Die Größe ist nur eine Planung; ausgelost werden die tatsächlich ausgewählten Spieler.</p>
+  `;
+
+  $('savePreparationBtn').onclick=savePreparation;
+  $('drawPreparedDayBtn').onclick=drawPreparedDay;
+  $('cancelPreparedDayBtn').onclick=cancelPreparedDay;
+}
+
+async function savePreparation(){
+  if(!canManage) return toast('Nur Admins und Captains dürfen Spieltage bearbeiten.');
+  const c=activePreparedDay();
+  if(!c) return toast('Kein vorbereiteter Spieltag vorhanden.');
+
+  const settings=readPreparationSettings();
+  settings.targetSize=+($('preparedSize')?.value || settings.targetSize || 0);
+  const attendees=selectedAttendees();
+
+  Object.assign(c,settings,{
+    attendees,
+    status:'vorbereitung',
+    updatedAt:new Date().toISOString()
+  });
+
+  await save();
+  toast('Vorbereitung gespeichert.');
+}
+
+async function drawPreparedDay(){
+  if(!canManage) return toast('Nur Admins und Captains dürfen auslosen.');
+  const c=activePreparedDay();
+  if(!c) return toast('Kein vorbereiteter Spieltag vorhanden.');
+
+  const attendees=selectedAttendees();
+  if(attendees.length < 2) return toast('Bitte mindestens zwei Spieler auswählen.');
+
+  const settings=readPreparationSettings();
+  settings.targetSize=+($('preparedSize')?.value || settings.targetSize || attendees.length);
+  Object.assign(c,settings,{attendees,status:'laeuft',startedAt:new Date().toISOString()});
+
+  if(c.mode==='swiss'){
+    c.engine='swiss';
+    c.totalRounds=Math.max(1,c.swissRounds||4);
+    c.swissMatches=[];
+    pairSwiss(c);
+  } else if(c.mode==='groupsko'){
+    c.engine='groups';
+    setupGroupsDay(c);
+  } else if(c.mode==='doubleko'){
+    // Existing version uses manual placement for Doppel-K.-o.
+    // Keep that engine, but only create it now after explicit drawing.
+    c.engine='manual';
+    c.manualType='doubleko';
+  } else {
+    Object.assign(c,makeKO(attendees,c.mode));
+    c.status='laeuft';
+    c.date=settings.date;
+    c.out=settings.out;
+    c.legsToWin=settings.legsToWin;
+    c.roundSettings=settings.roundSettings;
+    c.targetSize=settings.targetSize;
+  }
+
+  await save();
+  toast('Turnier wurde ausgelost und gestartet.');
+}
+
+async function cancelPreparedDay(){
+  if(!canManage) return;
+  if(!confirm('Vorbereiteten Spieltag wirklich löschen?')) return;
+  state.current=null;
+  await save();
+  toast('Vorbereitung gelöscht.');
+}
+
 function emptyStats(){return{points:0,days:0,wins:0,titles:0,legsFor:0,legsAgainst:0,byMode:{},history:[]}}
 function statFor(s,id,mode='all'){const base=s.ranking?.[id]||emptyStats();return mode==='all'?base:{...emptyStats(),...(base.byMode?.[mode]||{}),history:(base.history||[]).filter(h=>h.mode===mode)}}
 function rankingRows(){const s=season(),filter=$('modeFilter')?.value||'all';return state.members.map(m=>({m,st:statFor(s,m.id,filter)})).sort((a,b)=>b.st.points-a.st.points||b.st.titles-a.st.titles||(b.st.legsFor-b.st.legsAgainst)-(a.st.legsFor-a.st.legsAgainst)||a.m.name.localeCompare(b.m.name,'de'))}
@@ -87,7 +233,7 @@ function renderAll(){updateModeFields();
     permissionHint.textContent=login
       ? `Deine aktuell geladene Rolle ist „${currentRole||'gast'}“. Nur Admins und Captains können Spieltage anlegen und Ergebnisse bearbeiten.`
       : 'Bitte anmelden. Nur Admins und Captains können Spieltage anlegen und Ergebnisse bearbeiten.';
-  }renderSeason();renderRanking();renderAttendance();renderCurrent();renderHistory();renderSeriesAdminDrawerList()}
+  }renderSeason();renderRanking();renderAttendance();renderCurrent();renderHistory();renderPreparedDayEditor();renderSeriesAdminDrawerList()}
 function renderSeason(){const s=season();$('seasonTitle').textContent=s?`${s.name}${s.status==='abgeschlossen'?' · Abgeschlossen':''}`:'Keine Saison';$('seasonPickerButton').textContent=`${s?.name||'Saison auswählen'} ▾`;$('seasonPickerMenu').innerHTML=state.seasons.map(x=>`<button type="button" role="option" data-season-id="${x.id}" class="${x.id===state.activeSeasonId?'active':''}">${esc(x.name)}</button>`).join('');document.querySelectorAll('[data-season-id]').forEach(b=>b.onclick=()=>{state.activeSeasonId=b.dataset.seasonId;closeSeasonPicker();renderAll()});const rows=rankingRows();$('summaryPlayers').textContent=state.members.length;$('summaryDays').textContent=s?.days?.length||0;$('summaryLeader').textContent=rows[0]?.st.points>0?rows[0].m.name:'–';$('summaryMode').textContent=s?.days?.length?MODES[s.days[s.days.length-1].mode]:'–'}
 function renderRanking(){const rows=rankingRows();$('rankingBody').innerHTML=rows.length?rows.map((x,i)=>`<tr data-player="${x.m.id}"><td>${i+1}</td><td><strong>${esc(x.m.name)}</strong><br><small>${esc(x.m.rolle)}</small></td><td>${x.st.days||0}</td><td>${x.st.wins||0}</td><td>${x.st.titles||0}</td><td>${x.st.legsFor||0}:${x.st.legsAgainst||0}</td><td>${(x.st.legsFor||0)-(x.st.legsAgainst||0)}</td><td><strong>${x.st.points||0}</strong></td></tr>`).join(''):'<tr><td colspan="8">Noch keine spielberechtigten Mitglieder vorhanden.</td></tr>';document.querySelectorAll('[data-player]').forEach(r=>r.onclick=()=>openProfile(r.dataset.player))}
 function renderAttendance(){$('attendanceList').innerHTML=state.members.length?state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${m.rolle})</small></span><input type="checkbox" data-attend="${m.id}" checked></label>`).join(''):'<p class="hint">Noch keine Mitglieder mit passender Rolle gefunden.</p>'}
@@ -103,7 +249,15 @@ function autoAdvance(c){c.rounds.forEach((r,ri)=>c.matches[r].forEach((m,mi)=>{i
 function swissStandings(c){const s={};c.attendees.forEach(id=>s[id]={id,mp:0,wins:0,legsFor:0,legsAgainst:0,opponents:[],byes:0,buchholz:0});(c.swissMatches||[]).flat().forEach(m=>{if(!m.completed)return;if(m.bye){s[m.p1].mp+=2;s[m.p1].wins++;s[m.p1].byes++;return}s[m.p1].legsFor+=m.s1;s[m.p1].legsAgainst+=m.s2;s[m.p2].legsFor+=m.s2;s[m.p2].legsAgainst+=m.s1;s[m.p1].opponents.push(m.p2);s[m.p2].opponents.push(m.p1);s[m.winner].mp+=2;s[m.winner].wins++});Object.values(s).forEach(x=>x.buchholz=x.opponents.reduce((sum,id)=>sum+(s[id]?.mp||0),0));return Object.values(s).sort((a,b)=>b.mp-a.mp||b.buchholz-a.buchholz||(b.legsFor-b.legsAgainst)-(a.legsFor-a.legsAgainst)||b.legsFor-a.legsFor)}
 function pairSwiss(c){const played=new Set();(c.swissMatches||[]).flat().forEach(m=>{if(m.p1&&m.p2)played.add([m.p1,m.p2].sort().join('|'))});let pool=swissStandings(c).map(x=>x.id),matches=[];if(pool.length%2===1){const standings=swissStandings(c);let byeId=[...standings].reverse().find(x=>x.byes===0)?.id||pool.at(-1);pool=pool.filter(id=>id!==byeId);matches.push({id:uid(),p1:byeId,p2:null,s1:1,s2:0,winner:byeId,completed:true,bye:true})}while(pool.length){const p1=pool.shift();let idx=pool.findIndex(p2=>!played.has([p1,p2].sort().join('|')));if(idx<0)idx=0;const p2=pool.splice(idx,1)[0];matches.push({id:uid(),p1,p2,s1:null,s2:null,winner:null,completed:false,bye:false})}c.swissMatches.push(matches)}
 
-function renderCurrent(){const c=state.current;if(!c){$('currentDayTitle').textContent='Aktueller Spieltag';$('currentDayInfo').textContent='Kein Spieltag eingerichtet.';$('currentStatus').textContent='Bereit';$('dayWorkspace').innerHTML='<div class="empty-state">Richte zuerst im Bereich Verwaltung einen Spieltag ein. Danach wählst du hier die anwesenden Spieler aus.</div>';return}if(c.engine==='draft'){renderDraftParticipants(c);return}$('currentDayTitle').textContent=MODES[c.mode];$('currentDayInfo').textContent=`${c.date} · ${c.attendees.length} Teilnehmer · ${c.out}`;$('currentStatus').textContent=c.paused?'Pausiert':'Läuft';if(c.engine==='ko')renderKO(c);else if(c.engine==='swiss')renderSwiss(c);else if(c.engine==='groups')renderGroups(c);else renderManual(c)}
+function renderCurrent(){const c=state.current;
+if(c?.status==='vorbereitung'){
+  $('currentDayTitle').textContent=`${MODES[c.mode]||c.mode} – Vorbereitung`;
+  $('currentDayInfo').textContent=`${c.date} · Teilnehmer und Größe noch änderbar`;
+  $('currentStatus').textContent='Vorbereitung';
+  $('dayWorkspace').innerHTML='<div class="empty-state">Der Modus steht fest. Im Bereich Verwaltung kannst du Größe, Regeln und Teilnehmer festlegen und anschließend auslosen.</div>';
+  return;
+}
+if(!c){$('currentDayTitle').textContent='Aktueller Spieltag';$('currentDayInfo').textContent='Kein Spieltag eingerichtet.';$('currentStatus').textContent='Bereit';$('dayWorkspace').innerHTML='<div class="empty-state">Richte zuerst im Bereich Verwaltung einen Spieltag ein. Danach wählst du hier die anwesenden Spieler aus.</div>';return}if(c.engine==='draft'){renderDraftParticipants(c);return}$('currentDayTitle').textContent=MODES[c.mode];$('currentDayInfo').textContent=`${c.date} · ${c.attendees.length} Teilnehmer · ${c.out}`;$('currentStatus').textContent=c.paused?'Pausiert':'Läuft';if(c.engine==='ko')renderKO(c);else if(c.engine==='swiss')renderSwiss(c);else if(c.engine==='groups')renderGroups(c);else renderManual(c)}
 function renderDraftParticipants(c){$('currentDayTitle').textContent=`${MODES[c.mode]} einrichten`;$('currentDayInfo').textContent=`${c.date} · ${c.out} · Spieler für diesen Spieltag auswählen`;$('currentStatus').textContent='Teilnehmer wählen';$('dayWorkspace').innerHTML=`<div class="config-card"><h3>Anwesende Spieler</h3><p class="hint">Wähle jetzt die Spieler aus, die an diesem Tag wirklich dabei sind. Auch ein Admin kann optional mitspielen.</p><div class="attendance-list">${state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${m.rolle})</small></span><input type="checkbox" data-draft-attend="${m.id}"></label>`).join('')||'<p class="hint">Keine auswählbaren Konten vorhanden.</p>'}</div><div class="workspace-actions"><button id="launchDraftDay" class="primary">Spieler übernehmen und Turnier starten</button><button id="cancelDraftDay">Spieltag verwerfen</button></div></div>`;$('launchDraftDay').onclick=launchDraftDay;$('cancelDraftDay').onclick=async()=>{if(confirm('Eingerichteten Spieltag wirklich verwerfen?')){state.current=null;await save()}}}
 async function launchDraftDay(){const c=state.current,ids=[...document.querySelectorAll('[data-draft-attend]:checked')].map(x=>x.dataset.draftAttend);if(ids.length<3)return toast('Mindestens 3 Spieler auswählen.');if(ids.length>16)return toast('Maximal 16 Spieler möglich.');const base={...c,attendees:ids,startedAt:new Date().toISOString()};delete base.engine;if(c.mode==='premier')state.current={...base,...makeKO(ids,c.mode)};else if(c.mode==='swiss'){state.current={...base,engine:'swiss',swissMatches:[]};pairSwiss(state.current)}else if(c.mode==='groupsko'){const count=c.groupCount==='auto'?autoGroupCount(ids.length):+c.groupCount;if(count<2||count>ids.length)return toast('Die Gruppenanzahl passt nicht zur Teilnehmerzahl.');const groups=makeGroups(ids,count,c.groupDrawMode);const minSize=Math.min(...groups.map(g=>g.players.length));if(c.qualifyPlaces.some(x=>x>minSize))return toast(`Die kleinste Gruppe hat nur ${minSize} Spieler.`);state.current={...base,engine:'groups',groups}}else state.current={...base,engine:'manual'};await save();toast('Turnier gestartet.')}
 function renderKO(c){autoAdvance(c);$('dayWorkspace').innerHTML=`<div class="bracket">${c.rounds.map(r=>`<div class="round-column"><h3>${r}</h3>${c.matches[r].map((m,i)=>koMatch(r,m,i)).join('')}</div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;document.querySelectorAll('[data-ko-save]').forEach(b=>b.onclick=()=>saveKOMatch(b.dataset.round,+b.dataset.index));const final=c.matches[c.rounds.at(-1)][0];$('finishCurrent').disabled=!final?.completed;$('finishCurrent').onclick=finishCurrent}
@@ -170,7 +324,7 @@ $('createSeasonBtn').onclick=async()=>{const name=$('newSeasonName').value.trim(
 $('finishSeasonBtn').onclick=async()=>{const s=season();if(!s)return;if(state.current)return toast('Bitte zuerst den aktuellen Spieltag beenden oder verwerfen.');if(s.status==='abgeschlossen')return toast('Die Saison ist bereits abgeschlossen.');if(!confirm(`${s.name} wirklich abschließen? Danach können keine neuen Spieltage mehr hinzugefügt werden.`))return;s.status='abgeschlossen';s.closedAt=new Date().toISOString();await save();toast('Saison abgeschlossen.')};
 $('deleteSeasonBtn').onclick=async()=>{const s=season();if(!s)return;if(state.current)return toast('Bitte zuerst den aktuellen Spieltag beenden oder verwerfen.');if(!confirm(`${s.name} dauerhaft löschen? Alle Spieltage, Ergebnisse und Punkte dieser Saison gehen verloren.`))return;state.seasons=state.seasons.filter(x=>x.id!==s.id);if(!state.seasons.length){const n=blankSeason();state.seasons=[n]}state.activeSeasonId=state.seasons[0].id;await save();toast('Saison gelöscht.')};
 $('dayMode').onchange=()=>{const mode=$('dayMode').value,swiss=mode==='swiss',groups=mode==='groupsko';$('swissRoundsWrap').hidden = $('dayMode').value !== 'swiss';$('swissFormatWrap').hidden=!swiss;$('groupsConfigWrap').hidden=!groups;$('koRoundSettings').hidden=swiss};
-$('startDayBtn').onclick=async()=>{if(state.current)return toast('Es ist bereits ein Spieltag eingerichtet oder aktiv.');const s=season();if(!s)return toast('Bitte zuerst eine Saison erstellen.');if(s.status==='abgeschlossen')return toast('Diese Saison ist abgeschlossen.');const mode=$('dayMode').value,selected=[...document.querySelectorAll('[data-qualify-place]:checked')].map(x=>+x.value).sort((a,b)=>a-b);if(mode==='groupsko'&&!selected.length)return toast('Mindestens eine Gruppenplatzierung auswählen.');state.current={id:uid(),engine:'draft',date:$('dayDate').value||new Date().toISOString().slice(0,10),mode,out:$('gameOut').value,legsToWin:+$('swissLegsToWin').value||3,totalRounds:+$('swissRounds').value||4,roundConfig:collectRoundConfig(),groupCount:$('groupCount').value,groupDrawMode:$('groupDrawMode').value,qualifyPlaces:selected,groupLegsToWin:+$('groupLegsToWin').value||3,attendees:[],configuredAt:new Date().toISOString()};await save();document.querySelector('[data-tab="spieltag"]').click();toast('Spieltag eingerichtet. Jetzt Spieler auswählen.');};
+$('startDayBtn').onclick=startDay;const s=season();if(!s)return toast('Bitte zuerst eine Saison erstellen.');if(s.status==='abgeschlossen')return toast('Diese Saison ist abgeschlossen.');const mode=$('dayMode').value,selected=[...document.querySelectorAll('[data-qualify-place]:checked')].map(x=>+x.value).sort((a,b)=>a-b);if(mode==='groupsko'&&!selected.length)return toast('Mindestens eine Gruppenplatzierung auswählen.');state.current={id:uid(),engine:'draft',date:$('dayDate').value||new Date().toISOString().slice(0,10),mode,out:$('gameOut').value,legsToWin:+$('swissLegsToWin').value||3,totalRounds:+$('swissRounds').value||4,roundConfig:collectRoundConfig(),groupCount:$('groupCount').value,groupDrawMode:$('groupDrawMode').value,qualifyPlaces:selected,groupLegsToWin:+$('groupLegsToWin').value||3,attendees:[],configuredAt:new Date().toISOString()};await save();document.querySelector('[data-tab="spieltag"]').click();toast('Spieltag eingerichtet. Jetzt Spieler auswählen.');};
 
 document.querySelectorAll('.serie-tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.serie-tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.serie-panel').forEach(x=>x.classList.toggle('active',x.id===`tab-${b.dataset.tab}`))});
 $('dayDate').value=new Date().toISOString().slice(0,10);
@@ -192,3 +346,19 @@ document.addEventListener('DOMContentLoaded',()=>{
     updateModeFields();
   }
 });
+
+async function createPreparedDay(){
+  if(!canManage) return toast('Nur Admins und Captains dürfen Spieltage anlegen.');
+  const s=season();
+  if(!s) return toast('Bitte zuerst eine Saison anlegen.');
+  if(state.current && state.current.status!=='abgeschlossen') return toast('Es gibt bereits einen offenen Spieltag.');
+  state.current={
+    id:uid(),seasonId:s.id,
+    date:$('dayDate')?.value||new Date().toISOString().slice(0,10),
+    mode:$('dayMode')?.value||'premier',
+    status:'vorbereitung',attendees:[],targetSize:0,
+    createdAt:new Date().toISOString(),
+    createdBy:login?.benutzername||''
+  };
+  await save();
+}

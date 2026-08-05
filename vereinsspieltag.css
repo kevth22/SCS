@@ -44,3 +44,34 @@
 #koSettingsWrap[hidden]{
   display:none !important;
 }
+
+.prepared-day-editor{
+  margin-top:18px;
+  padding:16px;
+  border:1px solid #555;
+  border-radius:15px;
+  background:#101010;
+}
+.prepared-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:14px;
+}
+.prepared-head h3{margin:3px 0 5px}
+.prepared-head p{margin:0;color:#bcbcbc}
+.prepared-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:13px;
+}
+.danger-soft{
+  background:#161616!important;
+  color:#fff!important;
+  border-color:#777!important;
+}
+@media(max-width:720px){
+  .prepared-head{flex-direction:column}
+}

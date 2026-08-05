@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsspieltag.css?v=11.3">
+  <link rel="stylesheet" href="vereinsspieltag.css?v=11.4">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -120,8 +120,9 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
       </article>
 
       <article class="config-card">
-        <h2>Neuen Spieltag starten</h2>
+        <h2>Neuen Spieltag anlegen</h2>
         <label>Datum<input id="dayDate" type="date"></label>
+        <label>Geplante Größe (später änderbar)<input id="daySize" type="number" min="2" max="128" placeholder="z. B. 16"></label>
         <label>Turniersystem<select id="dayMode">
           <option value="premier">Premier League</option>
           <option value="swiss">Schweizer System</option>
@@ -191,6 +192,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=11.3"></script>
+<script type="module" src="vereinsspieltag.js?v=11.4"></script>
 </body>
 </html>

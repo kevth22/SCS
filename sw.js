@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v11-3-mode-fields";
+const VERSION = "bwe-v11-4-prepare-draw";
 
 const CORE_FILES = [
   "./",
