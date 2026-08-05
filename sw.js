@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v12-2-doubleko-auto";
+const VERSION = "bwe-v13-turniercenter";
 
 const CORE_FILES = [
   "./",

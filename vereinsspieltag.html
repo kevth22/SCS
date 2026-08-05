@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsspieltag.css?v=12.2">
+  <link rel="stylesheet" href="vereinsspieltag.css?v=13.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -99,6 +99,12 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
   <section id="tab-spieltag" class="serie-panel">
     <div class="panel-head"><div><h2 id="currentDayTitle">Aktueller Spieltag</h2><p id="currentDayInfo">Kein Spieltag gestartet.</p></div><span class="pill" id="currentStatus">Bereit</span></div>
+
+    <div id="tournamentViewTabs" class="tournament-view-tabs" hidden>
+      <button id="resultsEntryTab" type="button" class="active">Ergebnisse eintragen</button>
+      <button id="tournamentTreeTab" type="button">Turnierbaum</button>
+    </div>
+
     <div id="dayWorkspace"></div>
     <div id="currentDayAdminActions" class="workspace-actions admin-only" hidden>
       <button id="deleteCurrentDayBtn" class="danger-button">Spieltag löschen</button>
@@ -207,6 +213,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=12.2"></script>
+<script type="module" src="vereinsspieltag.js?v=13.0"></script>
 </body>
 </html>
