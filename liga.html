@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
 
-<meta name="theme-color" content="#c40030">
+<meta name="theme-color" content="#000000">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -21,33 +21,21 @@
 <header class="app-header">
   <img src="black-white-eagles-logo.png" class="logo" alt="Black White Eagles Logo">
   <h1>Liga</h1>
-  <p>Tabellen & Ergebnisse</p>
+  <p>NWDV Kreisliga 9</p>
 </header>
 
 <main class="app-container">
-
-  <section class="info-card">
-    <h2>🏆 B1 Ruhrpott Liga</h2>
-
+  <section class="info-card liga-iframe-card">
+    <h2>🏆 NWDV Kreisliga 9</h2>
     <iframe
-      src="https://www.2k-dart-software.com/frontend/events/11/event/1255/table"
+      src="https://www.2k-dart-software.com/frontend/events/10/event/1592/participants"
+      title="NWDV Kreisliga 9"
       width="100%"
-      height="700"
-      style="border:none;">
+      height="800"
+      loading="lazy"
+      style="border:0; border-radius:12px; background:#fff;">
     </iframe>
   </section>
-
-  <section class="info-card">
-    <h2>🏆 C2 Rhein Ruhr</h2>
-
-    <iframe
-      src="https://www.2k-dart-software.com/frontend/events/6/event/16658/table"
-      width="100%"
-      height="700"
-      style="border:none;">
-    </iframe>
-  </section>
-
 </main>
 
 <nav class="bottom-nav">
@@ -55,7 +43,6 @@
   <a href="spieltag-center.html">🚌<br>Spieltag</a>
   <a href="kalender.html">📅<br>Kalender</a>
   <a href="vereinsspieltag.html">🎖️<br>Vereins-Serie</a>
-  <a href="kader.html">👥<br>Kader</a>
 </nav>
 
 <script type="module" src="push-foreground.js?v=10.0.1"></script>

@@ -54,7 +54,7 @@
   display: block;
   width: 100%;
   padding: 15px;
-  border: 1px solid #e00022;
+  border: 1px solid #ffffff;
   border-radius: 12px;
   text-align: center;
   font-weight: 700;
@@ -76,7 +76,7 @@
 
 .konto-meldung.fehler {
   background: rgba(224,0,34,.14);
-  border: 1px solid #e00022;
+  border: 1px solid #ffffff;
   color: #ff9aaa;
 }
 

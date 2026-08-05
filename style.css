@@ -2368,3 +2368,53 @@ a{color:#fff;}
 .bottom-nav{background:#050505!important;border-top:1px solid #444!important;}
 .bottom-nav a.active,.bottom-nav a:hover{color:#fff!important;}
 .badge,.status-pill{filter:grayscale(1);}
+
+
+/* === Black White Eagles: konsequentes Schwarz-Weiß-Design === */
+:root {
+  --bwe-black: #050505;
+  --bwe-dark: #121212;
+  --bwe-card: #1a1a1a;
+  --bwe-border: #4a4a4a;
+  --bwe-silver: #d7d7d7;
+  --bwe-white: #ffffff;
+}
+html, body { background: var(--bwe-black) !important; color: var(--bwe-white) !important; }
+.app-header { background: linear-gradient(135deg, #050505, #202020) !important; border-bottom-color: #fff !important; }
+.app-header h1, .app-header p, h1, h2, h3 { color: #fff !important; }
+.info-card, .quick-card, .konto-card, .config-card, .match-card,
+.account-controls, .popup-box, .calendar-card, .game-card {
+  background: var(--bwe-card) !important;
+  border-color: var(--bwe-border) !important;
+  color: var(--bwe-white) !important;
+}
+a { color: #fff; }
+button, .main-button, .primary, .konto-card button, .pwa-install-button {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #fff !important;
+}
+.secondary-button, .konto-link-button, .quick-card {
+  background: #171717 !important;
+  color: #fff !important;
+  border-color: #d7d7d7 !important;
+}
+input, select, textarea {
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #555 !important;
+}
+.bottom-nav { background: #000 !important; border-top: 1px solid #555 !important; }
+.bottom-nav a { color: #fff !important; }
+.red, .pill, .konto-meldung.fehler { color: #fff !important; }
+.pill { background: #333 !important; border: 1px solid #fff !important; }
+.logo { background: transparent !important; }
+
+
+/* NWDV Kreisliga 9 – eingebettete 2K-Dart-Seite */
+.liga-iframe-card { padding: 14px; overflow: hidden; }
+.liga-iframe-card iframe { display:block; min-height: 75vh; }
+@media (max-width: 600px) {
+  .liga-iframe-card { padding: 8px; }
+  .liga-iframe-card iframe { height: 78vh; border-radius: 10px; }
+}

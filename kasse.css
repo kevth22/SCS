@@ -3,7 +3,7 @@
   --kasse-panel: rgba(255,255,255,.055);
   --kasse-border: rgba(255,255,255,.1);
   --kasse-muted: #a9a9b2;
-  --kasse-red: #e00022;
+  --kasse-red: #ffffff;
 }
 
 .kasse-app { padding-bottom: 120px; }

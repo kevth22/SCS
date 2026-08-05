@@ -28,7 +28,7 @@
 }
 
 .danger-button {
-  border-color: #e00022;
+  border-color: #ffffff;
   color: #ff9bab;
 }
 
@@ -37,6 +37,6 @@
   padding: 15px;
   text-align: left;
   background: #111;
-  border-left: 4px solid #e00022;
+  border-left: 4px solid #ffffff;
   border-radius: 8px;
 }
