@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v11-1-cache-fix";
+const VERSION = "bwe-v11-3-mode-fields";
 
 const CORE_FILES = [
   "./",
