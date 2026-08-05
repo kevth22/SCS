@@ -22,7 +22,10 @@
       <span class="eyebrow">Aktuelle Saison</span>
       <h2 id="seasonTitle">Saison wird geladen …</h2>
     </div>
-    <select id="seasonSelect" aria-label="Saison auswählen"></select>
+    <div class="season-picker">
+      <button id="seasonPickerButton" type="button" aria-haspopup="listbox" aria-expanded="false">Saison auswählen ▾</button>
+      <div id="seasonPickerMenu" class="season-picker-menu" role="listbox" hidden></div>
+    </div>
   </section>
 
   <section class="summary-grid">
@@ -104,6 +107,6 @@
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=7"></script>
+<script type="module" src="vereinsspieltag.js?v=8"></script>
 </body>
 </html>
