@@ -68,7 +68,7 @@ async function load(){await refreshSeriesPermission();const snap=await getDoc(RE
 async function syncMembers(show=true){
   const qs=await getDocs(collection(db,'mitglieder'));
   const next=[];
-  qs.forEach(d=>{const x=d.data();const role=String(x.rolle||'').toLowerCase();if(x.aktiv===true&&allowedRoles.includes(role)){next.push({id:d.id,name:x.nickname||x.spitzname||x.benutzername||d.id,rolle:role})}});
+  qs.forEach(d=>{const x=d.data();const role=String(x.rolle||'').toLowerCase();if(x.aktiv!==false&&allowedRoles.includes(role)){next.push({id:d.id,name:x.nickname||x.spitzname||x.benutzername||d.id,rolle:role})}});
   next.sort((a,b)=>a.name.localeCompare(b.name,'de'));
   state.members=next;
   const s=season();if(s){s.ranking??={};next.forEach(m=>s.ranking[m.id]??=emptyStats())}
@@ -371,35 +371,54 @@ function renderAll(){updateModeFields();
     permissionHint.textContent=login
       ? `Deine aktuell geladene Rolle ist „${currentRole||'gast'}“. Nur Admins und Captains können Spieltage anlegen und Ergebnisse bearbeiten.`
       : 'Bitte anmelden. Nur Admins und Captains können Spieltage anlegen und Ergebnisse bearbeiten.';
-  }renderSeason();updateSeasonSummaryFromSingleSource();renderRanking();renderAttendance();renderCurrent();renderHistory();renderPreparedDayEditor();renderDeleteDaysList();renderSeriesAdminDrawerList()}
+  }renderSeason();updateSeasonSummaryFromSingleSource();renderRanking();renderCurrent();renderHistory();renderPreparedDayEditor();renderDeleteDaysList();renderSeriesAdminDrawerList()}
 function renderSeason(){const s=season();$('seasonTitle').textContent=s?`${s.name}${s.status==='abgeschlossen'?' · Abgeschlossen':''}`:'Keine Saison';$('seasonPickerButton').textContent=`${s?.name||'Saison auswählen'} ▾`;$('seasonPickerMenu').innerHTML=state.seasons.map(x=>`<button type="button" role="option" data-season-id="${x.id}" class="${x.id===state.activeSeasonId?'active':''}">${esc(x.name)}</button>`).join('');document.querySelectorAll('[data-season-id]').forEach(b=>b.onclick=()=>{state.activeSeasonId=b.dataset.seasonId;closeSeasonPicker();renderAll()});const rows=rankingRows();$('summaryPlayers').textContent=state.members.length;$('summaryDays').textContent=currentSeasonDayCount();$('summaryLeader').textContent=rows[0]?.st.points>0?rows[0].m.name:'–';$('summaryMode').textContent=s?.days?.length?MODES[s.days[s.days.length-1].mode]:'–'}
 function renderRanking(){const rows=rankingRows();$('rankingBody').innerHTML=rows.length?rows.map((x,i)=>`<tr data-player="${x.m.id}"><td>${i+1}</td><td><strong>${esc(x.m.name)}</strong><br><small>${esc(x.m.rolle)}</small></td><td>${x.st.days||0}</td><td>${x.st.wins||0}</td><td>${x.st.titles||0}</td><td>${x.st.legsFor||0}:${x.st.legsAgainst||0}</td><td>${(x.st.legsFor||0)-(x.st.legsAgainst||0)}</td><td><strong>${x.st.points||0}</strong></td></tr>`).join(''):'<tr><td colspan="8">Noch keine spielberechtigten Mitglieder vorhanden.</td></tr>';document.querySelectorAll('[data-player]').forEach(r=>r.onclick=()=>openProfile(r.dataset.player))}
-function renderAttendance(){$('attendanceList').innerHTML=state.members.length?state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${m.rolle})</small></span><input type="checkbox" data-attend="${m.id}" checked></label>`).join(''):'<p class="hint">Noch keine Mitglieder mit passender Rolle gefunden.</p>'}
-
-function bracketSize(n){return n<=4?4:n<=8?8:16}
-function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function memberName(id){return state.members.find(m=>m.id===id)?.name||'Offen'}
-function collectRoundConfig(){const cfg={};document.querySelectorAll('[data-round-config]').forEach(row=>{cfg[row.dataset.roundConfig]={format:row.querySelector('[data-format]').value,toWin:+row.querySelector('[data-win]').value||3,legsPerSet:+row.querySelector('[data-legs-set]').value||3}});return cfg}
-function roundRule(c,r){return c.roundConfig?.[r]||{format:'legs',toWin:c.legsToWin||3,legsPerSet:3}}
-function ruleText(rule){return rule.format==='sets'?`First to ${rule.toWin} Sets · ${rule.legsPerSet} Legs pro Set`:`First to ${rule.toWin} Legs`}
-function makeKO(ids,mode){const size=bracketSize(ids.length),slots=shuffle(ids).concat(Array(size-ids.length).fill(null));const names=size===16?['Achtelfinale','Viertelfinale','Halbfinale','Finale']:size===8?['Viertelfinale','Halbfinale','Finale']:['Halbfinale','Finale'];const matches={};names.forEach((r,ri)=>matches[r]=Array(size/2**(ri+1)).fill(0).map((_,i)=>({id:uid(),p1:ri?null:slots[i*2],p2:ri?null:slots[i*2+1],s1:null,s2:null,winner:null,completed:false,bye:false})));return{engine:'ko',mode,rounds:names,matches,size}}
-function autoAdvance(c){c.rounds.forEach((r,ri)=>c.matches[r].forEach((m,mi)=>{if(ri===0&&!m.completed&&((m.p1&&!m.p2)||(!m.p1&&m.p2))){m.winner=m.p1||m.p2;m.completed=true;m.bye=true}if(m.completed&&m.winner&&ri<c.rounds.length-1){const n=c.matches[c.rounds[ri+1]][Math.floor(mi/2)];if(mi%2===0)n.p1=m.winner;else n.p2=m.winner}}))}
-function swissStandings(c){const s={};c.attendees.forEach(id=>s[id]={id,mp:0,wins:0,legsFor:0,legsAgainst:0,opponents:[],byes:0,buchholz:0});(c.swissMatches||[]).flat().forEach(m=>{if(!m.completed)return;if(m.bye){s[m.p1].mp+=2;s[m.p1].wins++;s[m.p1].byes++;return}s[m.p1].legsFor+=m.s1;s[m.p1].legsAgainst+=m.s2;s[m.p2].legsFor+=m.s2;s[m.p2].legsAgainst+=m.s1;s[m.p1].opponents.push(m.p2);s[m.p2].opponents.push(m.p1);s[m.winner].mp+=2;s[m.winner].wins++});Object.values(s).forEach(x=>x.buchholz=x.opponents.reduce((sum,id)=>sum+(s[id]?.mp||0),0));return Object.values(s).sort((a,b)=>b.mp-a.mp||b.buchholz-a.buchholz||(b.legsFor-b.legsAgainst)-(a.legsFor-a.legsAgainst)||b.legsFor-a.legsFor)}
-function pairSwiss(c){const played=new Set();(c.swissMatches||[]).flat().forEach(m=>{if(m.p1&&m.p2)played.add([m.p1,m.p2].sort().join('|'))});let pool=swissStandings(c).map(x=>x.id),matches=[];if(pool.length%2===1){const standings=swissStandings(c);let byeId=[...standings].reverse().find(x=>x.byes===0)?.id||pool.at(-1);pool=pool.filter(id=>id!==byeId);matches.push({id:uid(),p1:byeId,p2:null,s1:1,s2:0,winner:byeId,completed:true,bye:true})}while(pool.length){const p1=pool.shift();let idx=pool.findIndex(p2=>!played.has([p1,p2].sort().join('|')));if(idx<0)idx=0;const p2=pool.splice(idx,1)[0];matches.push({id:uid(),p1,p2,s1:null,s2:null,winner:null,completed:false,bye:false})}c.swissMatches.push(matches)}
-
-function renderCurrent(){const c=state.current;
-const currentActions=$('currentDayAdminActions');
-if(currentActions) currentActions.hidden=!(canManage&&c);
-if(c?.status==='vorbereitung'){
-  $('currentDayTitle').textContent=`${MODES[c.mode]||c.mode} – Vorbereitung`;
-  $('currentDayInfo').textContent=`${c.date} · Teilnehmer und Größe noch änderbar`;
-  $('currentStatus').textContent='Vorbereitung';
-  $('dayWorkspace').innerHTML='<div class="empty-state">Der Modus steht fest. Im Bereich Verwaltung kannst du Größe, Regeln und Teilnehmer festlegen und anschließend auslosen.</div>';
-  return;
+function renderAttendance(){
+  const list=$('attendanceList');
+  if(!list) return;
+  const selected=new Set(state.current?.attendees||[]);
+  list.innerHTML=state.members.length
+    ? state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${esc(m.rolle)})</small></span><input type="checkbox" data-attend="${m.id}" ${selected.size?(selected.has(m.id)?'checked':''):'checked'}></label>`).join('')
+    : '<p class="hint">Noch keine aktiven Mitglieder, Captains, Kassenwarte oder Admins gefunden.</p>';
 }
-if(!c){$('currentDayTitle').textContent='Aktueller Spieltag';$('currentDayInfo').textContent='Kein Spieltag eingerichtet.';$('currentStatus').textContent='Bereit';$('dayWorkspace').innerHTML='<div class="empty-state">Richte zuerst im Bereich Verwaltung einen Spieltag ein. Danach wählst du hier die anwesenden Spieler aus.</div>';return}if(c.engine==='draft'){renderDraftParticipants(c);return}$('currentDayTitle').textContent=MODES[c.mode];$('currentDayInfo').textContent=`${c.date} · ${c.attendees.length} Teilnehmer · ${c.out}`;$('currentStatus').textContent=c.paused?'Pausiert':'Läuft';if(c.engine==='ko')renderKO(c);else if(c.engine==='swiss')renderSwiss(c);else if(c.engine==='groups')renderGroups(c);else renderManual(c)}
-function renderDraftParticipants(c){$('currentDayTitle').textContent=`${MODES[c.mode]} einrichten`;$('currentDayInfo').textContent=`${c.date} · ${c.out} · Spieler für diesen Spieltag auswählen`;$('currentStatus').textContent='Teilnehmer wählen';$('dayWorkspace').innerHTML=`<div class="config-card"><h3>Anwesende Spieler</h3><p class="hint">Wähle jetzt die Spieler aus, die an diesem Tag wirklich dabei sind. Auch ein Admin kann optional mitspielen.</p><div class="attendance-list">${state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${m.rolle})</small></span><input type="checkbox" data-draft-attend="${m.id}"></label>`).join('')||'<p class="hint">Keine auswählbaren Konten vorhanden.</p>'}</div><div class="workspace-actions"><button id="launchDraftDay" class="primary">Spieler übernehmen und Turnier starten</button><button id="cancelDraftDay">Spieltag verwerfen</button></div></div>`;$('launchDraftDay').onclick=launchDraftDay;$('cancelDraftDay').onclick=async()=>{if(confirm('Eingerichteten Spieltag wirklich verwerfen?')){state.current=null;await save()}}}
-async function launchDraftDay(){const c=state.current,ids=[...document.querySelectorAll('[data-draft-attend]:checked')].map(x=>x.dataset.draftAttend);if(ids.length<3)return toast('Mindestens 3 Spieler auswählen.');if(ids.length>16)return toast('Maximal 16 Spieler möglich.');const base={...c,status:'laeuft',attendees:ids,startedAt:new Date().toISOString()};delete base.engine;if(c.mode==='premier')state.current={...base,...makeKO(ids,c.mode)};else if(c.mode==='swiss'){state.current={...base,engine:'swiss',swissMatches:[]};pairSwiss(state.current)}else if(c.mode==='groupsko'){const count=c.groupCount==='auto'?autoGroupCount(ids.length):+c.groupCount;if(count<2||count>ids.length)return toast('Die Gruppenanzahl passt nicht zur Teilnehmerzahl.');const groups=makeGroups(ids,count,c.groupDrawMode);const minSize=Math.min(...groups.map(g=>g.players.length));if(c.qualifyPlaces.some(x=>x>minSize))return toast(`Die kleinste Gruppe hat nur ${minSize} Spieler.`);state.current={...base,engine:'groups',groups}}else state.current={...base,engine:'manual'};await save();toast('Turnier gestartet.')}
+function renderCurrent(){
+  const c=state.current;
+  const currentActions=$('currentDayAdminActions');
+  if(currentActions) currentActions.hidden=!(canManage&&c);
+
+  if(!c){
+    $('currentDayTitle').textContent='Aktueller Spieltag';
+    $('currentDayInfo').textContent='Kein Spieltag eingerichtet.';
+    $('currentStatus').textContent='Bereit';
+    $('dayWorkspace').innerHTML='<div class="empty-state">Richte zuerst im Bereich Verwaltung einen Spieltag ein. Danach wählst du hier die anwesenden Spieler aus.</div>';
+    return;
+  }
+
+  if(c.engine==='draft' || c.status==='vorbereitung'){
+    renderDraftParticipants(c);
+    return;
+  }
+
+  $('currentDayTitle').textContent=MODES[c.mode]||c.mode;
+  $('currentDayInfo').textContent=`${c.date} · ${(c.attendees||[]).length} Teilnehmer · ${c.out||''}`;
+  $('currentStatus').textContent=c.paused?'Pausiert':'Läuft';
+
+  if(c.engine==='ko') renderKO(c);
+  else if(c.engine==='swiss') renderSwiss(c);
+  else if(c.engine==='groups') renderGroups(c);
+  else renderManual(c);
+}
+function renderDraftParticipants(c){
+  const selected=new Set(c.attendees||[]);
+  $('currentDayTitle').textContent=`${MODES[c.mode]} einrichten`;
+  $('currentDayInfo').textContent=`${c.date} · ${c.out} · Spieler für diesen Spieltag auswählen`;
+  $('currentStatus').textContent='Teilnehmer wählen';
+  $('dayWorkspace').innerHTML=`<div class="config-card"><h3>Anwesende Spieler</h3><p class="hint">Wähle jetzt die Spieler aus, die an diesem Tag wirklich dabei sind. Auch ein Admin kann optional mitspielen.</p><div class="attendance-list">${state.members.map(m=>`<label class="attendance-row"><span>${esc(m.name)} <small>(${esc(m.rolle)})</small></span><input type="checkbox" data-draft-attend="${m.id}" ${selected.has(m.id)?'checked':''}></label>`).join('')||'<p class="hint">Keine auswählbaren Konten vorhanden.</p>'}</div><div class="workspace-actions"><button id="launchDraftDay" class="primary">Spieler übernehmen und Turnier starten</button><button id="cancelDraftDay">Spieltag verwerfen</button></div></div>`;
+  $('launchDraftDay').onclick=launchDraftDay;
+  $('cancelDraftDay').onclick=async()=>{if(confirm('Eingerichteten Spieltag wirklich verwerfen?')){state.current=null;await save()}};
+}
+async function launchDraftDay(){const c=state.current,ids=[...document.querySelectorAll('[data-draft-attend]:checked')].map(x=>x.dataset.draftAttend);if(ids.length<2)return toast('Mindestens 2 Spieler auswählen.');if(ids.length>16)return toast('Maximal 16 Spieler möglich.');const base={...c,status:'laeuft',attendees:ids,startedAt:new Date().toISOString()};delete base.engine;if(c.mode==='premier')state.current={...base,...makeKO(ids,c.mode)};else if(c.mode==='swiss'){state.current={...base,engine:'swiss',swissMatches:[]};pairSwiss(state.current)}else if(c.mode==='groupsko'){const count=c.groupCount==='auto'?autoGroupCount(ids.length):+c.groupCount;if(count<2||count>ids.length)return toast('Die Gruppenanzahl passt nicht zur Teilnehmerzahl.');const groups=makeGroups(ids,count,c.groupDrawMode);const minSize=Math.min(...groups.map(g=>g.players.length));if(c.qualifyPlaces.some(x=>x>minSize))return toast(`Die kleinste Gruppe hat nur ${minSize} Spieler.`);state.current={...base,engine:'groups',groups}}else state.current={...base,engine:'manual'};await save();toast('Turnier gestartet.')}
 function renderKO(c){autoAdvance(c);$('dayWorkspace').innerHTML=`<div class="bracket">${c.rounds.map(r=>`<div class="round-column"><h3>${r}</h3>${c.matches[r].map((m,i)=>koMatch(r,m,i)).join('')}</div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;document.querySelectorAll('[data-ko-save]').forEach(b=>b.onclick=()=>saveKOMatch(b.dataset.round,+b.dataset.index));const final=c.matches[c.rounds.at(-1)][0];$('finishCurrent').disabled=!final?.completed;$('finishCurrent').onclick=finishCurrent}
 function koMatch(r,m,i){const ready=m.p1&&m.p2&&!m.completed,rule=roundRule(state.current,r),setMode=rule.format==='sets';return`<div class="match-card"><small>${r} ${i+1}</small><span class="match-rule">${ruleText(rule)}</span><div class="match-player ${m.winner===m.p1?'winner':''}"><span>${m.p1?esc(memberName(m.p1)):'—'}</span><input id="a-${m.id}" type="number" min="0" value="${m.s1??''}" ${!ready||!canManage?'disabled':''}></div><div class="match-player ${m.winner===m.p2?'winner':''}"><span>${m.p2?esc(memberName(m.p2)):'—'}</span><input id="b-${m.id}" type="number" min="0" value="${m.s2??''}" ${!ready||!canManage?'disabled':''}></div>${setMode&&ready?`<div class="set-leg-inputs"><label>Legs ${esc(memberName(m.p1))}<input id="la-${m.id}" type="number" min="0" value="${m.legs1??''}"></label><label>Legs ${esc(memberName(m.p2))}<input id="lb-${m.id}" type="number" min="0" value="${m.legs2??''}"></label></div>`:''}${m.bye?'<div class="bye">Freilos</div>':`<button data-ko-save="1" data-round="${r}" data-index="${i}" ${!ready||!canManage?'disabled':''}>Ergebnis speichern</button>`}</div>`}
 async function saveKOMatch(r,i){const m=state.current.matches[r][i],rule=roundRule(state.current,r),a=+$(`a-${m.id}`).value,b=+$(`b-${m.id}`).value;if(a===b||a<0||b<0)return toast('Bitte ein eindeutiges Ergebnis eintragen.');if(Math.max(a,b)!==rule.toWin||Math.min(a,b)>=rule.toWin)return toast(`Der Sieger muss genau ${rule.toWin} ${rule.format==='sets'?'Sets':'Legs'} erreichen.`);m.s1=a;m.s2=b;m.legs1=rule.format==='sets'?+( $(`la-${m.id}`)?.value||0):a;m.legs2=rule.format==='sets'?+( $(`lb-${m.id}`)?.value||0):b;m.winner=a>b?m.p1:m.p2;m.completed=true;autoAdvance(state.current);await save();toast('Ergebnis gespeichert.')}

@@ -104,3 +104,5 @@
 }
 .delete-day-row small{color:#bbb}
 .history-delete{margin-top:10px}
+
+.attendance-list{max-height:420px;overflow:auto}

@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v11-6-syntax-fix";
+const VERSION = "bwe-v11-7-attendance-fixed";
 
 const CORE_FILES = [
   "./",
