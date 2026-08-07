@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Black White Eagles Vereinsrangliste</title>
+  <link rel="stylesheet" href="style.css?v=11.1">
+  <link rel="stylesheet" href="vereinsserie.css?v=15.0">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+
+<style>
+html,body{min-height:100%;background:#050505!important;color:#fff!important;}
+</style>
+
+<script>
+(async function () {
+  const resetKey = "bwe-cache-reset-v15";
+  if (sessionStorage.getItem(resetKey)) return;
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration => registration.unregister()));
+    }
+
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    }
+
+    sessionStorage.setItem(resetKey, "done");
+    const url = new URL(window.location.href);
+    url.searchParams.set("v", "15.0");
+    window.location.replace(url.toString());
+  } catch (error) {
+    console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
+    sessionStorage.setItem(resetKey, "done");
+  }
+})();
+</script>
+
+</head>
+<body>
+
+<header class="app-header">
+  <img src="black-white-eagles-logo.png?v=11.1" class="logo" alt="Black White Eagles Logo">
+  <h1>Vereinsrangliste</h1>
+  <p>Rangliste, Vereinsturniere & Ergebnisse</p>
+</header>
+
+<main class="app-container serie-wrap">
+  <section class="season-bar">
+    <div>
+      <span class="eyebrow">Aktuelle Saison</span>
+      <h2 id="seasonTitle">Saison wird geladen …</h2>
+    </div>
+    <div class="season-picker">
+      <button id="seasonPickerButton" type="button" aria-haspopup="listbox" aria-expanded="false">Saison auswählen ▾</button>
+      <div id="seasonPickerMenu" class="season-picker-menu" role="listbox" hidden></div>
+    </div>
+  </section>
+
+  <section class="summary-grid">
+    <article><strong id="summaryPlayers">0</strong><span>aktive Spieler</span></article>
+    <article><strong id="summaryDays">0</strong><span>Spieltage</span></article>
+    <article><strong id="summaryLeader">–</strong><span>Tabellenführer</span></article>
+    <article><strong id="summaryMode">–</strong><span>letzter Modus</span></article>
+  </section>
+
+  <p id="seriesPermissionHint" class="permission-hint" hidden></p>
+
+  <section class="serie-tabs new-main-tabs" aria-label="Bereiche">
+    <button data-tab="rangliste" class="active">Rangliste</button>
+    <button data-tab="erstellen" class="admin-only">Turnier erstellen</button>
+    <button data-tab="turnierbaum">Turnierbaum</button>
+  </section>
+
+  <section id="tab-rangliste" class="serie-panel active">
+    <div class="panel-head">
+      <div><h2>Aktuelle Vereinsrangliste</h2><p>Nur Turniere mit aktivierter Ranglistenwertung fließen hier ein.</p></div>
+    </div>
+    <div class="table-scroll">
+      <table class="ranking-table ranking-table-simple">
+        <thead><tr><th>Platz</th><th>Name</th><th>Punkte</th><th>Gewonnene Legs</th><th>Verlorene Legs</th><th>Differenz</th></tr></thead>
+        <tbody id="rankingBody"></tbody>
+      </table>
+    </div>
+    <p class="legend"><strong>Wertung:</strong> Punkte werden nach der Platzierung vergeben. Nicht gewertete Turniere bleiben im Turnierbaum sichtbar, verändern die Rangliste aber nicht.</p>
+    <select id="modeFilter" hidden><option value="all">Alle Modi</option></select>
+  </section>
+
+  <section id="tab-turnierbaum" class="serie-panel">
+    <div class="panel-head tree-panel-head">
+      <div><h2 id="currentDayTitle">Turnierbaum</h2><p id="currentDayInfo">Wähle einen Spieltag aus.</p></div>
+      <span class="pill" id="currentStatus">Bereit</span>
+    </div>
+    <label class="tree-day-picker">Spieltag auswählen
+      <select id="treeDaySelect"><option value="">Noch kein Turnier vorhanden</option></select>
+    </label>
+    <div id="tournamentViewTabs" class="tournament-view-tabs" hidden>
+      <button id="tournamentTreeTab" type="button" class="active">Turnierbaum & Ergebnisse</button>
+    </div>
+    <div id="dayWorkspace"></div>
+    <div id="currentDayAdminActions" class="workspace-actions admin-only" hidden>
+      <button id="deleteCurrentDayBtn" class="danger-button">Laufendes Turnier löschen</button>
+    </div>
+  </section>
+
+  <section id="tab-erstellen" class="serie-panel admin-only">
+    <div class="admin-grid single-admin-grid">
+      <article class="config-card">
+        <h2>Neues Vereinsturnier erstellen</h2>
+        <label>Datum<input id="dayDate" type="date"></label>
+        <input id="daySize" type="hidden" value="0">
+        <label>Turniersystem<select id="dayMode">
+          <option value="premier">K.-o.-System</option>
+          <option value="swiss">Schweizer System</option>
+          <option value="doubleko">Doppel-K.-o.</option>
+          <option value="groupsko">Gruppen + K.-o.</option>
+        </select></label>
+        <label>Spielmodus<select id="gameOut"><option>Double Out</option><option>Master Out</option><option>Single Out</option></select></label>
+        <label class="rating-toggle"><span><strong>Für Vereinsrangliste werten</strong><small>Deaktivieren für Freundschafts- oder Testturniere.</small></span><input id="rankingEnabled" type="checkbox" checked></label>
+        <div class="create-participants"><h3>Teilnehmer</h3><p class="hint">Es werden nur Spieler mit einem vorhandenen Konto angezeigt.</p><div id="createParticipantsList" class="attendance-list"></div></div>
+        <label id="swissRoundsWrap" hidden>Schweizer Runden<input id="swissRounds" type="number" min="2" max="8" value="4"></label>
+
+        <div id="groupsConfigWrap" class="groups-config" hidden>
+          <h3>Gruppenphase einstellen</h3>
+          <div class="two-cols">
+            <label>Anzahl Gruppen<select id="groupCount">
+              <option value="auto">Automatisch</option>
+              <option value="2">2 Gruppen</option>
+              <option value="3">3 Gruppen</option>
+              <option value="4">4 Gruppen</option>
+              <option value="5">5 Gruppen</option>
+              <option value="6">6 Gruppen</option>
+            </select></label>
+            <label>Gruppenauslosung<select id="groupDrawMode">
+              <option value="random">Zufällig</option>
+              <option value="seeded">Nach Vereinsrangliste setzen</option>
+            </select></label>
+          </div>
+          <fieldset class="qualifier-fieldset">
+            <legend>Welche Gruppenplätze kommen weiter?</legend>
+            <label><input type="checkbox" data-qualify-place value="1" checked> Platz 1</label>
+            <label><input type="checkbox" data-qualify-place value="2" checked> Platz 2</label>
+            <label><input type="checkbox" data-qualify-place value="3"> Platz 3</label>
+            <label><input type="checkbox" data-qualify-place value="4"> Platz 4</label>
+          </fieldset>
+          <div class="two-cols">
+            <label>Wertung in der Gruppenphase<select id="groupFormat"><option value="legs">Legs</option><option value="sets">Sets</option></select></label>
+            <label>Gewinn-Legs / Gewinn-Sets<input id="groupLegsToWin" type="number" min="1" max="15" value="3"></label>
+            <label>Legs je Set<input id="groupLegsPerSet" type="number" min="1" max="9" value="3"></label>
+          </div>
+          <p class="hint">Die App verteilt alle Anwesenden möglichst gleichmäßig. Die K.-o.-Größe und Freilose werden automatisch berechnet.</p>
+        </div>
+
+        <div id="swissFormatWrap" class="two-cols" hidden>
+          <label>Wertung<select id="swissFormat"><option value="legs">Legs</option><option value="sets">Sets</option></select></label>
+          <label>Gewinn-Legs / Gewinn-Sets<input id="swissLegsToWin" type="number" min="1" max="15" value="3"></label>
+          <label>Legs je Set<input id="swissLegsPerSet" type="number" min="1" max="9" value="3"></label>
+        </div>
+
+        <div id="koRoundSettings" class="round-settings">
+          <h3>Legs und Sets je K.-o.-Phase</h3>
+          <div class="round-setting-row" data-round-config="Achtelfinale"><strong>Achtelfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="3"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
+          <div class="round-setting-row" data-round-config="Viertelfinale"><strong>Viertelfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="3"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
+          <div class="round-setting-row" data-round-config="Halbfinale"><strong>Halbfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="4"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
+          <div class="round-setting-row" data-round-config="Finale"><strong>Finale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="5"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
+        </div>
+        <button id="startDayBtn" class="primary">Turnier auslosen & starten</button>
+      </article>
+    </div>
+  </section>
+</main>
+
+
+
+<div class="compat-hidden" hidden>
+  <input id="newSeasonName"><button id="createSeasonBtn"></button><button id="syncMembersBtn"></button><button id="finishSeasonBtn"></button><button id="deleteSeasonBtn"></button>
+  <div id="historyList"></div><div id="deleteDaysList"></div><div id="seriesAdminDayList"></div>
+</div>
+<nav class="bottom-nav"><a href="index.html">🏠<br>Home</a><a href="spieltag-center.html">🚌<br>Spieltag</a><a href="liga.html">🏆<br>Liga</a><a href="vereinsserie.html">🎖️<br>Vereins-Serie</a></nav>
+
+<div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
+<div id="toast" class="serie-toast"></div>
+<script type="module" src="vereinsserie.js?v=15.0"></script>
+</body>
+</html>

@@ -28,7 +28,7 @@
     {
       "name": "Vereins-Serie",
       "short_name": "Turnier",
-      "url": "./vereinsspieltag.html",
+      "url": "./vereinsserie.html",
       "icons": [
         {
           "src": "icon-192.png",
