@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=17.1">
+  <link rel="stylesheet" href="vereinsserie.css?v=20.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v17-1";
+  const resetKey = "bwe-cache-reset-v20";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "17.1");
+    url.searchParams.set("v", "20.0");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -121,66 +121,44 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
   <section id="tab-erstellen" class="serie-panel admin-only">
     <div class="admin-grid single-admin-grid">
-      <article class="config-card">
-        <h2>Neues Vereinsturnier erstellen</h2>
+      <article class="config-card tournament-create-card">
+        <div class="create-page-head">
+          <span class="create-kicker">Vereinsrangliste</span>
+          <h2>Turnier erstellen</h2>
+          <p>Teilnehmer auswählen, K.-o.-Feld festlegen und auslosen. Der Spielmodus wird direkt am Board eingestellt.</p>
+        </div>
+
         <label>Datum<input id="dayDate" type="date"></label>
-        <input id="daySize" type="hidden" value="0">
-        <label>Turniersystem<select id="dayMode">
-          <option value="premier">K.-o.-System</option>
-          <option value="swiss">Schweizer System</option>
-          <option value="doubleko">Doppel-K.-o.</option>
-          <option value="groupsko">Gruppen + K.-o.</option>
-        </select></label>
-        <label>Spielmodus<select id="gameOut"><option>Double Out</option><option>Master Out</option><option>Single Out</option></select></label>
-        <label class="rating-toggle"><span><strong>Für Vereinsrangliste werten</strong><small>Deaktivieren für Freundschafts- oder Testturniere.</small></span><input id="rankingEnabled" type="checkbox" checked></label>
-        <div class="create-participants"><h3>Teilnehmer</h3><p class="hint">Es werden nur Spieler mit einem vorhandenen Konto angezeigt.</p><div id="createParticipantsList" class="attendance-list"></div></div>
-        <label id="swissRoundsWrap" hidden>Schweizer Runden<input id="swissRounds" type="number" min="2" max="8" value="4"></label>
 
-        <div id="groupsConfigWrap" class="groups-config" hidden>
-          <h3>Gruppenphase einstellen</h3>
-          <div class="two-cols">
-            <label>Anzahl Gruppen<select id="groupCount">
-              <option value="auto">Automatisch</option>
-              <option value="2">2 Gruppen</option>
-              <option value="3">3 Gruppen</option>
-              <option value="4">4 Gruppen</option>
-              <option value="5">5 Gruppen</option>
-              <option value="6">6 Gruppen</option>
-            </select></label>
-            <label>Gruppenauslosung<select id="groupDrawMode">
-              <option value="random">Zufällig</option>
-              <option value="seeded">Nach Vereinsrangliste setzen</option>
-            </select></label>
+        <fieldset class="tournament-type-fieldset">
+          <legend>Turnierart</legend>
+          <p>Wähle zwischen einfachem K.-o. und Doppel-K.-o. Der Spielmodus selbst wird weiterhin am Board eingestellt.</p>
+          <div class="tournament-type-options">
+            <label><input type="radio" name="tournamentType" value="ko" checked><span><strong>K.-o.</strong><small>1 Niederlage = ausgeschieden</small></span></label>
+            <label><input type="radio" name="tournamentType" value="doubleko"><span><strong>Doppel-K.-o.</strong><small>2 Niederlagen = ausgeschieden</small></span></label>
           </div>
-          <fieldset class="qualifier-fieldset">
-            <legend>Welche Gruppenplätze kommen weiter?</legend>
-            <label><input type="checkbox" data-qualify-place value="1" checked> Platz 1</label>
-            <label><input type="checkbox" data-qualify-place value="2" checked> Platz 2</label>
-            <label><input type="checkbox" data-qualify-place value="3"> Platz 3</label>
-            <label><input type="checkbox" data-qualify-place value="4"> Platz 4</label>
-          </fieldset>
-          <div class="two-cols">
-            <label>Wertung in der Gruppenphase<select id="groupFormat"><option value="legs">Legs</option><option value="sets">Sets</option></select></label>
-            <label>Gewinn-Legs / Gewinn-Sets<input id="groupLegsToWin" type="number" min="1" max="15" value="3"></label>
-            <label>Legs je Set<input id="groupLegsPerSet" type="number" min="1" max="9" value="3"></label>
+        </fieldset>
+
+        <fieldset class="ko-size-fieldset">
+          <legend>K.-o.-Feld</legend>
+          <p>Wähle die Größe des Turnierbaums. Nicht belegte Plätze werden automatisch mit Freilosen gefüllt.</p>
+          <div class="ko-size-options">
+            <label><input type="radio" name="koSize" value="4"><span><strong>4</strong><small>4er Feld</small></span></label>
+            <label><input type="radio" name="koSize" value="8" checked><span><strong>8</strong><small>8er Feld</small></span></label>
+            <label><input type="radio" name="koSize" value="16"><span><strong>16</strong><small>16er Feld</small></span></label>
+            <label><input type="radio" name="koSize" value="32"><span><strong>32</strong><small>32er Feld</small></span></label>
           </div>
-          <p class="hint">Die App verteilt alle Anwesenden möglichst gleichmäßig. Die K.-o.-Größe und Freilose werden automatisch berechnet.</p>
+          <div id="koSizeInfo" class="ko-size-info">0 von 8 Plätzen belegt · 8 Freilose</div>
+        </fieldset>
+
+        <label class="rating-toggle"><span><strong>Für Vereinsrangliste werten</strong><small>Deaktivieren, wenn das Turnier nicht in die Saisonwertung eingehen soll.</small></span><input id="rankingEnabled" type="checkbox" checked></label>
+
+        <div class="create-participants">
+          <div class="participants-head"><div><h3>Teilnehmer</h3><p class="hint">Nur Spieler mit vorhandenem Konto können ausgewählt werden.</p></div><strong id="selectedParticipantsCount">0 ausgewählt</strong></div>
+          <div id="createParticipantsList" class="attendance-list"></div>
         </div>
 
-        <div id="swissFormatWrap" class="two-cols" hidden>
-          <label>Wertung<select id="swissFormat"><option value="legs">Legs</option><option value="sets">Sets</option></select></label>
-          <label>Gewinn-Legs / Gewinn-Sets<input id="swissLegsToWin" type="number" min="1" max="15" value="3"></label>
-          <label>Legs je Set<input id="swissLegsPerSet" type="number" min="1" max="9" value="3"></label>
-        </div>
-
-        <div id="koRoundSettings" class="round-settings">
-          <h3>Legs und Sets je K.-o.-Phase</h3>
-          <div class="round-setting-row" data-round-config="Achtelfinale"><strong>Achtelfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="3"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
-          <div class="round-setting-row" data-round-config="Viertelfinale"><strong>Viertelfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="3"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
-          <div class="round-setting-row" data-round-config="Halbfinale"><strong>Halbfinale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="4"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
-          <div class="round-setting-row" data-round-config="Finale"><strong>Finale</strong><label>System<select data-format><option value="legs">Legs</option><option value="sets">Sets</option></select></label><label>Gewinn<input data-win type="number" min="1" max="15" value="5"></label><label>Legs je Set<input data-legs-set type="number" min="1" max="9" value="3"></label></div>
-        </div>
-        <button id="startDayBtn" class="primary">Turnier auslosen & starten</button>
+        <button id="startDayBtn" class="primary create-tournament-button">Turnier auslosen & starten</button>
       </article>
     </div>
   </section>
@@ -196,6 +174,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=17.0"></script>
+<script type="module" src="vereinsserie.js?v=20.0"></script>
 </body>
 </html>

@@ -506,3 +506,127 @@ body{background:#050505!important;}
   #tab-rangliste{padding:16px!important;}
 }
 \n\n/* V17.1 – Startseite: kompakte Rangliste ohne horizontales Wischen */\n.head-mobile{display:none}\n.ranking-table-simple{width:100%;min-width:0!important;table-layout:fixed}\n.ranking-table-simple th:nth-child(1),.ranking-table-simple td:nth-child(1){width:10%}\n.ranking-table-simple th:nth-child(2),.ranking-table-simple td:nth-child(2){width:30%;min-width:0!important}\n.ranking-table-simple th:nth-child(3),.ranking-table-simple td:nth-child(3){width:13%}\n.ranking-table-simple th:nth-child(4),.ranking-table-simple td:nth-child(4){width:16%}\n.ranking-table-simple th:nth-child(5),.ranking-table-simple td:nth-child(5){width:16%}\n.ranking-table-simple th:nth-child(6),.ranking-table-simple td:nth-child(6){width:15%}\n\n@media(max-width:700px){\n  .table-scroll{overflow-x:hidden!important;width:100%}\n  .ranking-table-simple{min-width:0!important;width:100%!important;table-layout:fixed}\n  .ranking-table-simple th,.ranking-table-simple td{\n    padding:9px 2px!important;\n    font-size:.72rem!important;\n    white-space:normal!important;\n    overflow:hidden;\n    text-overflow:ellipsis;\n  }\n  .ranking-table-simple th{font-size:.61rem!important;line-height:1.05;letter-spacing:0!important}\n  .ranking-table-simple th:nth-child(2),.ranking-table-simple td:nth-child(2){padding-left:5px!important}\n  .ranking-table-simple td:nth-child(2){font-size:.74rem!important;line-height:1.1;word-break:break-word}\n  .head-full{display:none}\n  .head-mobile{display:inline}\n  .serie-panel{padding-left:10px!important;padding-right:10px!important}\n}\n
+/* V18 – Turnier erstellen: nur K.-o.-Feld, Teilnehmer und Wertung */
+.tournament-create-card{max-width:760px!important;margin:0 auto;width:100%;box-sizing:border-box;padding:24px!important}
+.create-page-head{margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #292929}
+.create-page-head .create-kicker{display:block;color:#9e9e9e;font-size:.72rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.create-page-head h2{font-size:2rem;margin:0 0 8px;letter-spacing:-.03em}
+.create-page-head p{margin:0;color:#aaa;line-height:1.5;font-size:.93rem}
+.ko-size-fieldset{border:0;padding:0;margin:22px 0}
+.ko-size-fieldset legend{font-size:1rem;font-weight:900;margin-bottom:4px}
+.ko-size-fieldset>p{margin:0 0 13px;color:#999;font-size:.84rem;line-height:1.45}
+.ko-size-options{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.ko-size-options label{margin:0!important;cursor:pointer;display:block!important}
+.ko-size-options input{position:absolute;opacity:0;pointer-events:none}
+.ko-size-options span{min-height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #353535;background:#111;border-radius:14px;transition:.15s ease}
+.ko-size-options strong{font-size:1.65rem;line-height:1}
+.ko-size-options small{margin-top:7px;color:#8f8f8f;font-size:.72rem}
+.ko-size-options input:checked+span{background:#fff;color:#000;border-color:#fff}
+.ko-size-options input:checked+span small{color:#555}
+.ko-size-info{margin-top:10px;padding:10px 12px;border-radius:10px;background:#0b0b0b;border:1px solid #292929;color:#cfcfcf;font-size:.82rem;font-weight:700;text-align:center}
+.participants-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-top:24px}
+.participants-head h3{margin:0 0 4px}
+.participants-head .hint{margin:0}
+#selectedParticipantsCount{white-space:nowrap;font-size:.78rem;background:#1b1b1b;border:1px solid #333;padding:7px 9px;border-radius:999px;color:#ddd}
+.create-tournament-button{width:100%;min-height:52px;margin-top:16px;font-size:1rem}
+@media(max-width:600px){
+  .tournament-create-card{padding:18px!important}
+  .create-page-head h2{font-size:1.65rem}
+  .ko-size-options{grid-template-columns:repeat(4,1fr);gap:6px}
+  .ko-size-options span{min-height:72px;border-radius:11px}
+  .ko-size-options strong{font-size:1.35rem}
+  .ko-size-options small{font-size:.62rem}
+  .participants-head{align-items:flex-start;flex-direction:column;gap:8px}
+}
+
+/* V19 – Turnierart K.-o. / Doppel-K.-o. */
+.tournament-type-fieldset{border:0;padding:0;margin:22px 0}
+.tournament-type-fieldset legend{font-size:1rem;font-weight:900;margin-bottom:4px}
+.tournament-type-fieldset>p{margin:0 0 13px;color:#999;font-size:.84rem;line-height:1.45}
+.tournament-type-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.tournament-type-options label{margin:0!important;cursor:pointer;display:block!important}
+.tournament-type-options input{position:absolute;opacity:0;pointer-events:none}
+.tournament-type-options span{min-height:82px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;border:1px solid #353535;background:#111;border-radius:14px;padding:14px 16px;box-sizing:border-box;transition:.15s ease}
+.tournament-type-options strong{font-size:1rem}
+.tournament-type-options small{margin-top:5px;color:#8f8f8f;font-size:.72rem;line-height:1.35}
+.tournament-type-options input:checked+span{background:#fff;color:#000;border-color:#fff}
+.tournament-type-options input:checked+span small{color:#555}
+@media(max-width:560px){
+  .tournament-type-options{grid-template-columns:1fr 1fr;gap:6px}
+  .tournament-type-options span{min-height:76px;padding:11px 12px;border-radius:11px}
+  .tournament-type-options strong{font-size:.9rem}
+  .tournament-type-options small{font-size:.65rem}
+}
+
+/* ===== V20: eigener Doppel-K.-o.-Baum ===== */
+.de-bracket-shell{
+  display:grid;
+  gap:22px;
+  margin-top:14px;
+}
+.double-tree-section{
+  margin:0;
+  border:1px solid #303030;
+  border-radius:18px;
+  background:#0d0d0d;
+  overflow:hidden;
+}
+.double-tree-heading{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 16px;
+  border-bottom:1px solid #303030;
+}
+.double-tree-heading h2{margin:2px 0 0;font-size:1.15rem}
+.double-tree-heading small{color:#aaa;text-align:right;max-width:430px}
+.de-kicker{
+  display:block;
+  font-size:.7rem;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#aaa;
+}
+.winners-tree-section .double-tree-heading{border-left:5px solid #fff}
+.losers-tree-section .double-tree-heading{border-left:5px solid #777}
+.final-tree-section .double-tree-heading{border-left:5px double #fff}
+.de-tree{padding:14px 16px 4px}
+.de-tree-round{width:244px}
+.de-tree-round h3{
+  position:static;
+  padding:8px 7px;
+  font-size:.82rem;
+  white-space:normal;
+}
+.de-tree .tree-match{min-height:92px}
+.de-tree .tree-match + .tree-match{margin-top:8px}
+.de-finals-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(240px,340px));
+  gap:16px;
+  padding:16px;
+}
+.de-finals-grid .tree-match{min-height:100px}
+.tree-save-button{
+  width:100%;
+  margin-top:7px;
+  min-height:38px;
+}
+
+@media(max-width:720px){
+  .double-tree-heading{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:5px;
+    padding:12px;
+  }
+  .double-tree-heading small{text-align:left}
+  .de-tree{padding:12px 10px 4px;gap:10px}
+  .de-tree-round{width:218px}
+  .de-tree-round h3{font-size:.76rem}
+  .tree-match{padding:7px}
+  .tree-player{padding:7px 6px;font-size:.86rem}
+  .de-finals-grid{grid-template-columns:1fr;padding:12px}
+}

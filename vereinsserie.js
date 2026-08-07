@@ -145,8 +145,9 @@ function formatLabel(config) {
     : `First to ${config.win} Legs`;
 }
 function validateScore(a, b, config) {
-  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a === b) return false;
-  return Math.max(a, b) === config.win;
+  // Die Gewinnlänge wird nicht vorgegeben. Aus 3:1 folgt automatisch First to 3,
+  // aus 5:4 entsprechend First to 5 usw.
+  return Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b >= 0 && a !== b && Math.max(a, b) > 0;
 }
 function totalLegsFromScore(a, b, config, explicitA, explicitB) {
   if (config.format === 'sets') {
@@ -180,9 +181,11 @@ function shuffled(array) {
   }
   return result;
 }
-function makeSingleElimination(ids, seededOrder = null) {
+function makeSingleElimination(ids, seededOrder = null, fixedSize = null) {
   const players = seededOrder ? [...seededOrder] : shuffled(ids);
-  const size = powerOfTwo(players.length);
+  const requestedSize = Number(fixedSize);
+  const size = [4, 8, 16, 32].includes(requestedSize) ? requestedSize : powerOfTwo(players.length);
+  if (players.length > size) throw new Error(`Für das ${size}er Feld sind höchstens ${size} Teilnehmer möglich.`);
   const names = roundNames(size);
   const byeCount = size - players.length;
 
@@ -497,222 +500,258 @@ function makeGroupsKO(ids, sourceDay = {}) {
 }
 
 // ---------- Doppel-K.-o. ----------
-// Dynamische Doppel-K.-o.-Engine: Nach jeder Runde werden Spieler nach Verlusten gepaart.
-// 0 Niederlagen = Gewinnerseite, 1 Niederlage = Verliererseite, 2 Niederlagen = ausgeschieden.
+// Fester Doppel-K.-o.-Baum für 4 / 8 / 16 / 32 Spieler.
+// Alle Spieler starten im Gewinnerbaum. Der Verlierer jeder WB-Partie wird
+// automatisch an die fest vorgesehene Stelle im Verliererbaum weitergereicht.
+// Erst die zweite Niederlage bedeutet das Ausscheiden. Das Grand Final besitzt
+// den klassischen Reset: Gewinnt der LB-Sieger das erste Finale, folgt ein
+// Entscheidungsspiel.
 
-function validateDoubleKOByes(day, expectedPlayers) {
-  const first = day?.de?.rounds?.[0]?.matches || [];
-  const actualByes = first.filter(match => match.bye).length;
-  const expected = powerOfTwo(expectedPlayers) - expectedPlayers;
-  if (actualByes !== expected) {
-    console.error('Doppel-KO-Freilosfehler', { expected, actualByes, expectedPlayers, day });
-  }
-  return actualByes === expected;
+function doubleRoundName(matchCount, roundIndex, totalRounds) {
+  if (roundIndex === totalRounds - 1) return 'Gewinner-Finale';
+  if (matchCount === 16) return 'Sechzehntelfinale';
+  if (matchCount === 8) return 'Achtelfinale';
+  if (matchCount === 4) return 'Viertelfinale';
+  if (matchCount === 2) return 'Halbfinale';
+  return `Runde ${roundIndex + 1}`;
 }
 
-function makeDoubleKO(ids) {
+function makeDEMatch(bracket, roundIndex, index, p1 = null, p2 = null, source1 = null, source2 = null) {
+  return {
+    id: uid(), bracket, roundIndex, index,
+    p1, p2, source1, source2,
+    s1: null, s2: null, legs1: 0, legs2: 0,
+    winner: null, loser: null, completed: false, bye: false,
+    completedAt: null
+  };
+}
+
+function makeDoubleKO(ids, fixedSize = null) {
   const players = shuffled(ids);
-  const size = powerOfTwo(players.length);
+  const requestedSize = Number(fixedSize);
+  const size = [4, 8, 16, 32].includes(requestedSize) ? requestedSize : powerOfTwo(players.length);
+  if (players.length > size) throw new Error(`Für das ${size}er Feld sind höchstens ${size} Teilnehmer möglich.`);
+
+  const slots = Array(size).fill(null);
+  // Freilose gleichmäßig auf die Erstrundenpartien verteilen: niemals zwei
+  // leere Startplätze gegeneinander, solange echte Spieler vorhanden sind.
   const byeCount = size - players.length;
+  let playerIndex = 0;
+  for (let m = 0; m < size / 2; m++) {
+    slots[m * 2] = players[playerIndex++] || null;
+    if (m >= byeCount) slots[m * 2 + 1] = players[playerIndex++] || null;
+  }
 
-  // Erstrundenplätze so verteilen, dass jeder leere Platz einem echten Spieler
-  // als Freilos gegenübersteht. Keine komplett leeren Partien.
-  const slots = [];
-  let index = 0;
+  const wbRounds = [];
+  const wbRoundCount = Math.log2(size);
 
-  for (let matchIndex = 0; matchIndex < size / 2; matchIndex++) {
-    if (matchIndex < byeCount) {
-      slots.push(players[index++] || null, null);
-    } else {
-      slots.push(players[index++] || null, players[index++] || null);
+  // Gewinnerbaum vollständig im Voraus anlegen.
+  for (let r = 0; r < wbRoundCount; r++) {
+    const count = size / Math.pow(2, r + 1);
+    const matches = [];
+    for (let i = 0; i < count; i++) {
+      if (r === 0) {
+        matches.push(makeDEMatch('winners', r, i, slots[i * 2], slots[i * 2 + 1]));
+      } else {
+        const prev = wbRounds[r - 1].matches;
+        matches.push(makeDEMatch('winners', r, i, null, null,
+          { matchId: prev[i * 2].id, outcome: 'winner' },
+          { matchId: prev[i * 2 + 1].id, outcome: 'winner' }
+        ));
+      }
+    }
+    wbRounds.push({
+      id: uid(),
+      title: doubleRoundName(count, r, wbRoundCount),
+      matches
+    });
+  }
+
+  // Verliererbaum: 2 * log2(size) - 2 Runden.
+  const lbRounds = [];
+  const wbFirst = wbRounds[0].matches;
+  const firstLB = [];
+  for (let i = 0; i < wbFirst.length / 2; i++) {
+    firstLB.push(makeDEMatch('losers', 0, i, null, null,
+      { matchId: wbFirst[i * 2].id, outcome: 'loser' },
+      { matchId: wbFirst[i * 2 + 1].id, outcome: 'loser' }
+    ));
+  }
+  lbRounds.push({ id: uid(), title: 'Verliererbaum · Runde 1', matches: firstLB });
+
+  let previousLB = firstLB;
+  for (let wbIndex = 1; wbIndex < wbRounds.length; wbIndex++) {
+    const wbMatches = wbRounds[wbIndex].matches;
+
+    // Drop-Runde: LB-Überlebende treffen auf die neuen Verlierer aus dem WB.
+    const dropMatches = [];
+    for (let i = 0; i < wbMatches.length; i++) {
+      dropMatches.push(makeDEMatch('losers', lbRounds.length, i, null, null,
+        { matchId: previousLB[i].id, outcome: 'winner' },
+        { matchId: wbMatches[i].id, outcome: 'loser' }
+      ));
+    }
+    lbRounds.push({ id: uid(), title: `Verliererbaum · Runde ${lbRounds.length + 1}`, matches: dropMatches });
+    previousLB = dropMatches;
+
+    // Zwischen den WB-Drops wird der Verliererbaum jeweils halbiert. Nach dem
+    // WB-Finale entfällt diese Runde; die Drop-Runde ist bereits das LB-Finale.
+    if (wbIndex < wbRounds.length - 1) {
+      const reduceMatches = [];
+      for (let i = 0; i < previousLB.length / 2; i++) {
+        reduceMatches.push(makeDEMatch('losers', lbRounds.length, i, null, null,
+          { matchId: previousLB[i * 2].id, outcome: 'winner' },
+          { matchId: previousLB[i * 2 + 1].id, outcome: 'winner' }
+        ));
+      }
+      lbRounds.push({ id: uid(), title: `Verliererbaum · Runde ${lbRounds.length + 1}`, matches: reduceMatches });
+      previousLB = reduceMatches;
     }
   }
 
-  const firstRoundMatches = Array.from({ length: size / 2 }, (_, matchIndex) => ({
-    id: uid(),
-    p1: slots[matchIndex * 2],
-    p2: slots[matchIndex * 2 + 1],
-    s1: null,
-    s2: null,
-    legs1: 0,
-    legs2: 0,
-    winner: null,
-    loser: null,
-    completed: false,
-    bye: false,
-    bracket: 'Gewinnerbaum'
-  }));
-
-  // Echte Freilose sofort als gewonnen markieren.
-  firstRoundMatches.forEach(match => {
-    if (Boolean(match.p1) !== Boolean(match.p2)) {
-      match.winner = match.p1 || match.p2;
-      match.completed = true;
-      match.bye = true;
-      match.s1 = match.p1 ? 1 : 0;
-      match.s2 = match.p2 ? 1 : 0;
-    }
-  });
+  const wbFinal = wbRounds.at(-1).matches[0];
+  const lbFinal = lbRounds.at(-1).matches[0];
+  const grandFinal = makeDEMatch('final', 0, 0, null, null,
+    { matchId: wbFinal.id, outcome: 'winner' },
+    { matchId: lbFinal.id, outcome: 'winner' }
+  );
 
   const day = {
     engine: 'doubleko',
     byeCount,
     de: {
+      version: 2,
       size,
-      losses: Object.fromEntries(players.map(id => [id, 0])),
-      stats: Object.fromEntries(players.map(id => [id, {
-        id,
-        wins: 0,
-        legsFor: 0,
-        legsAgainst: 0,
-        eliminatedAt: null
-      }])),
-      played: [],
-      eliminated: [],
-      phase: 'normal',
+      wbRounds,
+      lbRounds,
+      grandFinal,
+      resetFinal: null,
       champion: null,
-      rounds: [{
-        id: uid(),
-        title: 'Gewinnerbaum Runde 1',
-        stage: 'winners',
-        matches: firstRoundMatches
-      }]
+      losses: Object.fromEntries(players.map(id => [id, 0])),
+      stats: Object.fromEntries(players.map(id => [id, { id, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedAt: null }]))
     }
   };
 
-  // Wenn die komplette erste Runde nur aus Freilosen besteht oder bereits
-  // vollständig entschieden ist, sofort die nächste Runde erzeugen.
-  if (doubleKORoundDone(day)) {
-    applyDoubleKORound(day);
-  }
-
+  refreshDoubleKO(day);
   return day;
 }
-function pairPoolAvoidRepeat(pool, playedSet) {
-  const ids = [...pool];
-  const matches = [];
-  while (ids.length > 1) {
-    const p1 = ids.shift();
-    let index = ids.findIndex(p2 => !playedSet.has([p1, p2].sort().join('|')));
-    if (index < 0) index = 0;
-    const p2 = ids.splice(index, 1)[0];
-    matches.push({ id: uid(), p1, p2, s1: null, s2: null, legs1: 0, legs2: 0, winner: null, loser: null, completed: false, bye: false });
-  }
-  if (ids.length) matches.push({ id: uid(), p1: ids[0], p2: null, winner: ids[0], completed: true, bye: true, s1: 1, s2: 0, legs1: 0, legs2: 0 });
-  return matches;
-}
-function createDoubleKORound(day) {
-  const de = day.de;
-  de.played ||= [];
-  de.phase ||= 'normal';
-  const alive = (day.attendees || []).filter(id => (de.losses[id] ?? 0) < 2);
-  if (alive.length <= 1) {
-    de.champion = alive[0] || null;
-    return;
-  }
-  const zero = alive.filter(id => de.losses[id] === 0);
-  const one = alive.filter(id => de.losses[id] === 1);
-  const playedSet = new Set(de.played.map(pair => pair.sort().join('|')));
-  let matches = [];
-  let title = '';
-  if (alive.length === 2 && zero.length === 1 && one.length === 1) {
-    title = de.phase === 'reset' ? 'Grand Final – Entscheidung' : 'Grand Final';
-    matches = [{ id: uid(), p1: zero[0], p2: one[0], s1: null, s2: null, legs1: 0, legs2: 0, winner: null, loser: null, completed: false, bye: false, grandFinal: true }];
-  } else {
-    const wb = pairPoolAvoidRepeat(shuffled(zero), playedSet).map(m => ({ ...m, bracket: 'Gewinnerseite' }));
-    const lb = pairPoolAvoidRepeat(shuffled(one), playedSet).map(m => ({ ...m, bracket: 'Verliererseite' }));
-    matches = [...wb, ...lb];
-    const hasWinners = wb.length > 0;
-    const hasLosers = lb.length > 0;
-    title = hasWinners && hasLosers
-      ? `Gewinner- und Verliererbaum Runde ${de.rounds.length + 1}`
-      : hasWinners
-        ? `Gewinnerbaum Runde ${de.rounds.length + 1}`
-        : `Verliererbaum Runde ${de.rounds.length + 1}`;
-  }
-  de.rounds.push({ id: uid(), title, matches });
-}
-function doubleKORoundDone(day) {
-  return day.de.rounds.at(-1)?.matches.every(m => m.completed) || false;
-}
-function applyDoubleKORound(day) {
-  const de = day.de;
 
-  // Alte oder unvollständig gespeicherte Spieltage automatisch reparieren.
-  de.played ||= [];
-  de.phase ||= 'normal';
-  de.stats ||= Object.fromEntries((day.attendees || []).map(id => [id, {
-    id,
-    wins: 0,
-    legsFor: 0,
-    legsAgainst: 0,
-    eliminatedAt: null
-  }]));
-  (day.attendees || []).forEach(id => {
-    de.losses[id] ??= 0;
-    de.stats[id] ??= {
-      id,
-      wins: 0,
-      legsFor: 0,
-      legsAgainst: 0,
-      eliminatedAt: null
-    };
-  });
-
-  const round = de.rounds.at(-1);
-  round.matches.forEach(match => {
-    if (!match.completed || match.applied) return;
-    match.applied = true;
-    if (match.bye) {
-      // Freilos: Spieler bleibt mit 0 Niederlagen im Turnier und wird
-      // bei der nächsten Rundenerstellung normal berücksichtigt.
-      return;
-    }
-    de.played.push([match.p1, match.p2]);
-    de.stats[match.winner].wins++;
-    de.stats[match.p1].legsFor += match.legs1 || match.s1 || 0;
-    de.stats[match.p1].legsAgainst += match.legs2 || match.s2 || 0;
-    de.stats[match.p2].legsFor += match.legs2 || match.s2 || 0;
-    de.stats[match.p2].legsAgainst += match.legs1 || match.s1 || 0;
-
-    if (match.grandFinal && de.losses[match.p1] === 0 && match.winner === match.p2 && de.phase !== 'reset') {
-      de.losses[match.p1] = 1;
-      de.phase = 'reset';
-      return;
-    }
-    de.losses[match.loser]++;
-    if (de.losses[match.loser] >= 2) de.stats[match.loser].eliminatedAt = de.rounds.length;
-  });
-  const alive = day.attendees.filter(id => de.losses[id] < 2);
-  if (alive.length === 1) de.champion = alive[0];
-  else createDoubleKORound(day);
+function allDoubleKOMatches(day) {
+  if (!day?.de) return [];
+  const rounds = [
+    ...(day.de.wbRounds || []).flatMap(r => r.matches || []),
+    ...(day.de.lbRounds || []).flatMap(r => r.matches || [])
+  ];
+  if (day.de.grandFinal) rounds.push(day.de.grandFinal);
+  if (day.de.resetFinal) rounds.push(day.de.resetFinal);
+  return rounds;
 }
 
-function continueCompletedDoubleKORounds(day) {
-  if (!day?.de || day.de.champion) return false;
+function findDoubleKOMatch(day, id) {
+  return allDoubleKOMatches(day).find(match => match.id === id) || null;
+}
+
+function doubleSourceState(day, source) {
+  if (!source) return { ready: true, player: null };
+  const match = findDoubleKOMatch(day, source.matchId);
+  if (!match || !match.completed) return { ready: false, player: null };
+  return { ready: true, player: source.outcome === 'loser' ? match.loser : match.winner };
+}
+
+function resolveDoubleKOMatch(day, match) {
+  if (!match || match.completed) return false;
+  const a = match.source1 ? doubleSourceState(day, match.source1) : { ready: true, player: match.p1 };
+  const b = match.source2 ? doubleSourceState(day, match.source2) : { ready: true, player: match.p2 };
   let changed = false;
-  let guard = 0;
 
-  while (!day.de.champion && doubleKORoundDone(day) && guard < 100) {
-    const roundBefore = day.de.rounds.length;
-    applyDoubleKORound(day);
+  if (a.ready && match.p1 !== a.player) { match.p1 = a.player; changed = true; }
+  if (b.ready && match.p2 !== b.player) { match.p2 = b.player; changed = true; }
+
+  if (a.ready && b.ready && (!match.p1 || !match.p2)) {
+    match.bye = true;
+    match.completed = true;
+    match.winner = match.p1 || match.p2 || null;
+    match.loser = null;
+    match.s1 = match.p1 ? 1 : 0;
+    match.s2 = match.p2 ? 1 : 0;
+    match.legs1 = 0;
+    match.legs2 = 0;
+    match.completedAt ||= new Date().toISOString();
     changed = true;
-    guard++;
-
-    // Stop when a new round with open matches has been created.
-    if (day.de.champion || day.de.rounds.length > roundBefore) {
-      const newest = day.de.rounds.at(-1);
-      if (!newest?.matches?.every(match => match.completed)) break;
-    }
   }
   return changed;
 }
 
+function recomputeDoubleKOStats(day) {
+  const ids = day.attendees || [];
+  const stats = Object.fromEntries(ids.map(id => [id, { id, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedAt: null }]));
+  const losses = Object.fromEntries(ids.map(id => [id, 0]));
+
+  const realMatches = allDoubleKOMatches(day)
+    .filter(m => m.completed && !m.bye && m.p1 && m.p2 && m.winner && m.loser)
+    .sort((a, b) => String(a.completedAt || '').localeCompare(String(b.completedAt || '')));
+
+  realMatches.forEach((m, index) => {
+    stats[m.winner] ||= { id: m.winner, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedAt: null };
+    stats[m.loser] ||= { id: m.loser, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedAt: null };
+    losses[m.winner] ??= 0;
+    losses[m.loser] ??= 0;
+    stats[m.winner].wins++;
+    stats[m.p1].legsFor += Number(m.legs1 || m.s1 || 0);
+    stats[m.p1].legsAgainst += Number(m.legs2 || m.s2 || 0);
+    stats[m.p2].legsFor += Number(m.legs2 || m.s2 || 0);
+    stats[m.p2].legsAgainst += Number(m.legs1 || m.s1 || 0);
+    losses[m.loser]++;
+    if (losses[m.loser] >= 2) stats[m.loser].eliminatedAt = index + 1;
+  });
+
+  day.de.stats = stats;
+  day.de.losses = losses;
+}
+
+function refreshDoubleKO(day) {
+  if (!day?.de?.wbRounds) return false;
+  let changed = false;
+  let guard = 0;
+  do {
+    changed = false;
+    allDoubleKOMatches(day).forEach(match => {
+      if (resolveDoubleKOMatch(day, match)) changed = true;
+    });
+    guard++;
+  } while (changed && guard < 100);
+
+  recomputeDoubleKOStats(day);
+
+  const gf = day.de.grandFinal;
+  const wbChampion = day.de.wbRounds.at(-1)?.matches?.[0]?.winner || null;
+  if (gf?.completed && !gf.bye) {
+    if (gf.winner === wbChampion) {
+      day.de.champion = gf.winner;
+      day.de.resetFinal = null;
+    } else {
+      if (!day.de.resetFinal) {
+        day.de.resetFinal = makeDEMatch('reset', 0, 0, gf.p1, gf.p2);
+      }
+      if (day.de.resetFinal.completed) day.de.champion = day.de.resetFinal.winner;
+    }
+  }
+  return true;
+}
+
+// Kompatibilitätshelfer für ältere Aufrufe innerhalb der Datei.
+function continueCompletedDoubleKORounds(day) { return refreshDoubleKO(day); }
+function doubleKORoundDone(day) { return Boolean(day?.de?.champion); }
+function applyDoubleKORound(day) { return refreshDoubleKO(day); }
+
 function doubleKOResults(day) {
-  const stats = Object.values(day.de.stats);
+  refreshDoubleKO(day);
+  const stats = Object.values(day.de.stats || {});
   const champion = day.de.champion;
+  if (!champion) return [];
   const others = stats.filter(x => x.id !== champion).sort((a, b) =>
-    (b.eliminatedAt || 999) - (a.eliminatedAt || 999) || b.wins - a.wins ||
+    (b.eliminatedAt || 0) - (a.eliminatedAt || 0) ||
+    b.wins - a.wins ||
     (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst)
   );
   return [day.de.stats[champion], ...others].filter(Boolean).map((x, i) => ({ ...x, place: i + 1 }));
@@ -1026,23 +1065,22 @@ function renderGroupsResults(day) {
 }
 
 function renderDoubleKOResults(day) {
-  continueCompletedDoubleKORounds(day);
+  refreshDoubleKO(day);
+  const open = allDoubleKOMatches(day).filter(match =>
+    !match.completed && match.p1 && match.p2
+  );
   if (day.de.champion) {
-    $('dayWorkspace').innerHTML = `
-      <div class="empty-state"><h2>Sieger: ${esc(memberName(day.de.champion))}</h2></div>
-      <div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;
-    $('finishCurrent').onclick = finishDay;
+    $('dayWorkspace').innerHTML = `<div class="empty-state"><h2>Sieger: ${esc(memberName(day.de.champion))}</h2><p>Das Doppel-K.-o.-Turnier ist beendet.</p></div>`;
     return;
   }
-  const round = day.de.rounds.at(-1);
   const config = doubleRoundConfig(day);
-  const cards = round.matches.map((match, index) =>
-    resultCard(match, config, `de-${match.id}`, 'data-de-save', index, match.bracket || round.title)
-  ).filter(Boolean);
   $('dayWorkspace').innerHTML = `
-    <div class="result-entry-header"><h3>${esc(round.title)}</h3><span>${cards.length} offen</span></div>
-    <div class="result-entry-list">${cards.join('') || '<div class="empty-state">Die nächste Runde wird automatisch vorbereitet.</div>'}</div>`;
-  document.querySelectorAll('[data-de-save]').forEach(button => button.onclick = () => saveDoubleKOMatch(+button.dataset.deSave));
+    <div class="result-entry-header"><h3>Offene Doppel-K.-o.-Spiele</h3><span>${open.length} offen</span></div>
+    <div class="result-entry-list">${open.map(match =>
+      resultCard(match, config, `de-${match.id}`, 'data-de-save', match.id,
+        match.bracket === 'winners' ? 'Gewinnerbaum' : match.bracket === 'losers' ? 'Verliererbaum' : match.bracket === 'reset' ? 'Reset-Finale' : 'Grand Final')
+    ).join('') || '<div class="empty-state">Aktuell ist keine Partie bereit.</div>'}</div>`;
+  document.querySelectorAll('[data-de-save]').forEach(button => button.onclick = () => saveDoubleKOMatch(button.dataset.deSave));
 }
 
 function treeMatchCard(match, options = {}) {
@@ -1238,84 +1276,81 @@ function renderGroupsTree(day) {
   if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
-function renderDoubleKOTree(day) {
-  continueCompletedDoubleKORounds(day);
+function doubleTreeRound(round, bracketLabel) {
+  return `<section class="tree-round de-tree-round">
+    <h3>${esc(round.title)}</h3>
+    ${(round.matches || []).map(match => treeMatchCard(match, {
+      editable: true,
+      prefix: `de-${match.id}`,
+      saveAttr: 'data-de-save',
+      saveValue: match.id,
+      label: bracketLabel
+    })).join('')}
+  </section>`;
+}
 
-  if (day.de.champion) {
-    $('dayWorkspace').innerHTML = `
-      <div class="empty-state"><h2>Sieger: ${esc(memberName(day.de.champion))}</h2></div>
-      <div class="workspace-actions admin-only">
-        <button id="finishCurrent" class="primary">Spieltag abschließen</button>
-      </div>`;
-    $('finishCurrent').onclick = finishDay;
+function renderDoubleKOTree(day) {
+  if (!day?.de?.wbRounds) {
+    $('dayWorkspace').innerHTML = '<div class="empty-state"><h2>Älterer Doppel-K.-o.-Spieltag</h2><p>Dieser Spieltag wurde mit einer älteren Baum-Version erstellt. Bitte für den neuen festen Gewinner-/Verliererbaum ein neues Turnier anlegen.</p></div>';
     return;
   }
 
-  const currentRound = day.de.rounds.at(-1);
-  const winners = [];
-  const losers = [];
-  const finals = [];
-
-  day.de.rounds.forEach(round => {
-    const winnerMatches = [];
-    const loserMatches = [];
-    const finalMatches = [];
-
-    round.matches.forEach((match, index) => {
-      const bracket = String(match.bracket || round.title || '').toLowerCase();
-      const card = treeMatchCard(match, {
-        editable: round === currentRound,
-        prefix: `de-${match.id}`,
-        saveAttr: 'data-de-save',
-        saveValue: index,
-        label: match.bracket || round.title
-      });
-
-      if (bracket.includes('final')) finalMatches.push(card);
-      else if (bracket.includes('verlierer')) loserMatches.push(card);
-      else winnerMatches.push(card);
-    });
-
-    if (winnerMatches.length) {
-      winners.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${winnerMatches.join('')}</section>`);
-    }
-    if (loserMatches.length) {
-      losers.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${loserMatches.join('')}</section>`);
-    }
-    if (finalMatches.length) {
-      finals.push(`<section class="tree-round"><h3>${esc(round.title)}</h3>${finalMatches.join('')}</section>`);
-    }
-  });
+  refreshDoubleKO(day);
+  const wb = day.de.wbRounds || [];
+  const lb = day.de.lbRounds || [];
+  const gf = day.de.grandFinal;
+  const reset = day.de.resetFinal;
+  const size = day.de.size || day.bracketSize || 0;
 
   $('dayWorkspace').innerHTML = `
-    <div class="double-tree-section">
-      <h2>Gewinnerbaum</h2>
-      <div class="tournament-tree-scroll"><div class="tournament-tree">
-        ${winners.join('') || '<p>Noch keine Partie.</p>'}
-      </div></div>
+    <div class="de-bracket-shell de-size-${size}">
+      <section class="double-tree-section winners-tree-section">
+        <div class="double-tree-heading">
+          <div><span class="de-kicker">0 Niederlagen</span><h2>Gewinnerbaum</h2></div>
+          <small>Verlierer rücken automatisch in den Verliererbaum.</small>
+        </div>
+        <div class="tournament-tree-scroll"><div class="tournament-tree de-tree winners-tree">
+          ${wb.map(round => doubleTreeRound(round, 'Gewinnerbaum')).join('')}
+        </div></div>
+      </section>
+
+      <section class="double-tree-section losers-tree-section">
+        <div class="double-tree-heading">
+          <div><span class="de-kicker">1 Niederlage</span><h2>Verliererbaum</h2></div>
+          <small>Wer hier verliert, scheidet mit der zweiten Niederlage aus.</small>
+        </div>
+        <div class="tournament-tree-scroll"><div class="tournament-tree de-tree losers-tree">
+          ${lb.map(round => doubleTreeRound(round, 'Verliererbaum')).join('')}
+        </div></div>
+      </section>
+
+      <section class="double-tree-section final-tree-section">
+        <div class="double-tree-heading">
+          <div><span class="de-kicker">Finale</span><h2>Grand Final</h2></div>
+          <small>${reset ? 'Reset nötig: Beide Finalisten haben jetzt eine Niederlage.' : 'Gewinnt der LB-Sieger, wird automatisch ein Reset-Finale erzeugt.'}</small>
+        </div>
+        <div class="de-finals-grid">
+          ${treeMatchCard(gf, { editable: true, prefix: `de-${gf.id}`, saveAttr: 'data-de-save', saveValue: gf.id, label: 'Grand Final' })}
+          ${reset ? treeMatchCard(reset, { editable: true, prefix: `de-${reset.id}`, saveAttr: 'data-de-save', saveValue: reset.id, label: 'Reset-Finale · Entscheidung' }) : ''}
+        </div>
+      </section>
     </div>
-    <div class="double-tree-section">
-      <h2>Verliererbaum</h2>
-      <div class="tournament-tree-scroll"><div class="tournament-tree">
-        ${losers.join('') || '<p>Noch keine Partie im Verliererbaum.</p>'}
-      </div></div>
-    </div>
-    <div class="double-tree-section">
-      <h2>Finale</h2>
-      <div class="tournament-tree-scroll"><div class="tournament-tree">
-        ${finals.join('') || '<p>Noch kein Finale.</p>'}
-      </div></div>
+
+    <div class="workspace-actions admin-only">
+      <button id="finishCurrent" class="primary" ${day.de.champion ? '' : 'disabled'}>Turnier abschließen</button>
     </div>`;
 
   document.querySelectorAll('[data-de-save]').forEach(button => {
-    button.onclick = () => saveDoubleKOMatch(+button.dataset.deSave);
+    button.onclick = () => saveDoubleKOMatch(button.dataset.deSave);
   });
+  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
 function scoreInputs(match, config, prefix) {
   const disabled = match.completed || !canManage;
   const setsExtra = config.format === 'sets' ? `<div class="two-cols compact"><label>Gesamtlegs ${esc(memberName(match.p1))}<input id="${prefix}-l1" type="number" min="0" value="${match.legs1 || ''}" ${disabled ? 'disabled' : ''}></label><label>Gesamtlegs ${esc(memberName(match.p2))}<input id="${prefix}-l2" type="number" min="0" value="${match.legs2 || ''}" ${disabled ? 'disabled' : ''}></label></div>` : '';
-  return `<small>${formatLabel(config)}</small><div class="match-player"><span>${esc(memberName(match.p1))}</span><input id="${prefix}-s1" type="number" min="0" value="${match.s1 ?? ''}" ${disabled ? 'disabled' : ''}></div><div class="match-player"><span>${esc(memberName(match.p2))}</span><input id="${prefix}-s2" type="number" min="0" value="${match.s2 ?? ''}" ${disabled ? 'disabled' : ''}></div>${setsExtra}`;
+  const scoreHint = config.format === 'sets' ? `<small>${formatLabel(config)}</small>` : '<small>Ergebnis eintragen</small>';
+  return `${scoreHint}<div class="match-player"><span>${esc(memberName(match.p1))}</span><input id="${prefix}-s1" type="number" min="0" value="${match.s1 ?? ''}" ${disabled ? 'disabled' : ''}></div><div class="match-player"><span>${esc(memberName(match.p2))}</span><input id="${prefix}-s2" type="number" min="0" value="${match.s2 ?? ''}" ${disabled ? 'disabled' : ''}></div>${setsExtra}`;
 }
 function readMatchScore(prefix, config) {
   const a = +$(`${prefix}-s1`).value, b = +$(`${prefix}-s2`).value;
@@ -1343,7 +1378,7 @@ async function saveKOMatch(key) {
   const config = roundConfigFor(state.current, round), prefix = `ko-${match.id}`;
   const score = readMatchScore(prefix, config);
   if (!score) return toast('Bitte ein gültiges eindeutiges Ergebnis eintragen.');
-  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
+  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, firstTo: Math.max(score.a, score.b), winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
   advanceKO(state.current); await save();
 }
 function renderSwissEditor(day) {
@@ -1408,99 +1443,45 @@ async function saveGroupKOMatch(key) {
   await save();
 }
 function doubleRoundConfig(day) {
-  const alive = day.attendees.filter(id => day.de.losses[id] < 2).length;
-  const name = alive <= 2 ? 'Finale' : alive <= 4 ? 'Halbfinale' : alive <= 8 ? 'Viertelfinale' : 'Achtelfinale';
-  return roundConfigFor(day, name);
+  return { format: 'legs', win: 1, legsPerSet: 1 };
 }
+
 function renderDoubleKOEditor(day) {
-  if (continueCompletedDoubleKORounds(day)) {
-    // Persisting is handled by the next user action; rendering is immediately correct.
-  }
-  const round = day.de.rounds.at(-1);
-  const config = doubleRoundConfig(day);
-
-  if (day.de.champion) {
-    $('dayWorkspace').innerHTML = `
-      <div class="empty-state">
-        <h2>Sieger: ${esc(memberName(day.de.champion))}</h2>
-        <p>Der Doppel-K.-o.-Spieltag ist vollständig ausgespielt.</p>
-      </div>
-      <div class="workspace-actions admin-only">
-        <button id="finishCurrent" class="primary">Spieltag abschließen</button>
-      </div>`;
-    $('finishCurrent').onclick = finishDay;
-    return;
-  }
-
-  $('dayWorkspace').innerHTML = `
-    <div class="doubleko-summary">
-      <h3>${esc(round.title)}</h3>
-      <p>Nach dem letzten Ergebnis wird die nächste Runde automatisch erzeugt. Spieler mit zwei Niederlagen scheiden aus.</p>
-    </div>
-    <div class="bracket">
-      <div class="round-column wide">
-        ${round.matches.map((match, index) => {
-          if (match.bye) {
-            return `<article class="match-card">
-              <strong>${esc(memberName(match.p1 || match.winner))}</strong>
-              <p>${match.bracket || ''} · Freilos – automatisch weiter</p>
-            </article>`;
-          }
-          const prefix = `de-${match.id}`;
-          return `<article class="match-card">
-            <strong>${match.bracket || round.title}</strong>
-            ${scoreInputs(match, config, prefix)}
-            <button data-de-save="${index}" ${match.completed || !canManage ? 'disabled' : ''}>
-              Ergebnis speichern
-            </button>
-          </article>`;
-        }).join('')}
-      </div>
-    </div>
-    <div class="doubleko-progress">
-      ${doubleKORoundDone(day)
-        ? 'Runde vollständig – nächste Runde wird vorbereitet …'
-        : 'Noch offene Spiele in dieser Runde.'}
-    </div>`;
-
-  document.querySelectorAll('[data-de-save]').forEach(
-    button => button.onclick = () => saveDoubleKOMatch(+button.dataset.deSave)
-  );
+  renderDoubleKOTree(day);
 }
-async function saveDoubleKOMatch(index) {
+
+async function saveDoubleKOMatch(matchId) {
   const day = state.current;
-  const round = day?.de?.rounds?.at(-1);
-  const match = round?.matches?.[index];
-  if (!day || !round || !match) return toast('Doppel-K.-o.-Partie wurde nicht gefunden.');
+  if (!day?.de?.wbRounds) return toast('Doppel-K.-o.-Baum wurde nicht gefunden.');
+  refreshDoubleKO(day);
+  const match = findDoubleKOMatch(day, String(matchId));
+  if (!match) return toast('Doppel-K.-o.-Partie wurde nicht gefunden.');
+  if (match.completed || !match.p1 || !match.p2) return toast('Diese Partie ist noch nicht spielbereit.');
 
   const config = doubleRoundConfig(day);
   const score = readMatchScore(`de-${match.id}`, config);
-  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
+  if (!score) return toast('Bitte ein gültiges eindeutiges Ergebnis eintragen.');
 
   Object.assign(match, {
     s1: score.a,
     s2: score.b,
-    legs1: score.legs1,
-    legs2: score.legs2,
+    legs1: score.a,
+    legs2: score.b,
+    firstTo: Math.max(score.a, score.b),
     winner: score.a > score.b ? match.p1 : match.p2,
     loser: score.a > score.b ? match.p2 : match.p1,
-    completed: true
+    completed: true,
+    bye: false,
+    completedAt: new Date().toISOString()
   });
 
-  // Sobald alle realen Spiele dieser Runde beendet sind, wird die Runde
-  // angewendet und die nächste Paarungsrunde automatisch erstellt.
-  if (doubleKORoundDone(day)) {
-    applyDoubleKORound(day);
-  }
-
+  refreshDoubleKO(day);
   await save();
-
-  if (day.de.champion) {
-    toast(`${memberName(day.de.champion)} gewinnt den Doppel-K.-o.-Spieltag.`);
-  } else {
-    toast('Ergebnis gespeichert. Die nächste Runde wurde bei Bedarf automatisch erstellt.');
-  }
+  if (day.de.champion) toast(`${memberName(day.de.champion)} gewinnt den Doppel-K.-o.-Spieltag.`);
+  else if (day.de.resetFinal && !day.de.resetFinal.completed) toast('Grand Final ausgeglichen – Reset-Finale wurde automatisch erstellt.');
+  else toast('Ergebnis gespeichert. Sieger und Verlierer wurden automatisch weitergeleitet.');
 }
+
 function renderHistory() {
   const currentSeason = season();
   const days = [...(currentSeason?.days || [])].reverse();
@@ -1583,7 +1564,7 @@ async function drawAndStart() {
       day.status = 'laeuft';
       day.attendees = selected;
     } else if (day.mode === 'doubleko') {
-      Object.assign(day, makeDoubleKO(selected));
+      Object.assign(day, makeDoubleKO(selected, day.bracketSize || null));
       day.mode = 'doubleko';
       day.status = 'laeuft';
       day.attendees = selected;
@@ -1610,34 +1591,38 @@ async function createDay() {
   const selected = [...document.querySelectorAll('[data-create-attend]:checked')].map(input => input.dataset.createAttend);
   if (selected.length < 2) return toast('Bitte mindestens zwei Teilnehmer auswählen.');
 
-  const mode = $('dayMode')?.value || 'premier';
-  const qualifiers = [...document.querySelectorAll('[data-qualify-place]:checked')].map(x => +x.value).sort((a, b) => a - b);
-  if (mode === 'groupsko' && !qualifiers.length) return toast('Mindestens einen Gruppenplatz auswählen.');
-  const swissFormat = { format: $('swissFormat')?.value || 'legs', win: +($('swissLegsToWin')?.value || 3), legsPerSet: +($('swissLegsPerSet')?.value || 3) };
-  const groupFormat = { format: $('groupFormat')?.value || 'legs', win: +($('groupLegsToWin')?.value || 3), legsPerSet: +($('groupLegsPerSet')?.value || 3) };
+  const bracketSize = +(document.querySelector('input[name="koSize"]:checked')?.value || 8);
+  if (![4, 8, 16, 32].includes(bracketSize)) return toast('Bitte ein gültiges K.-o.-Feld auswählen.');
+  if (selected.length > bracketSize) return toast(`Für das ${bracketSize}er Feld kannst du höchstens ${bracketSize} Teilnehmer auswählen.`);
+
+  const tournamentType = document.querySelector('input[name="tournamentType"]:checked')?.value || 'ko';
   const day = {
     id: uid(), seasonId: currentSeason.id, status: 'laeuft',
     date: $('dayDate')?.value || new Date().toISOString().slice(0, 10),
-    mode, out: $('gameOut')?.value || 'Double Out', rankingEnabled: $('rankingEnabled')?.checked !== false,
-    totalRounds: +($('swissRounds')?.value || 4), swissFormat,
-    groupCount: $('groupCount')?.value || 'auto', groupDrawMode: $('groupDrawMode')?.value || 'random',
-    qualifyPlaces: qualifiers, groupFormat, roundConfig: collectRoundConfig(), attendees: selected,
+    mode: tournamentType === 'doubleko' ? 'doubleko' : 'premier',
+    bracketSize,
+    rankingEnabled: $('rankingEnabled')?.checked !== false,
+    roundConfig: {},
+    attendees: selected,
     startedAt: new Date().toISOString()
   };
 
   try {
-    if (mode === 'premier') Object.assign(day, makeSingleElimination(selected));
-    else if (mode === 'swiss') Object.assign(day, makeSwiss(selected, day.totalRounds));
-    else if (mode === 'groupsko') Object.assign(day, makeGroupsKO(selected, day));
-    else if (mode === 'doubleko') Object.assign(day, makeDoubleKO(selected));
-    else return toast('Unbekannter Turniermodus.');
-    day.mode = mode; day.status = 'laeuft'; day.attendees = selected;
-    day.rankingEnabled = $('rankingEnabled')?.checked !== false;
+    if (tournamentType === 'doubleko') {
+      Object.assign(day, makeDoubleKO(selected, bracketSize));
+      day.mode = 'doubleko';
+    } else {
+      Object.assign(day, makeSingleElimination(selected, null, bracketSize));
+      day.mode = 'premier';
+    }
+    day.status = 'laeuft';
+    day.attendees = selected;
+    day.bracketSize = bracketSize;
     state.current = day;
     treeSelectionId = 'current';
     await save();
     selectTab('turnierbaum');
-    toast('Turnier wurde ausgelost und gestartet.');
+    toast(`${bracketSize}er ${tournamentType === 'doubleko' ? 'Doppel-K.-o.' : 'K.-o.'}-Feld wurde ausgelost und gestartet.`);
   } catch (error) {
     console.error(error); toast(`Turnier konnte nicht gestartet werden: ${error?.message || error}`);
   }
@@ -1694,13 +1679,17 @@ function selectTab(name) {
   document.querySelectorAll('[data-nav-tab]').forEach(button => button.classList.toggle('active', button.dataset.navTab === name));
   document.querySelectorAll('.serie-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${name}`));
 }
-function updateModeFields() {
-  const mode = $('dayMode')?.value || 'premier';
-  if ($('swissRoundsWrap')) $('swissRoundsWrap').hidden = mode !== 'swiss';
-  if ($('swissFormatWrap')) $('swissFormatWrap').hidden = mode !== 'swiss';
-  if ($('groupsConfigWrap')) $('groupsConfigWrap').hidden = mode !== 'groupsko';
-  if ($('koRoundSettings')) $('koRoundSettings').hidden = mode === 'swiss';
+function updateModeFields() { updateCreateTournamentInfo(); }
+function updateCreateTournamentInfo() {
+  const size = +(document.querySelector('input[name="koSize"]:checked')?.value || 8);
+  const selected = document.querySelectorAll('[data-create-attend]:checked').length;
+  const free = Math.max(0, size - selected);
+  if ($('selectedParticipantsCount')) $('selectedParticipantsCount').textContent = `${selected} ausgewählt`;
+  if ($('koSizeInfo')) $('koSizeInfo').textContent = selected > size
+    ? `${selected} ausgewählt · ${selected - size} zu viel für das ${size}er Feld`
+    : `${selected} von ${size} Plätzen belegt · ${free} ${free === 1 ? 'Freilos' : 'Freilose'}`;
 }
+
 function closeSeasonPicker() { $('seasonPickerMenu').hidden = true; $('seasonPickerButton').setAttribute('aria-expanded', 'false'); }
 function openSeriesNav() {
   const drawer = $('seriesNavDrawer');
@@ -1762,4 +1751,11 @@ document.querySelectorAll('[data-drawer-tab]').forEach(button => button.addEvent
 
 if ($('dayDate')) $('dayDate').value = new Date().toISOString().slice(0, 10);
 updateModeFields();
+document.querySelectorAll('input[name="koSize"]').forEach(input => input.addEventListener('change', updateCreateTournamentInfo));
+document.querySelectorAll('input[name="tournamentType"]').forEach(input => input.addEventListener('change', updateCreateTournamentInfo));
+document.addEventListener('change', event => {
+  if (event.target?.matches?.('[data-create-attend]')) updateCreateTournamentInfo();
+});
+updateCreateTournamentInfo();
+
 load().catch(error => { console.error(error); toast(`Daten konnten nicht geladen werden: ${error?.message || error}`); });

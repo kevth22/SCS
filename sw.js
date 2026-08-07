@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v15-vereinsserie";
+const VERSION = "bwe-v20-vereinsserie";
 
 const CORE_FILES = [
   "./",
