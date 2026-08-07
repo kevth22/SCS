@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=17.0">
+  <link rel="stylesheet" href="vereinsserie.css?v=17.1">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v17-0";
+  const resetKey = "bwe-cache-reset-v17-1";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "17.0");
+    url.searchParams.set("v", "17.1");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -78,12 +78,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
     </div>
   </section>
 
-  <section class="summary-grid">
-    <article><strong id="summaryPlayers">0</strong><span>aktive Spieler</span></article>
-    <article><strong id="summaryDays">0</strong><span>Spieltage</span></article>
-    <article><strong id="summaryLeader">–</strong><span>Tabellenführer</span></article>
-    <article><strong id="summaryMode">–</strong><span>letzter Modus</span></article>
-  </section>
 
   <p id="seriesPermissionHint" class="permission-hint" hidden></p>
 
@@ -93,7 +87,14 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
     </div>
     <div class="table-scroll">
       <table class="ranking-table ranking-table-simple">
-        <thead><tr><th>Platz</th><th>Name</th><th>Punkte</th><th>Gewonnene Legs</th><th>Verlorene Legs</th><th>Differenz</th></tr></thead>
+        <thead><tr>
+          <th><span class="head-full">Platz</span><span class="head-mobile">Pl.</span></th>
+          <th>Name</th>
+          <th><span class="head-full">Punkte</span><span class="head-mobile">Pkt.</span></th>
+          <th><span class="head-full">Gewonnene Legs</span><span class="head-mobile">Legs<br>+</span></th>
+          <th><span class="head-full">Verlorene Legs</span><span class="head-mobile">Legs<br>−</span></th>
+          <th><span class="head-full">Differenz</span><span class="head-mobile">Diff.</span></th>
+        </tr></thead>
         <tbody id="rankingBody"></tbody>
       </table>
     </div>

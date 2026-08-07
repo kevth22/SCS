@@ -830,12 +830,6 @@ function renderSeason() {
     state.activeSeasonId = button.dataset.seasonId;
     closeSeasonPicker(); renderAll();
   });
-  const rows = rankingRows();
-  $('summaryPlayers').textContent = state.members.filter(m => PLAYER_ROLES.includes(m.rolle)).length;
-  $('summaryDays').textContent = (currentSeason?.days?.length || 0) + (state.current?.seasonId === currentSeason?.id ? 1 : 0);
-  $('summaryLeader').textContent = rows[0]?.st.points > 0 ? rows[0].m.name : '–';
-  const lastMode = state.current?.seasonId === currentSeason?.id ? state.current.mode : currentSeason?.days?.at(-1)?.mode;
-  $('summaryMode').textContent = lastMode ? MODES[lastMode] : '–';
 }
 function renderRanking() {
   const rows = rankingRows();
