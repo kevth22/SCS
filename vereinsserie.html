@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=16.1">
+  <link rel="stylesheet" href="vereinsserie.css?v=17.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v16-1";
+  const resetKey = "bwe-cache-reset-v17-0";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "16.1");
+    url.searchParams.set("v", "17.0");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -43,24 +43,24 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 </head>
 <body>
 
-<button id="seriesNavMenuBtn" class="series-nav-menu-btn" type="button" aria-label="Menü öffnen" aria-expanded="false">☰</button>
 <div id="seriesNavBackdrop" class="series-nav-backdrop" hidden></div>
 <aside id="seriesNavDrawer" class="series-nav-drawer" aria-hidden="true">
   <div class="series-nav-head">
-    <div>
-      <span class="eyebrow">Vereinsrangliste</span>
-      <h2>Menü</h2>
+    <div class="series-nav-brand">
+      <img src="black-white-eagles-logo.png?v=11.1" alt="">
+      <div><strong>Vereinsrangliste</strong><small>Black White Eagles</small></div>
     </div>
     <button id="closeSeriesNav" type="button" aria-label="Menü schließen">×</button>
   </div>
   <nav class="series-nav-links" aria-label="Vereinsrangliste Navigation">
-    <button type="button" data-nav-tab="rangliste" class="active"><span>📊</span><strong>Rangliste</strong></button>
-    <button type="button" data-nav-tab="erstellen" data-requires-manage="true"><span>➕</span><strong>Turnier erstellen</strong></button>
-    <button type="button" data-nav-tab="turnierbaum"><span>🌳</span><strong>Turnierbaum</strong></button>
+    <button type="button" data-nav-tab="rangliste" class="active"><span class="nav-icon">▥</span><strong>Rangliste</strong></button>
+    <button type="button" data-nav-tab="erstellen" data-requires-manage="true"><span class="nav-icon">＋</span><strong>Turnier erstellen</strong></button>
+    <button type="button" data-nav-tab="turnierbaum"><span class="nav-icon">⌘</span><strong>Turnierbaum</strong></button>
   </nav>
 </aside>
 
-<header class="app-header">
+<header class="app-header series-page-header">
+  <button id="seriesNavMenuBtn" class="series-nav-menu-btn" type="button" aria-label="Menü öffnen" aria-expanded="false"><span></span><span></span><span></span></button>
   <img src="black-white-eagles-logo.png?v=11.1" class="logo" alt="Black White Eagles Logo">
   <h1>Vereinsrangliste</h1>
   <p>Rangliste, Vereinsturniere & Ergebnisse</p>
@@ -195,6 +195,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=16.1"></script>
+<script type="module" src="vereinsserie.js?v=17.0"></script>
 </body>
 </html>
