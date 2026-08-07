@@ -1697,6 +1697,7 @@ function openProfile(id) {
 }
 function selectTab(name) {
   document.querySelectorAll('.serie-tabs button').forEach(button => button.classList.toggle('active', button.dataset.tab === name));
+  document.querySelectorAll('[data-nav-tab]').forEach(button => button.classList.toggle('active', button.dataset.navTab === name));
   document.querySelectorAll('.serie-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${name}`));
 }
 function updateModeFields() {
@@ -1707,6 +1708,24 @@ function updateModeFields() {
   if ($('koRoundSettings')) $('koRoundSettings').hidden = mode === 'swiss';
 }
 function closeSeasonPicker() { $('seasonPickerMenu').hidden = true; $('seasonPickerButton').setAttribute('aria-expanded', 'false'); }
+function openSeriesNav() {
+  const drawer = $('seriesNavDrawer');
+  const backdrop = $('seriesNavBackdrop');
+  if (!drawer || !backdrop) return;
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  backdrop.hidden = false;
+  $('seriesNavMenuBtn')?.setAttribute('aria-expanded', 'true');
+}
+function closeSeriesNav() {
+  const drawer = $('seriesNavDrawer');
+  const backdrop = $('seriesNavBackdrop');
+  if (!drawer || !backdrop) return;
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  backdrop.hidden = true;
+  $('seriesNavMenuBtn')?.setAttribute('aria-expanded', 'false');
+}
 function openDrawer() { if (!canManage) return; $('seriesAdminDrawer').classList.add('open'); $('seriesAdminDrawerBackdrop').hidden = false; renderAdminDrawer(); }
 function closeDrawer() { $('seriesAdminDrawer').classList.remove('open'); $('seriesAdminDrawerBackdrop').hidden = true; }
 
@@ -1731,6 +1750,17 @@ document.querySelectorAll('.serie-tabs button').forEach(button => button.addEven
   }
   selectTab(button.dataset.tab);
 }));
+$('seriesNavMenuBtn')?.addEventListener('click', openSeriesNav);
+$('closeSeriesNav')?.addEventListener('click', closeSeriesNav);
+$('seriesNavBackdrop')?.addEventListener('click', closeSeriesNav);
+document.querySelectorAll('[data-nav-tab]').forEach(button => button.addEventListener('click', () => {
+  if (button.dataset.requiresManage === 'true' && !canManage) {
+    return toast('Turniere erstellen dürfen nur Admins, Captains und Kassenwarte.');
+  }
+  selectTab(button.dataset.navTab);
+  closeSeriesNav();
+}));
+document.addEventListener('keydown', event => { if (event.key === 'Escape') closeSeriesNav(); });
 $('seriesAdminMenuBtn')?.addEventListener('click', openDrawer);
 $('closeSeriesAdminDrawer')?.addEventListener('click', closeDrawer);
 $('seriesAdminDrawerBackdrop')?.addEventListener('click', closeDrawer);
