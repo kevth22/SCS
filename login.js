@@ -12,7 +12,9 @@ import {
 
 import {
   doc,
-  getDoc
+  getDoc,
+  updateDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 
@@ -90,6 +92,16 @@ async function login() {
     if (!valid) {
       loginAttempts.push(Date.now());
       throw new Error("LOGIN_FAILED");
+    }
+
+    // Das festgelegte Systemkonto „Red Dart“ bleibt auch dann Admin,
+    // wenn es in einer älteren App-Version bereits als Gast angelegt wurde.
+    if (username === normalizeUsername("Red Dart") && String(data.rolle || "").toLowerCase() !== "admin") {
+      await updateDoc(userRef, {
+        rolle: "admin",
+        adminAktiviertAm: serverTimestamp()
+      });
+      data.rolle = "admin";
     }
 
     await migrateLegacyPassword(userRef, password, data);

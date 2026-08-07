@@ -10,8 +10,8 @@ const MODES = {
   doubleko: 'Doppel-K.-o.',
   groupsko: 'Gruppen + K.-o.'
 };
-const PLAYER_ROLES = ['mitglied', 'captain', 'kassenwart'];
-const SELECTABLE_ROLES = [...PLAYER_ROLES, 'admin'];
+const PLAYER_ROLES = ['mitglied', 'captain', 'kassenwart', 'admin'];
+const SELECTABLE_ROLES = [...PLAYER_ROLES];
 const $ = id => document.getElementById(id);
 const uid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -808,6 +808,11 @@ function rankingRows(filter = $('modeFilter')?.value || 'all') {
 }
 function renderPermissions() {
   document.querySelectorAll('.admin-only').forEach(el => el.hidden = !canManage);
+  document.querySelectorAll('[data-requires-manage]').forEach(el => {
+    el.classList.toggle('locked-tab', !canManage);
+    el.setAttribute('aria-disabled', canManage ? 'false' : 'true');
+    el.title = canManage ? '' : 'Nur Admin, Captain oder Kassenwart';
+  });
   const hint = $('seriesPermissionHint');
   if (hint) {
     hint.hidden = canManage;
@@ -1720,7 +1725,12 @@ $('closeProfile')?.addEventListener('click', () => $('profileModal').hidden = tr
 $('profileModal')?.addEventListener('click', e => { if (e.target === $('profileModal')) $('profileModal').hidden = true; });
 $('seasonPickerButton')?.addEventListener('click', e => { e.stopPropagation(); const menu = $('seasonPickerMenu'); menu.hidden = !menu.hidden; });
 document.addEventListener('click', e => { if (!e.target.closest('.season-picker')) closeSeasonPicker(); });
-document.querySelectorAll('.serie-tabs button').forEach(button => button.addEventListener('click', () => selectTab(button.dataset.tab)));
+document.querySelectorAll('.serie-tabs button').forEach(button => button.addEventListener('click', () => {
+  if (button.dataset.requiresManage === 'true' && !canManage) {
+    return toast('Turniere erstellen dürfen nur Admins, Captains und Kassenwarte.');
+  }
+  selectTab(button.dataset.tab);
+}));
 $('seriesAdminMenuBtn')?.addEventListener('click', openDrawer);
 $('closeSeriesAdminDrawer')?.addEventListener('click', closeDrawer);
 $('seriesAdminDrawerBackdrop')?.addEventListener('click', closeDrawer);

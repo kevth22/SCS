@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=15.0">
+  <link rel="stylesheet" href="vereinsserie.css?v=16.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v15";
+  const resetKey = "bwe-cache-reset-v16";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "15.0");
+    url.searchParams.set("v", "16.0");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -50,6 +50,15 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 </header>
 
 <main class="app-container serie-wrap">
+  <section class="series-switcher" aria-label="Vereinsrangliste Bereiche">
+    <span class="series-switcher-label">Bereich wechseln</span>
+    <div class="serie-tabs new-main-tabs">
+      <button data-tab="rangliste" class="active"><span>📊</span> Rangliste</button>
+      <button data-tab="erstellen" data-requires-manage="true"><span>➕</span> Turnier erstellen</button>
+      <button data-tab="turnierbaum"><span>🌳</span> Turnierbaum</button>
+    </div>
+  </section>
+
   <section class="season-bar">
     <div>
       <span class="eyebrow">Aktuelle Saison</span>
@@ -69,12 +78,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
   </section>
 
   <p id="seriesPermissionHint" class="permission-hint" hidden></p>
-
-  <section class="serie-tabs new-main-tabs" aria-label="Bereiche">
-    <button data-tab="rangliste" class="active">Rangliste</button>
-    <button data-tab="erstellen" class="admin-only">Turnier erstellen</button>
-    <button data-tab="turnierbaum">Turnierbaum</button>
-  </section>
 
   <section id="tab-rangliste" class="serie-panel active">
     <div class="panel-head">
@@ -184,6 +187,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=15.0"></script>
+<script type="module" src="vereinsserie.js?v=16.0"></script>
 </body>
 </html>
