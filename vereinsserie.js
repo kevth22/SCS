@@ -25,6 +25,7 @@ let state = { members: [], seasons: [], activeSeasonId: null, current: null };
 let tournamentView = 'tree';
 let treeSelectionId = 'current';
 let treeReadOnly = false;
+let deFocusedPlayer = null;
 
 function toast(message) {
   const el = $('toast');
@@ -603,12 +604,13 @@ function makeGroupsKO(ids, sourceDay = {}) {
 // Entscheidungsspiel.
 
 function doubleRoundName(matchCount, roundIndex, totalRounds) {
+  if (roundIndex === 0) return 'Erste Gewinner-Runde';
   if (roundIndex === totalRounds - 1) return 'Gewinner-Finale';
   if (matchCount === 16) return 'Sechzehntelfinale';
   if (matchCount === 8) return 'Achtelfinale';
   if (matchCount === 4) return 'Viertelfinale';
   if (matchCount === 2) return 'Halbfinale';
-  return `Runde ${roundIndex + 1}`;
+  return `Gewinner-Runde ${roundIndex + 1}`;
 }
 
 function makeDEMatch(bracket, roundIndex, index, p1 = null, p2 = null, source1 = null, source2 = null) {
@@ -1241,38 +1243,88 @@ function renderDoubleKOResults(day) {
   document.querySelectorAll('[data-de-save]').forEach(button => button.onclick = () => saveDoubleKOMatch(button.dataset.deSave));
 }
 
+function doubleMatchCode(match) {
+  if (!match) return '';
+  if (match.bracket === 'winners') return `WB${Number(match.roundIndex || 0) + 1}-${Number(match.index || 0) + 1}`;
+  if (match.bracket === 'losers') return `LB${Number(match.roundIndex || 0) + 1}-${Number(match.index || 0) + 1}`;
+  if (match.bracket === 'reset') return 'RF';
+  return 'GF';
+}
+
+function doubleMatchLabel(match) {
+  if (!match) return '';
+  const gameNo = Number(match.index || 0) + 1;
+  const gameWord = `${gameNo}. Spiel`;
+  if (match.bracket === 'winners') {
+    const roundNo = Number(match.roundIndex || 0) + 1;
+    return roundNo === 1 ? `Erste Gewinner-Runde · ${gameWord}` : `Gewinner-Runde ${roundNo} · ${gameWord}`;
+  }
+  if (match.bracket === 'losers') {
+    return `Verlierer-Runde ${Number(match.roundIndex || 0) + 1} · ${gameWord}`;
+  }
+  if (match.bracket === 'reset') return 'Reset-Finale · Entscheidungsspiel';
+  return 'Grand Final';
+}
+
+function dePlayerIdentity(id, size = 'small') {
+  if (!id) return '';
+  return `<button type="button" class="de-player-tap" data-de-player="${esc(id)}" title="Spielerpfad anzeigen">${playerIdentity(id, size)}</button>`;
+}
+
 function treeMatchCard(match, options = {}) {
   const {
     editable = false,
     prefix = `tree-${match.id}`,
     saveAttr = '',
     saveValue = '',
-    label = ''
+    label = '',
+    dayContext = null,
+    grandFinal = false
   } = options;
 
-  const p1 = match.p1 ? memberName(match.p1) : 'Offen';
-  const p2 = match.p2 ? memberName(match.p2) : 'Offen';
+  const isDouble = ['winners', 'losers', 'final', 'reset'].includes(match?.bracket);
   const winnerClass1 = match.winner === match.p1 ? 'tree-winner' : '';
   const winnerClass2 = match.winner === match.p2 ? 'tree-winner' : '';
+  const loserClass1 = match.completed && match.loser === match.p1 ? 'tree-loser' : '';
+  const loserClass2 = match.completed && match.loser === match.p2 ? 'tree-loser' : '';
   const ready = Boolean(match.p1 && match.p2);
   const canEditMatch = editable && canManage && !treeReadOnly && ready && !match.completed;
-  const sourceStates = [match.source1, match.source2].map(source => source ? {
+
+  const ctx = dayContext || state.current || null;
+  const sourceStates = isDouble ? [match.source1, match.source2].map(source => source ? {
     source,
-    match: findDoubleKOMatch(state.current || {}, source.matchId)
-  } : null);
-  const virtualBye1 = !match.p1 && sourceStates[0]?.source?.outcome === 'loser' && sourceStates[0]?.match?.completed && sourceStates[0]?.match?.bye;
-  const virtualBye2 = !match.p2 && sourceStates[1]?.source?.outcome === 'loser' && sourceStates[1]?.match?.completed && sourceStates[1]?.match?.bye;
+    match: ctx ? findDoubleKOMatch(ctx, source.matchId) : null
+  } : null) : [null, null];
+
+  const virtualBye1 = isDouble && !match.p1 && sourceStates[0]?.source?.outcome === 'loser' &&
+    sourceStates[0]?.match?.completed && sourceStates[0]?.match?.bye;
+  const virtualBye2 = isDouble && !match.p2 && sourceStates[1]?.source?.outcome === 'loser' &&
+    sourceStates[1]?.match?.completed && sourceStates[1]?.match?.bye;
 
   const byeIdentity = () => `<span class="de-bye-player"><span class="bye-avatar" aria-hidden="true">→</span><span class="bye-label">FREILOS</span></span>`;
   const waitingIdentity = () => `<span class="de-waiting-player"><span class="de-waiting-dot" aria-hidden="true">…</span><span>Wartet auf Spieler</span></span>`;
+  const identity = id => isDouble ? dePlayerIdentity(id, 'small') : playerIdentity(id, 'small');
+
+  const code = isDouble ? doubleMatchCode(match) : '';
+  const matchName = isDouble ? doubleMatchLabel(match) : '';
+  const onPath = Boolean(deFocusedPlayer && [match.p1, match.p2, match.winner, match.loser].includes(deFocusedPlayer));
+  const focusClass = deFocusedPlayer ? (onPath ? 'de-path-active' : 'de-path-dim') : '';
+  const stateClass = match.completed ? 'de-match-completed' : ready ? 'de-match-ready' : 'de-match-pending';
+  const matchClasses = [
+    'tree-match',
+    canEditMatch ? 'tree-match-editable' : '',
+    isDouble ? 'de-match-card' : '',
+    isDouble ? stateClass : '',
+    isDouble ? focusClass : '',
+    grandFinal ? 'de-grand-final-card' : ''
+  ].filter(Boolean).join(' ');
 
   if (match.bye) {
     const realPlayer = match.winner || match.p1 || match.p2;
-
-    // Wenn beide Zuführungen leer sind, gibt es keine Partie.
-    // Der Pfad bleibt nur als Strukturhinweis sichtbar.
     if (!realPlayer) {
-      return `<article class="tree-match de-dead-path">
+      return `<article class="${matchClasses} de-dead-path">
+        ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
+        ${matchName ? `<div class="de-match-name">${esc(matchName)}</div>` : ''}
         ${label ? `<small>${esc(label)}</small>` : ''}
         <div class="de-dead-path-icon" aria-hidden="true">×</div>
         <strong>Pfad entfällt</strong>
@@ -1280,32 +1332,37 @@ function treeMatchCard(match, options = {}) {
       </article>`;
     }
 
-    return `<article class="tree-match bye-card">
+    return `<article class="${matchClasses} bye-card">
+      ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
+      ${matchName ? `<div class="de-match-name">${esc(matchName)}</div>` : ''}
       ${label ? `<small>${esc(label)}</small>` : ''}
-      <div class="tree-player tree-winner">${playerIdentity(realPlayer, 'small')}</div>
+      <div class="tree-player tree-winner">${identity(realPlayer)}</div>
       <div class="tree-player de-bye-row">${byeIdentity()}</div>
-      <small>Automatisch weiter</small>
+      <small class="de-match-status">Automatisch weiter</small>
     </article>`;
   }
 
-  return `<article class="tree-match ${canEditMatch ? 'tree-match-editable' : ''}">
+  return `<article class="${matchClasses}">
+    ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
+    ${matchName ? `<div class="de-match-name">${esc(matchName)}</div>` : ''}
     ${label ? `<small>${esc(label)}</small>` : ''}
-    <div class="tree-player ${winnerClass1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
-      ${match.p1 ? playerIdentity(match.p1, 'small') : (virtualBye1 ? byeIdentity() : waitingIdentity())}
+    ${grandFinal ? '<div class="de-final-trophy" aria-hidden="true">🏆</div>' : ''}
+    <div class="tree-player ${winnerClass1} ${loserClass1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
+      ${match.p1 ? identity(match.p1) : (virtualBye1 ? byeIdentity() : waitingIdentity())}
       ${canEditMatch
-        ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}">`
+        ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}" aria-label="Ergebnis Spieler 1">`
         : `<b>${match.completed ? match.s1 : ''}</b>`}
     </div>
-    <div class="tree-player ${winnerClass2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
-      ${match.p2 ? playerIdentity(match.p2, 'small') : (virtualBye2 ? byeIdentity() : waitingIdentity())}
+    <div class="tree-player ${winnerClass2} ${loserClass2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
+      ${match.p2 ? identity(match.p2) : (virtualBye2 ? byeIdentity() : waitingIdentity())}
       ${canEditMatch
-        ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}">`
+        ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}" aria-label="Ergebnis Spieler 2">`
         : `<b>${match.completed ? match.s2 : ''}</b>`}
     </div>
     ${canEditMatch ? `<button class="tree-save-button" ${saveAttr}="${saveValue}">Ergebnis speichern</button>` : ''}
     ${match.completed
-      ? `<small>Ergebnis ${match.s1}:${match.s2}</small>`
-      : (!ready ? '<small class="de-match-status">Wartet auf vorherige Partie</small>' : '')}
+      ? `<small class="de-match-status">Ergebnis ${match.s1}:${match.s2}</small>`
+      : (!ready ? '<small class="de-match-status">Wartet auf vorherige Partie</small>' : '<small class="de-match-status de-ready-text">Spielbereit</small>')}
   </article>`;
 }
 
@@ -1483,16 +1540,44 @@ function renderGroupsTree(day) {
   if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
-function doubleTreeRound(round, bracketLabel) {
-  return `<section class="tree-round de-tree-round" data-de-round="${round.matches?.[0]?.roundIndex ?? 0}">
-    <h3>${esc(round.title)}</h3>
-    ${(round.matches || []).map(match => treeMatchCard(match, {
-      editable: true,
-      prefix: `de-${match.id}`,
-      saveAttr: 'data-de-save',
-      saveValue: match.id,
-      label: ''
-    })).join('')}
+function doubleTreeRound(round, bracketLabel, options = {}) {
+  const matches = round.matches || [];
+  const count = Math.max(1, matches.length);
+  const maxMatches = Math.max(count, Number(options.maxMatches || count));
+  const nextCount = Number(options.nextCount || 0);
+  const hasNext = Boolean(options.hasNext);
+  const title = options.title || round.title;
+  const roundCode = bracketLabel === 'Gewinnerbaum' ? `WB${Number(matches[0]?.roundIndex || 0) + 1}` : `LB${Number(matches[0]?.roundIndex || 0) + 1}`;
+
+  const cards = matches.map((match, index) => {
+    const center = ((index + 0.5) / count) * 100;
+    return `<div class="de-match-wrap ${hasNext ? 'has-next' : ''}" style="--de-center:${center}%">
+      ${treeMatchCard(match, {
+        editable: true,
+        prefix: `de-${match.id}`,
+        saveAttr: 'data-de-save',
+        saveValue: match.id,
+        label: '',
+        dayContext: options.dayContext
+      })}
+    </div>`;
+  }).join('');
+
+  let connectors = '';
+  if (hasNext && nextCount > 0 && nextCount < count) {
+    const ratio = count / nextCount;
+    for (let nextIndex = 0; nextIndex < nextCount; nextIndex++) {
+      const first = nextIndex * ratio;
+      const last = first + ratio - 1;
+      const top = ((first + 0.5) / count) * 100;
+      const bottom = ((last + 0.5) / count) * 100;
+      connectors += `<span class="de-pair-connector" style="--de-line-top:${top}%;--de-line-height:${bottom-top}%"></span>`;
+    }
+  }
+
+  return `<section class="tree-round de-tree-round" data-de-round="${matches[0]?.roundIndex ?? 0}" style="--de-max-matches:${maxMatches}">
+    <div class="de-round-head"><span>${esc(roundCode)}</span><strong>${esc(title)}</strong></div>
+    <div class="de-round-body">${cards}${connectors}</div>
   </section>`;
 }
 
@@ -1503,22 +1588,46 @@ function renderDoubleKOTree(day) {
   }
 
   refreshDoubleKO(day);
+  if (deFocusedPlayer && !(day.attendees || []).includes(deFocusedPlayer)) deFocusedPlayer = null;
+
   const wb = day.de.wbRounds || [];
   const lb = day.de.lbRounds || [];
   const gf = day.de.grandFinal;
   const reset = day.de.resetFinal;
   const size = day.de.size || day.bracketSize || 0;
+  const wbMax = Math.max(1, ...(wb.map(r => r.matches?.length || 0)));
+  const lbMax = Math.max(1, ...(lb.map(r => r.matches?.length || 0)));
+
+  const wbHtml = wb.map((round, index) => doubleTreeRound(round, 'Gewinnerbaum', {
+    maxMatches: wbMax,
+    nextCount: wb[index + 1]?.matches?.length || 0,
+    hasNext: index < wb.length - 1,
+    dayContext: day
+  })).join('');
+
+  const lbHtml = lb.map((round, index) => doubleTreeRound(round, 'Verliererbaum', {
+    maxMatches: lbMax,
+    nextCount: lb[index + 1]?.matches?.length || 0,
+    hasNext: index < lb.length - 1,
+    dayContext: day,
+    title: `Verlierer-Runde ${index + 1}`
+  })).join('');
 
   $('dayWorkspace').innerHTML = `
     <div class="de-bracket-shell de-size-${size}">
+      <div class="de-focus-bar ${deFocusedPlayer ? 'active' : ''}">
+        <span>${deFocusedPlayer ? `Spielerpfad: ${esc(memberName(deFocusedPlayer))}` : 'Tippe auf einen Spieler, um seinen Turnierweg hervorzuheben.'}</span>
+        ${deFocusedPlayer ? '<button type="button" id="clearDeFocus">Pfad ausblenden</button>' : ''}
+      </div>
+
       <section class="double-tree-section winners-tree-section">
         <div class="double-tree-heading">
           <div><span class="de-kicker">0 Niederlagen</span><h2>Gewinnerbaum</h2></div>
           <small>Verlierer rücken automatisch in den Verliererbaum.</small>
         </div>
-        <div class="tournament-tree-scroll"><div class="tournament-tree de-tree winners-tree">
-          ${wb.map(round => doubleTreeRound(round, 'Gewinnerbaum')).join('')}
-        </div></div>
+        <div class="tournament-tree-scroll de-scroll-touch">
+          <div class="tournament-tree de-tree winners-tree">${wbHtml}</div>
+        </div>
       </section>
 
       <section class="double-tree-section losers-tree-section">
@@ -1526,9 +1635,9 @@ function renderDoubleKOTree(day) {
           <div><span class="de-kicker">1 Niederlage</span><h2>Verliererbaum</h2></div>
           <small>Wer hier verliert, scheidet mit der zweiten Niederlage aus.</small>
         </div>
-        <div class="tournament-tree-scroll"><div class="tournament-tree de-tree losers-tree">
-          ${lb.map(round => doubleTreeRound(round, 'Verliererbaum')).join('')}
-        </div></div>
+        <div class="tournament-tree-scroll de-scroll-touch">
+          <div class="tournament-tree de-tree losers-tree">${lbHtml}</div>
+        </div>
       </section>
 
       <section class="double-tree-section final-tree-section">
@@ -1537,8 +1646,14 @@ function renderDoubleKOTree(day) {
           <small>${reset ? 'Reset nötig: Beide Finalisten haben jetzt eine Niederlage.' : 'Gewinnt der LB-Sieger, wird automatisch ein Reset-Finale erzeugt.'}</small>
         </div>
         <div class="de-finals-grid">
-          ${treeMatchCard(gf, { editable: true, prefix: `de-${gf.id}`, saveAttr: 'data-de-save', saveValue: gf.id, label: 'Grand Final' })}
-          ${reset ? treeMatchCard(reset, { editable: true, prefix: `de-${reset.id}`, saveAttr: 'data-de-save', saveValue: reset.id, label: 'Reset-Finale · Entscheidung' }) : ''}
+          ${treeMatchCard(gf, {
+            editable: true, prefix: `de-${gf.id}`, saveAttr: 'data-de-save', saveValue: gf.id,
+            label: 'Grand Final', dayContext: day, grandFinal: true
+          })}
+          ${reset ? treeMatchCard(reset, {
+            editable: true, prefix: `de-${reset.id}`, saveAttr: 'data-de-save', saveValue: reset.id,
+            label: 'Reset-Finale · Entscheidung', dayContext: day, grandFinal: true
+          }) : ''}
         </div>
       </section>
     </div>
@@ -1550,6 +1665,21 @@ function renderDoubleKOTree(day) {
   document.querySelectorAll('[data-de-save]').forEach(button => {
     button.onclick = () => saveDoubleKOMatch(button.dataset.deSave);
   });
+
+  document.querySelectorAll('[data-de-player]').forEach(button => {
+    button.onclick = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      deFocusedPlayer = button.dataset.dePlayer;
+      renderDoubleKOTree(day);
+    };
+  });
+
+  $('clearDeFocus')?.addEventListener('click', () => {
+    deFocusedPlayer = null;
+    renderDoubleKOTree(day);
+  });
+
   if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 

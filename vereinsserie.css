@@ -925,3 +925,373 @@ body{background:#050505!important;}
   color:#fff!important;
   border:1px solid #4a4a4a!important;
 }
+
+
+
+/* =====================================================================
+   V32 – Black White Eagles Doppel-KO Pro Bracket
+   Mobil zuerst, links -> rechts, fingerfreundlich, schwarz/weiß
+   ===================================================================== */
+
+.de-bracket-shell{
+  --de-card-w:286px;
+  --de-col-gap:58px;
+  --de-row-pitch:186px;
+  --de-line:#5a5a5a;
+  --de-line-active:#f4f4f4;
+  color:#fff;
+}
+
+.de-focus-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:48px;
+  margin:0 0 14px;
+  padding:10px 13px;
+  border:1px solid #343434;
+  border-radius:13px;
+  background:#0e0e0e;
+  color:#9d9d9d;
+  font-size:.82rem;
+  font-weight:700;
+}
+.de-focus-bar.active{
+  color:#fff;
+  border-color:#777;
+}
+.de-focus-bar button{
+  min-height:44px;
+  padding:8px 12px;
+  border:1px solid #555;
+  border-radius:10px;
+  background:#fff;
+  color:#000;
+  font-weight:900;
+}
+
+.double-tree-heading{
+  border-left:4px solid #fff!important;
+  background:linear-gradient(90deg,#151515,#0c0c0c)!important;
+}
+.double-tree-heading h2{margin:3px 0 0!important;letter-spacing:-.02em}
+.de-kicker{
+  display:inline-flex!important;
+  min-height:26px;
+  align-items:center;
+  padding:3px 8px;
+  border:1px solid #555;
+  border-radius:999px;
+  background:#0b0b0b;
+  color:#bdbdbd!important;
+  font-size:.66rem!important;
+  letter-spacing:.08em;
+}
+
+.de-scroll-touch{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+  touch-action:pan-x pan-y;
+  scrollbar-width:thin;
+}
+
+.de-tree{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:var(--de-col-gap)!important;
+  width:max-content!important;
+  min-width:100%;
+  padding:14px 28px 24px!important;
+  box-sizing:border-box;
+  background:linear-gradient(#ffffff08 1px,transparent 1px) 0 72px/100% var(--de-row-pitch);
+}
+
+.de-tree-round{
+  position:relative!important;
+  display:block!important;
+  flex:0 0 var(--de-card-w)!important;
+  width:var(--de-card-w)!important;
+  min-height:0!important;
+  scroll-snap-align:start;
+}
+
+.de-round-head{
+  position:sticky;
+  top:0;
+  z-index:8;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:48px;
+  margin:0 0 10px;
+  padding:7px 9px;
+  border:1px solid #3b3b3b;
+  border-radius:11px;
+  background:#0d0d0df2;
+  backdrop-filter:blur(7px);
+  box-sizing:border-box;
+}
+.de-round-head span{
+  flex:0 0 auto;
+  padding:4px 7px;
+  border-radius:7px;
+  background:#fff;
+  color:#000;
+  font-size:.68rem;
+  font-weight:1000;
+  letter-spacing:.04em;
+}
+.de-round-head strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#e9e9e9;
+  font-size:.78rem;
+}
+
+.de-round-body{
+  position:relative;
+  height:calc(var(--de-max-matches) * var(--de-row-pitch));
+  min-height:190px;
+}
+
+.de-match-wrap{
+  position:absolute;
+  left:0;
+  top:var(--de-center);
+  width:100%;
+  transform:translateY(-50%);
+  z-index:3;
+}
+.de-match-wrap.has-next::after{
+  content:"";
+  position:absolute;
+  left:100%;
+  top:50%;
+  width:calc(var(--de-col-gap) / 2);
+  border-top:2px solid var(--de-line);
+  pointer-events:none;
+}
+.de-tree-round:not(:first-child) .de-match-wrap::before{
+  content:"";
+  position:absolute;
+  right:100%;
+  top:50%;
+  width:calc(var(--de-col-gap) / 2);
+  border-top:2px solid var(--de-line);
+  pointer-events:none;
+}
+.de-pair-connector{
+  position:absolute;
+  left:calc(100% + (var(--de-col-gap) / 2));
+  top:var(--de-line-top);
+  height:var(--de-line-height);
+  border-left:2px solid var(--de-line);
+  pointer-events:none;
+  z-index:1;
+}
+
+.de-match-card{
+  position:relative;
+  width:100%;
+  min-height:126px!important;
+  padding:8px!important;
+  border:1px solid #444!important;
+  border-radius:15px!important;
+  background:#111!important;
+  box-shadow:0 8px 22px #0008!important;
+  box-sizing:border-box;
+  transition:opacity .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.de-match-card.de-match-ready{
+  border-color:#eee!important;
+  box-shadow:0 0 0 2px #ffffff16,0 10px 26px #0009!important;
+}
+.de-match-card.de-match-completed{border-color:#666!important}
+.de-match-card.de-match-pending{border-color:#333!important;background:#0e0e0e!important}
+
+.de-match-code{
+  position:absolute;
+  top:-12px;
+  left:10px;
+  z-index:5;
+  min-height:25px;
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border:2px solid #111;
+  border-radius:8px;
+  background:#fff;
+  color:#000;
+  font-size:.7rem;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.045em;
+  box-shadow:0 3px 9px #0008;
+}
+.de-match-name{
+  min-height:18px;
+  margin:0 0 5px 2px;
+  padding-left:74px;
+  color:#8f8f8f;
+  font-size:.64rem;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.de-match-card .tree-player{
+  min-height:54px!important;
+  padding:6px 8px!important;
+  border-radius:10px!important;
+  box-sizing:border-box;
+}
+.de-match-card .tree-player + .tree-player{margin-top:4px!important}
+.de-match-card .tree-winner{background:#fff!important;color:#000!important;font-weight:1000}
+.de-match-card .tree-loser{opacity:.5;filter:saturate(.55)}
+.de-match-card .tree-winner .de-player-tap,
+.de-match-card .tree-winner .player-identity{color:#000!important}
+
+.de-player-tap{
+  appearance:none;
+  -webkit-appearance:none;
+  width:100%;
+  min-height:48px;
+  padding:0;
+  margin:0;
+  display:flex;
+  align-items:center;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.de-player-tap .player-identity{
+  width:100%;
+  min-height:48px;
+  font-size:.95rem;
+  font-weight:850;
+}
+
+.de-match-card .player-avatar-small,
+.de-finals-grid .player-avatar-small{
+  width:46px!important;
+  height:46px!important;
+  flex:0 0 46px!important;
+  border:3px solid #fff!important;
+}
+.de-match-card .tree-winner .player-avatar-small{border-color:#111!important}
+.de-match-card .player-avatar-fallback{font-size:.82rem!important}
+
+.de-match-card input{
+  width:56px!important;
+  min-width:56px!important;
+  height:48px!important;
+  border-radius:10px!important;
+  font-size:1rem!important;
+}
+.de-match-card .tree-save-button{
+  min-height:48px!important;
+  margin-top:8px!important;
+  border-radius:11px!important;
+  font-size:.82rem!important;
+  letter-spacing:.035em;
+}
+
+.de-waiting-player,.de-bye-player{min-height:48px;width:100%}
+.de-waiting-dot,.bye-avatar{
+  width:46px!important;
+  height:46px!important;
+  flex:0 0 46px!important;
+}
+.de-waiting-slot{background:#0c0c0c!important;border:1px dashed #353535!important}
+.de-bye-slot,.de-bye-row{background:#181818!important;border:1px solid #414141!important}
+.de-match-status{
+  min-height:22px;
+  margin-top:5px!important;
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  color:#8f8f8f!important;
+  font-size:.72rem!important;
+  font-weight:700;
+}
+.de-ready-text{color:#fff!important}
+.de-ready-text::before{content:"●";margin-right:6px;font-size:.6rem}
+
+.de-path-dim{opacity:.22!important}
+.de-path-active{
+  opacity:1!important;
+  border-color:#fff!important;
+  box-shadow:0 0 0 2px #fff3,0 12px 28px #000!important;
+}
+.de-match-wrap:has(.de-path-active)::after,
+.de-tree-round:has(.de-path-active) .de-pair-connector{
+  border-color:var(--de-line-active);
+}
+
+.bye-avatar{
+  background:repeating-linear-gradient(135deg,#0b0b0b 0 7px,#242424 7px 14px)!important;
+  border:3px solid #fff!important;
+  color:#fff!important;
+  font-size:1.15rem!important;
+}
+.bye-label{font-size:.88rem;letter-spacing:.055em}
+
+.de-finals-grid{grid-template-columns:repeat(2,minmax(300px,420px))!important;gap:18px!important}
+.de-grand-final-card{
+  min-height:180px!important;
+  border:2px solid #fff!important;
+  padding-top:24px!important;
+  background:linear-gradient(145deg,#161616,#090909)!important;
+}
+.de-final-trophy{
+  position:absolute;
+  right:13px;
+  top:10px;
+  font-size:2rem;
+  filter:grayscale(1);
+}
+.de-grand-final-card .de-match-code{font-size:.78rem}
+.de-grand-final-card .de-match-name{color:#bdbdbd}
+
+.ranking-table-simple .player-avatar-small,
+.group-card .player-avatar-small,
+.group-table .player-avatar-small,
+.swiss-table .player-avatar-small{
+  width:42px!important;
+  height:42px!important;
+  flex-basis:42px!important;
+  border-width:3px!important;
+}
+
+@media(max-width:720px){
+  .de-bracket-shell{--de-card-w:278px;--de-col-gap:50px;--de-row-pitch:178px}
+  .de-tree{padding:14px 18px 24px!important}
+  .de-round-head{min-height:50px}
+  .de-match-card{min-height:128px!important}
+  .de-match-card .tree-player,.de-player-tap,.de-player-tap .player-identity{min-height:48px!important}
+  .de-finals-grid{grid-template-columns:minmax(0,1fr)!important;padding:12px!important}
+  .de-focus-bar{position:sticky;left:0;z-index:10;font-size:.76rem}
+}
+
+@media(max-width:390px){
+  .de-bracket-shell{--de-card-w:264px;--de-col-gap:46px}
+  .de-match-card .player-avatar-small,.de-waiting-dot,.bye-avatar{
+    width:44px!important;height:44px!important;flex-basis:44px!important
+  }
+  .de-player-tap .player-identity{font-size:.9rem}
+}
+
+@media(min-width:1000px){
+  .de-bracket-shell{--de-card-w:300px;--de-col-gap:68px;--de-row-pitch:194px}
+}
