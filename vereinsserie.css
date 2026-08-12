@@ -1964,613 +1964,260 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
   opacity:.62!important;
 }
 
-
 /* =====================================================================
-   V40 – Doppel-KO: einheitliche Spielerzeilen / Baumabstände
+   V46 – EINHEITLICHE DOPPEL-KO-ZUSTÄNDE
+   1) wartend/unvollständig = grau
+   2) spielbereit = weiß
+   3) Gewinner = grün
+   4) Verlierer = rot
+   Leg-/Ergebnisfeld = immer grau
    ===================================================================== */
+
+/* Grundlayout */
 .de-bracket-shell{
-  --de-card-w:250px!important;
-  --de-col-gap:46px!important;
-  --de-row-pitch:206px!important;
+  --de-card-w:246px;
+  --de-col-gap:42px;
+  --de-row-pitch:206px;
 }
 
-/* Einheitliche Matchkarte */
-.de-match-card,
-.de-match-card.tree-match-editable,
-.de-match-card.bye-card{
-  height:186px!important;
-  min-height:186px!important;
-  max-height:186px!important;
-  padding:7px!important;
-  box-sizing:border-box!important;
+.de-match-card{
+  background:#1b1b1b !important;
+  color:#fff !important;
+  border:1px solid #4b4b4b !important;
+  border-radius:14px !important;
 }
 
-/* Spielerzeile: weiß, Name schwarz, Score exakt auf derselben Höhe */
+/* Spielerzeile – stabile feste Struktur */
 .de-match-card .tree-player:has(.de-player-direct){
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) 48px!important;
-  column-gap:7px!important;
-  align-items:center!important;
-  height:52px!important;
-  min-height:52px!important;
-  max-height:52px!important;
-  padding:0 7px!important;
-  background:#fff!important;
-  color:#000!important;
-  border:1px solid #e8e8e8!important;
-  border-radius:10px!important;
-  overflow:hidden!important;
-  box-sizing:border-box!important;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) 48px !important;
+  column-gap:8px !important;
+  align-items:center !important;
+  height:52px !important;
+  min-height:52px !important;
+  max-height:52px !important;
+  padding:0 7px !important;
+  border-radius:10px !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
 }
 
 .de-match-card .de-player-direct{
-  display:grid!important;
-  grid-template-columns:46px minmax(0,1fr)!important;
-  gap:9px!important;
-  align-items:center!important;
-  width:100%!important;
-  height:50px!important;
-  min-width:0!important;
-  padding:0!important;
-  background:transparent!important;
-  color:#000!important;
-  overflow:hidden!important;
+  grid-column:1 !important;
+  display:grid !important;
+  grid-template-columns:46px minmax(0,1fr) !important;
+  gap:9px !important;
+  align-items:center !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:50px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  text-align:left !important;
+  overflow:hidden !important;
+  appearance:none !important;
+  -webkit-appearance:none !important;
 }
 
-.de-match-card .de-player-direct .player-avatar-small,
-.de-match-card .de-player-direct .player-avatar,
-.de-match-card .de-player-direct img{
-  width:46px!important;
-  height:46px!important;
-  min-width:46px!important;
-  min-height:46px!important;
-  max-width:46px!important;
-  max-height:46px!important;
-  border-width:3px!important;
-  box-sizing:border-box!important;
+.de-match-card .de-player-direct .player-avatar-small{
+  width:46px !important;
+  height:46px !important;
+  min-width:46px !important;
+  min-height:46px !important;
+  max-width:46px !important;
+  max-height:46px !important;
+  border:3px solid #fff !important;
+  box-sizing:border-box !important;
 }
 
 .de-match-card .de-player-direct-name{
-  display:block!important;
-  min-width:0!important;
-  overflow:hidden!important;
-  text-overflow:ellipsis!important;
-  white-space:nowrap!important;
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-  font-size:1rem!important;
-  font-weight:900!important;
-  line-height:1!important;
-  opacity:1!important;
-}
-
-/* Leg-Eingabe sitzt direkt rechts neben dem Namen auf identischer Höhe */
-.de-match-card .tree-player:has(.de-player-direct) input{
-  grid-column:2!important;
-  align-self:center!important;
-  justify-self:end!important;
-  width:48px!important;
-  height:44px!important;
-  min-width:48px!important;
-  min-height:44px!important;
-  margin:0!important;
-  padding:0 5px!important;
-  box-sizing:border-box!important;
-  border-radius:9px!important;
-  font-size:1rem!important;
-  font-weight:900!important;
-  text-align:center!important;
-}
-
-/* Nach Ergebnis: Sieger grau + weiße Schrift */
-.de-match-card .tree-player.tree-winner:has(.de-player-direct){
-  background:#555!important;
-  color:#fff!important;
-  border-color:#777!important;
-}
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct-name{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-}
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) input{
-  color:#fff!important;
-}
-
-/* Verlierer bleibt weiß mit schwarzem Namen */
-.de-match-card .tree-player.tree-loser:has(.de-player-direct){
-  background:#fff!important;
-  color:#000!important;
-  border-color:#e8e8e8!important;
-  opacity:1!important;
-}
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-  opacity:1!important;
-}
-
-/* Spieler und Bild so groß wie bei Freilos */
-.de-match-card .de-bye-row,
-.de-match-card .tree-player:has(.de-player-direct){
-  min-height:52px!important;
-  height:52px!important;
-  max-height:52px!important;
-}
-
-/* Einheitlicher vertikaler Abstand innerhalb jeder Partie */
-.de-match-card .tree-player + .tree-player{
-  margin-top:5px!important;
-}
-.de-match-card .tree-save-button{
-  height:40px!important;
-  min-height:40px!important;
-  max-height:40px!important;
-  margin-top:6px!important;
-}
-.de-match-status{
-  height:17px!important;
-  min-height:17px!important;
-  line-height:17px!important;
-  margin-top:2px!important;
-}
-
-/* Einheitliches Turnierbaum-Raster */
-.de-round-body{
-  height:calc(var(--de-max-matches) * var(--de-row-pitch))!important;
-}
-.de-match-wrap{
-  height:186px!important;
-}
-
-/* Handy */
-@media(max-width:720px){
-  .de-bracket-shell{
-    --de-card-w:246px!important;
-    --de-col-gap:42px!important;
-    --de-row-pitch:206px!important;
-  }
-}
-@media(max-width:390px){
-  .de-bracket-shell{
-    --de-card-w:240px!important;
-    --de-col-gap:40px!important;
-    --de-row-pitch:206px!important;
-  }
-  .de-match-card .de-player-direct-name{
-    font-size:.94rem!important;
-  }
-}
-
-
-/* =====================================================================
-   V41 – Doppel-KO Spielerfarben
-   Normal = weiß/schwarz
-   Gewinner = grün/weiß
-   Verlierer = rot/weiß
-   ===================================================================== */
-
-/* Normaler Spieler */
-.de-match-card .tree-player:has(.de-player-direct){
-  background:#fff!important;
-  color:#000!important;
-  border-color:#e6e6e6!important;
-}
-.de-match-card .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name{
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-}
-
-/* Gewinner */
-.de-match-card .tree-player.tree-winner:has(.de-player-direct){
-  background:#2e9f43!important;
-  color:#fff!important;
-  border-color:#54c866!important;
-}
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct-name{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-}
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .player-avatar-small{
-  border-color:#fff!important;
-}
-
-/* Verlierer */
-.de-match-card .tree-player.tree-loser:has(.de-player-direct){
-  background:#b93737!important;
-  color:#fff!important;
-  border-color:#dc5b5b!important;
-  opacity:1!important;
-  filter:none!important;
-}
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  opacity:1!important;
-}
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .player-avatar-small{
-  border-color:#fff!important;
-  opacity:1!important;
-}
-
-/* Ergebniszahl nach Abschluss ebenfalls passend lesbar */
-.de-match-card .tree-player.tree-winner > b,
-.de-match-card .tree-player.tree-loser > b{
-  color:#fff!important;
-}
-
-
-/* =====================================================================
-   V42 – Ergebniswerte rechts in Spielerzeile + klare Matchzustände
-   ===================================================================== */
-
-/* Abgeschlossenes Ergebnis sitzt exakt dort, wo vorher das Eingabefeld war. */
-.de-match-card .tree-player .de-result-score{
-  grid-column:2!important;
-  align-self:center!important;
-  justify-self:end!important;
-  display:grid!important;
-  place-items:center!important;
-  width:48px!important;
-  min-width:48px!important;
-  max-width:48px!important;
-  height:44px!important;
-  min-height:44px!important;
-  max-height:44px!important;
-  margin:0!important;
-  padding:0!important;
-  border:1px solid #555!important;
-  border-radius:9px!important;
-  background:#171717!important;
-  color:#fff!important;
-  font-size:1rem!important;
-  font-weight:1000!important;
-  line-height:1!important;
-  box-sizing:border-box!important;
-}
-
-/* Gewinner grün + weiß, Ergebnis passend rechts. */
-.de-match-card .tree-player.tree-winner:has(.de-player-direct){
-  background:#2e9f43!important;
-  color:#fff!important;
-  border-color:#54c866!important;
-}
-.de-match-card .tree-player.tree-winner .de-result-score{
-  background:#1f7330!important;
-  border-color:#76d684!important;
-  color:#fff!important;
-}
-
-/* Verlierer rot + weiß, Ergebnis passend rechts. */
-.de-match-card .tree-player.tree-loser:has(.de-player-direct){
-  background:#b93737!important;
-  color:#fff!important;
-  border-color:#dc5b5b!important;
-  opacity:1!important;
-  filter:none!important;
-}
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-}
-.de-match-card .tree-player.tree-loser .de-result-score{
-  background:#812525!important;
-  border-color:#e37373!important;
-  color:#fff!important;
-}
-
-/* Spielbereite Matchkarte: weißer Außenhintergrund. */
-.de-match-card.de-match-ready{
-  background:#fff!important;
-  border-color:#fff!important;
-  color:#000!important;
-}
-
-/* Innerhalb einer spielbereiten Partie bleiben die Spielerzeilen weiß,
-   Namen schwarz und Eingabefelder sichtbar. */
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
-  background:#fff!important;
-  color:#000!important;
-  border-color:#dcdcdc!important;
-}
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct-name{
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-}
-.de-match-card.de-match-ready .tree-player input{
-  background:#fff!important;
-  color:#000!important;
-  border:2px solid #333!important;
-}
-
-/* Button innerhalb weißer spielbereiter Karte klar absetzen. */
-.de-match-card.de-match-ready .tree-save-button{
-  background:#111!important;
-  color:#fff!important;
-  border-color:#111!important;
-}
-
-/* "Spielbereit" auf weißem Kartenhintergrund lesbar. */
-.de-match-card.de-match-ready .de-match-status,
-.de-match-card.de-match-ready .de-ready-text{
-  color:#111!important;
-}
-
-/* Nach Abschluss soll die Karte selbst wieder dunkel bleiben;
-   nur Sieger/Verlierer tragen ihre Statusfarbe. */
-.de-match-card.de-match-completed{
-  background:#111!important;
-  color:#fff!important;
-}
-
-
-/* =====================================================================
-   V43 – gewünschtes Doppel-KO Farbschema + Ergebnis rechts
-   Außenkarte dunkel/grau
-   Spielerzeile weiß
-   Eingabefeld grau
-   Gewinner grün
-   Verlierer rot
-   ===================================================================== */
-
-/* Außenkarte bleibt dunkel/grau, auch wenn das Spiel bereit ist */
-.de-match-card,
-.de-match-card.de-match-ready,
-.de-match-card.de-match-completed{
-  background:#1a1a1a!important;
-  color:#fff!important;
-  border-color:#4a4a4a!important;
-}
-
-/* Normale Spielerzeile: weiß + schwarze Schrift */
-.de-match-card .tree-player:has(.de-player-direct),
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
-  background:#fff!important;
-  color:#000!important;
-  border-color:#ddd!important;
-}
-.de-match-card .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name,
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct-name{
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-}
-
-/* Legs-Eingabefeld bleibt grau/dunkel */
-.de-match-card .tree-player input,
-.de-match-card.de-match-ready .tree-player input{
-  background:#2d2d2d!important;
-  color:#fff!important;
-  border:2px solid #666!important;
-}
-
-/* Ergebnis nach Abschluss genau rechts in derselben Spalte wie das Eingabefeld */
-.de-match-card .tree-player .de-result-score{
-  grid-column:2!important;
-  align-self:center!important;
-  justify-self:end!important;
-  display:grid!important;
-  place-items:center!important;
-  width:48px!important;
-  min-width:48px!important;
-  max-width:48px!important;
-  height:44px!important;
-  min-height:44px!important;
-  max-height:44px!important;
-  margin:0!important;
-  padding:0!important;
-  border:2px solid #666!important;
-  border-radius:9px!important;
-  background:#2d2d2d!important;
-  color:#fff!important;
-  font-size:1rem!important;
-  font-weight:1000!important;
-  box-sizing:border-box!important;
-}
-
-/* Gewinner: grün + weiße Schrift */
-.de-match-card .tree-player.tree-winner:has(.de-player-direct){
-  background:#2e9f43!important;
-  color:#fff!important;
-  border-color:#55c96a!important;
-}
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct-name{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-}
-.de-match-card .tree-player.tree-winner .de-result-score{
-  background:#256f36!important;
-  color:#fff!important;
-  border-color:#6bd17a!important;
-}
-
-/* Verlierer: rot + weiße Schrift */
-.de-match-card .tree-player.tree-loser:has(.de-player-direct){
-  background:#b83232!important;
-  color:#fff!important;
-  border-color:#db5a5a!important;
-  opacity:1!important;
-  filter:none!important;
-}
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  opacity:1!important;
-}
-.de-match-card .tree-player.tree-loser .de-result-score{
-  background:#7a2323!important;
-  color:#fff!important;
-  border-color:#e07171!important;
-}
-
-/* Button auf dunkler Außenkarte weiß */
-.de-match-card .tree-save-button{
-  background:#fff!important;
-  color:#000!important;
-  border-color:#fff!important;
-}
-
-/* "Spielbereit" auf dunkler Außenkarte hell */
-.de-match-card .de-ready-text,
-.de-match-card.de-match-ready .de-ready-text,
-.de-match-card.de-match-ready .de-match-status{
-  color:#e8e8e8!important;
-}
-
-
-/* =====================================================================
-   V44 FINAL FIX – tatsächliche Spielerzeilen
-   ===================================================================== */
-
-/* Match-Karte bleibt dunkel/grau */
-.de-match-card,
-.de-match-card.de-match-ready,
-.de-match-card.de-match-completed {
-  background:#1b1b1b !important;
-  color:#fff !important;
-  border-color:#4b4b4b !important;
-}
-
-/* Noch nicht entschieden / spielbereit: Spielerfläche WEISS */
-.de-match-card .tree-player:has(.de-player-direct) {
-  background:#fff !important;
-  color:#000 !important;
-  border-color:#ddd !important;
-}
-.de-match-card .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name {
-  color:#000 !important;
-  -webkit-text-fill-color:#000 !important;
-}
-
-/* Leg-Feld rechts GRAU */
-.de-match-card .tree-player input {
-  background:#3a3a3a !important;
-  color:#fff !important;
-  border:2px solid #686868 !important;
-}
-
-/* Ergebniszahl ersetzt nach Abschluss das Input exakt rechts */
-.de-match-card .tree-player .de-result-score {
-  display:grid !important;
-  place-items:center !important;
-  grid-column:2 !important;
-  align-self:center !important;
-  justify-self:end !important;
-  width:48px !important;
-  height:44px !important;
-  min-width:48px !important;
-  min-height:44px !important;
-  margin:0 !important;
-  padding:0 !important;
-  box-sizing:border-box !important;
-  background:#3a3a3a !important;
-  color:#fff !important;
-  border:2px solid #686868 !important;
-  border-radius:9px !important;
+  display:block !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  opacity:1 !important;
+  visibility:visible !important;
   font-size:1rem !important;
   font-weight:900 !important;
   line-height:1 !important;
 }
 
-/* GEWONNEN */
-.de-match-card .tree-player.tree-winner,
-.de-match-card .tree-player.tree-winner:has(.de-player-direct) {
+/* Legs-Eingabe: IMMER grau */
+.de-match-card .tree-player input{
+  grid-column:2 !important;
+  justify-self:end !important;
+  align-self:center !important;
+  width:48px !important;
+  min-width:48px !important;
+  max-width:48px !important;
+  height:44px !important;
+  min-height:44px !important;
+  max-height:44px !important;
+  margin:0 !important;
+  padding:0 5px !important;
+  box-sizing:border-box !important;
+  border:2px solid #666 !important;
+  border-radius:9px !important;
+  background:#333 !important;
+  color:#fff !important;
+  text-align:center !important;
+  font-size:1rem !important;
+  font-weight:900 !important;
+}
+
+/* Ergebnis nach Speichern: exakt an derselben Stelle wie das Input */
+.de-match-card .de-result-score{
+  grid-column:2 !important;
+  justify-self:end !important;
+  align-self:center !important;
+  display:grid !important;
+  place-items:center !important;
+  width:48px !important;
+  min-width:48px !important;
+  max-width:48px !important;
+  height:44px !important;
+  min-height:44px !important;
+  max-height:44px !important;
+  margin:0 !important;
+  padding:0 !important;
+  box-sizing:border-box !important;
+  border:2px solid #666 !important;
+  border-radius:9px !important;
+  background:#333 !important;
+  color:#fff !important;
+  font-size:1rem !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+}
+
+/* ---------------------------------------------------------
+   ZUSTAND 1: unvollständig / wartet
+   Karte und bekannte Spielerzeile grau
+   --------------------------------------------------------- */
+.de-match-card.de-match-pending{
+  background:#232323 !important;
+  border-color:#505050 !important;
+}
+
+.de-match-card.de-match-pending .tree-player:has(.de-player-direct){
+  background:#2f2f2f !important;
+  color:#e6e6e6 !important;
+  border:1px solid #555 !important;
+}
+
+.de-match-card.de-match-pending .de-player-direct,
+.de-match-card.de-match-pending .de-player-direct-name{
+  color:#e6e6e6 !important;
+  -webkit-text-fill-color:#e6e6e6 !important;
+}
+
+.de-match-card.de-match-pending .de-waiting-slot{
+  background:#2a2a2a !important;
+  border:1px dashed #555 !important;
+  color:#aaa !important;
+}
+
+.de-match-card.de-match-pending .de-waiting-slot *,
+.de-match-card.de-match-pending .de-waiting-player span:last-child{
+  color:#aaa !important;
+}
+
+/* ---------------------------------------------------------
+   ZUSTAND 2: beide Spieler da / spielbereit
+   Nur Spielerzeilen weiß, Außenkarte bleibt dunkel
+   --------------------------------------------------------- */
+.de-match-card.de-match-ready{
+  background:#1b1b1b !important;
+  border-color:#666 !important;
+}
+
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
+  background:#fff !important;
+  color:#000 !important;
+  border:1px solid #ddd !important;
+}
+
+.de-match-card.de-match-ready .de-player-direct,
+.de-match-card.de-match-ready .de-player-direct-name{
+  color:#000 !important;
+  -webkit-text-fill-color:#000 !important;
+}
+
+/* ---------------------------------------------------------
+   ZUSTAND 3: Gewinner
+   --------------------------------------------------------- */
+.de-match-card .tree-player.tree-winner:has(.de-player-direct){
+  background:#2fa846 !important;
+  color:#fff !important;
+  border:1px solid #58cf6d !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+
+.de-match-card .tree-player.tree-winner .de-player-direct,
+.de-match-card .tree-player.tree-winner .de-player-direct-name{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+
+/* ---------------------------------------------------------
+   ZUSTAND 4: Verlierer
+   --------------------------------------------------------- */
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  background:#c43737 !important;
+  color:#fff !important;
+  border:1px solid #e15e5e !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+
+.de-match-card .tree-player.tree-loser .de-player-direct,
+.de-match-card .tree-player.tree-loser .de-player-direct-name{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}
+
+/* Freilos separat */
+.de-match-card.bye-card .tree-player.tree-winner{
   background:#2fa846 !important;
   color:#fff !important;
   border-color:#58cf6d !important;
 }
-.de-match-card .tree-player.tree-winner .de-player-direct,
-.de-match-card .tree-player.tree-winner .de-player-direct-name {
-  color:#fff !important;
-  -webkit-text-fill-color:#fff !important;
-}
 
-/* VERLOREN */
-.de-match-card .tree-player.tree-loser,
-.de-match-card .tree-player.tree-loser:has(.de-player-direct) {
-  background:#c43737 !important;
-  color:#fff !important;
-  border-color:#e15e5e !important;
-  opacity:1 !important;
-  filter:none !important;
-}
-.de-match-card .tree-player.tree-loser .de-player-direct,
-.de-match-card .tree-player.tree-loser .de-player-direct-name {
-  color:#fff !important;
-  -webkit-text-fill-color:#fff !important;
-  opacity:1 !important;
-}
-
-/* Ergebnisfeld bleibt bei Sieger/Verlierer grau – nicht grün/rot */
-.de-match-card .tree-player.tree-winner .de-result-score,
-.de-match-card .tree-player.tree-loser .de-result-score {
-  background:#3a3a3a !important;
-  color:#fff !important;
-  border-color:#686868 !important;
-}
-
-
-/* =====================================================================
-   V45 – unbekannte / unvollständige Partien grau
-   ===================================================================== */
-
-/* Match noch nicht vollständig besetzt: ganze Karte grau/dunkel */
-.de-match-card.de-match-pending{
-  background:#242424!important;
-  color:#cfcfcf!important;
-  border-color:#555!important;
-}
-
-/* Wenn nur ein Spieler bekannt ist, bleibt auch dessen Zeile grau statt weiß */
-.de-match-card.de-match-pending .tree-player:has(.de-player-direct){
-  background:#2b2b2b!important;
-  color:#e0e0e0!important;
-  border-color:#555!important;
-}
-.de-match-card.de-match-pending .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card.de-match-pending .tree-player:has(.de-player-direct) .de-player-direct-name{
-  color:#e0e0e0!important;
-  -webkit-text-fill-color:#e0e0e0!important;
-}
-
-/* Offene Zuführungen ebenfalls grau */
-.de-match-card.de-match-pending .de-waiting-slot{
-  background:#222!important;
-  color:#aaa!important;
-  border-color:#4b4b4b!important;
-}
-.de-match-card.de-match-pending .de-waiting-slot *,
-.de-match-card.de-match-pending .de-waiting-player span:last-child{
-  color:#aaa!important;
-}
-
-/* Erst wenn beide Spieler da sind, werden normale Spielerzeilen weiß */
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
-  background:#fff!important;
-  color:#000!important;
-  border-color:#ddd!important;
-}
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct,
-.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct-name{
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-}
-
-/* Freilos-Karten nicht von Pending-Grau überschreiben */
-.de-match-card.bye-card .tree-player.tree-winner{
-  background:#2fa846!important;
-  color:#fff!important;
-}
 .de-match-card.bye-card .de-bye-row{
-  background:#1a1a1a!important;
-  color:#fff!important;
+  background:#1b1b1b !important;
+  color:#fff !important;
+  border:1px solid #4a4a4a !important;
+}
+
+/* Ergebnis speichern */
+.de-match-card .tree-save-button{
+  background:#fff !important;
+  color:#000 !important;
+  border-color:#fff !important;
+}
+
+/* Status */
+.de-match-status,
+.de-ready-text{
+  color:#d7d7d7 !important;
+}
+
+/* Handy */
+@media(max-width:390px){
+  .de-bracket-shell{
+    --de-card-w:240px;
+    --de-col-gap:40px;
+    --de-row-pitch:206px;
+  }
+  .de-match-card .de-player-direct-name{
+    font-size:.94rem !important;
+  }
 }
