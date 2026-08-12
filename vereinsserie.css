@@ -2141,3 +2141,63 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
     font-size:.94rem!important;
   }
 }
+
+
+/* =====================================================================
+   V41 – Doppel-KO Spielerfarben
+   Normal = weiß/schwarz
+   Gewinner = grün/weiß
+   Verlierer = rot/weiß
+   ===================================================================== */
+
+/* Normaler Spieler */
+.de-match-card .tree-player:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border-color:#e6e6e6!important;
+}
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+}
+
+/* Gewinner */
+.de-match-card .tree-player.tree-winner:has(.de-player-direct){
+  background:#2e9f43!important;
+  color:#fff!important;
+  border-color:#54c866!important;
+}
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .player-avatar-small{
+  border-color:#fff!important;
+}
+
+/* Verlierer */
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  background:#b93737!important;
+  color:#fff!important;
+  border-color:#dc5b5b!important;
+  opacity:1!important;
+  filter:none!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .player-avatar-small{
+  border-color:#fff!important;
+  opacity:1!important;
+}
+
+/* Ergebniszahl nach Abschluss ebenfalls passend lesbar */
+.de-match-card .tree-player.tree-winner > b,
+.de-match-card .tree-player.tree-loser > b{
+  color:#fff!important;
+}
