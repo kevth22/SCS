@@ -1963,3 +1963,181 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
 .de-match-card .tree-player.tree-loser:has(.de-player-direct) .player-avatar-small{
   opacity:.62!important;
 }
+
+
+/* =====================================================================
+   V40 – Doppel-KO: einheitliche Spielerzeilen / Baumabstände
+   ===================================================================== */
+.de-bracket-shell{
+  --de-card-w:250px!important;
+  --de-col-gap:46px!important;
+  --de-row-pitch:206px!important;
+}
+
+/* Einheitliche Matchkarte */
+.de-match-card,
+.de-match-card.tree-match-editable,
+.de-match-card.bye-card{
+  height:186px!important;
+  min-height:186px!important;
+  max-height:186px!important;
+  padding:7px!important;
+  box-sizing:border-box!important;
+}
+
+/* Spielerzeile: weiß, Name schwarz, Score exakt auf derselben Höhe */
+.de-match-card .tree-player:has(.de-player-direct){
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 48px!important;
+  column-gap:7px!important;
+  align-items:center!important;
+  height:52px!important;
+  min-height:52px!important;
+  max-height:52px!important;
+  padding:0 7px!important;
+  background:#fff!important;
+  color:#000!important;
+  border:1px solid #e8e8e8!important;
+  border-radius:10px!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+
+.de-match-card .de-player-direct{
+  display:grid!important;
+  grid-template-columns:46px minmax(0,1fr)!important;
+  gap:9px!important;
+  align-items:center!important;
+  width:100%!important;
+  height:50px!important;
+  min-width:0!important;
+  padding:0!important;
+  background:transparent!important;
+  color:#000!important;
+  overflow:hidden!important;
+}
+
+.de-match-card .de-player-direct .player-avatar-small,
+.de-match-card .de-player-direct .player-avatar,
+.de-match-card .de-player-direct img{
+  width:46px!important;
+  height:46px!important;
+  min-width:46px!important;
+  min-height:46px!important;
+  max-width:46px!important;
+  max-height:46px!important;
+  border-width:3px!important;
+  box-sizing:border-box!important;
+}
+
+.de-match-card .de-player-direct-name{
+  display:block!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+  font-size:1rem!important;
+  font-weight:900!important;
+  line-height:1!important;
+  opacity:1!important;
+}
+
+/* Leg-Eingabe sitzt direkt rechts neben dem Namen auf identischer Höhe */
+.de-match-card .tree-player:has(.de-player-direct) input{
+  grid-column:2!important;
+  align-self:center!important;
+  justify-self:end!important;
+  width:48px!important;
+  height:44px!important;
+  min-width:48px!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0 5px!important;
+  box-sizing:border-box!important;
+  border-radius:9px!important;
+  font-size:1rem!important;
+  font-weight:900!important;
+  text-align:center!important;
+}
+
+/* Nach Ergebnis: Sieger grau + weiße Schrift */
+.de-match-card .tree-player.tree-winner:has(.de-player-direct){
+  background:#555!important;
+  color:#fff!important;
+  border-color:#777!important;
+}
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) input{
+  color:#fff!important;
+}
+
+/* Verlierer bleibt weiß mit schwarzem Namen */
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border-color:#e8e8e8!important;
+  opacity:1!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+  opacity:1!important;
+}
+
+/* Spieler und Bild so groß wie bei Freilos */
+.de-match-card .de-bye-row,
+.de-match-card .tree-player:has(.de-player-direct){
+  min-height:52px!important;
+  height:52px!important;
+  max-height:52px!important;
+}
+
+/* Einheitlicher vertikaler Abstand innerhalb jeder Partie */
+.de-match-card .tree-player + .tree-player{
+  margin-top:5px!important;
+}
+.de-match-card .tree-save-button{
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  margin-top:6px!important;
+}
+.de-match-status{
+  height:17px!important;
+  min-height:17px!important;
+  line-height:17px!important;
+  margin-top:2px!important;
+}
+
+/* Einheitliches Turnierbaum-Raster */
+.de-round-body{
+  height:calc(var(--de-max-matches) * var(--de-row-pitch))!important;
+}
+.de-match-wrap{
+  height:186px!important;
+}
+
+/* Handy */
+@media(max-width:720px){
+  .de-bracket-shell{
+    --de-card-w:246px!important;
+    --de-col-gap:42px!important;
+    --de-row-pitch:206px!important;
+  }
+}
+@media(max-width:390px){
+  .de-bracket-shell{
+    --de-card-w:240px!important;
+    --de-col-gap:40px!important;
+    --de-row-pitch:206px!important;
+  }
+  .de-match-card .de-player-direct-name{
+    font-size:.94rem!important;
+  }
+}
