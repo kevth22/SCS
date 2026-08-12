@@ -809,3 +809,51 @@ body{background:#050505!important;}
     width:38px!important;height:38px!important;flex-basis:38px!important
   }
 }
+
+
+/* ===== V29 – Doppel-KO Pfade / Freilose ===== */
+.double-bye-card{
+  opacity:.76;
+  border-style:dashed!important;
+}
+.double-bye-card .de-bye-row{
+  background:#151515!important;
+}
+.double-bye-card small{
+  color:#777!important;
+}
+
+
+/* ===== V30 – leere Doppel-KO-Pfade sind keine Freilos-Partien ===== */
+.de-dead-path{
+  min-height:86px!important;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  border-style:dashed!important;
+  border-color:#353535!important;
+  background:#0e0e0e!important;
+  box-shadow:none!important;
+  color:#777;
+}
+.de-dead-path strong{
+  color:#888;
+  font-size:.9rem;
+}
+.de-dead-path small{
+  margin:0!important;
+  color:#666!important;
+}
+.de-dead-path-icon{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:2px dashed #444;
+  border-radius:50%;
+  color:#666;
+  font-size:1.1rem;
+  font-weight:900;
+}

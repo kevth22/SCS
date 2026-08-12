@@ -628,13 +628,22 @@ function makeDoubleKO(ids, fixedSize = null) {
   if (players.length > size) throw new Error(`Für das ${size}er Feld sind höchstens ${size} Teilnehmer möglich.`);
 
   const slots = Array(size).fill(null);
-  // Freilose gleichmäßig auf die Erstrundenpartien verteilen: niemals zwei
-  // leere Startplätze gegeneinander, solange echte Spieler vorhanden sind.
   const byeCount = size - players.length;
+  const matchCount = size / 2;
+
+  // Freilose über den gesamten Baum verteilen, statt sie oben zu bündeln.
+  // Dadurch entstehen gleichmäßigere Wege durch Gewinner- und Verliererbaum.
+  const byeMatches = new Set();
+  if (byeCount > 0) {
+    for (let b = 0; b < byeCount; b++) {
+      byeMatches.add(Math.floor((b + 0.5) * matchCount / byeCount));
+    }
+  }
+
   let playerIndex = 0;
-  for (let m = 0; m < size / 2; m++) {
+  for (let m = 0; m < matchCount; m++) {
     slots[m * 2] = players[playerIndex++] || null;
-    if (m >= byeCount) slots[m * 2 + 1] = players[playerIndex++] || null;
+    if (!byeMatches.has(m)) slots[m * 2 + 1] = players[playerIndex++] || null;
   }
 
   const wbRounds = [];
@@ -681,8 +690,11 @@ function makeDoubleKO(ids, fixedSize = null) {
     // Drop-Runde: LB-Überlebende treffen auf die neuen Verlierer aus dem WB.
     const dropMatches = [];
     for (let i = 0; i < wbMatches.length; i++) {
+      // Gekreuzte Einspeisung: Der WB-Verlierer trifft nicht sofort wieder auf
+      // den LB-Pfad aus demselben Teilbaum. So werden frühe Rückspiele vermieden.
+      const lbSourceIndex = previousLB.length > 1 ? (i ^ 1) : i;
       dropMatches.push(makeDEMatch('losers', lbRounds.length, i, null, null,
-        { matchId: previousLB[i].id, outcome: 'winner' },
+        { matchId: previousLB[lbSourceIndex].id, outcome: 'winner' },
         { matchId: wbMatches[i].id, outcome: 'loser' }
       ));
     }
@@ -1256,9 +1268,21 @@ function treeMatchCard(match, options = {}) {
 
   if (match.bye) {
     const realPlayer = match.winner || match.p1 || match.p2;
+
+    // Wenn beide Zuführungen leer sind, gibt es keine Partie.
+    // Der Pfad bleibt nur als Strukturhinweis sichtbar.
+    if (!realPlayer) {
+      return `<article class="tree-match de-dead-path">
+        ${label ? `<small>${esc(label)}</small>` : ''}
+        <div class="de-dead-path-icon" aria-hidden="true">×</div>
+        <strong>Pfad entfällt</strong>
+        <small>Keine Partie – beide Zuführungen sind leer.</small>
+      </article>`;
+    }
+
     return `<article class="tree-match bye-card">
       ${label ? `<small>${esc(label)}</small>` : ''}
-      <div class="tree-player tree-winner">${realPlayer ? playerIdentity(realPlayer, 'small') : waitingIdentity()}</div>
+      <div class="tree-player tree-winner">${playerIdentity(realPlayer, 'small')}</div>
       <div class="tree-player de-bye-row">${byeIdentity()}</div>
       <small>Automatisch weiter</small>
     </article>`;
