@@ -2224,68 +2224,310 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
 
 
 /* =====================================================================
-   V47 – EXPLIZITE ZEILENZUSTÄNDE AUS JAVASCRIPT
-   Keine indirekte Erkennung über .de-match-ready oder :has().
+   V47 – explizite JS-Zustände pro Spielerzeile
+   de-row-pending / de-row-ready / de-row-winner / de-row-loser
    ===================================================================== */
 
-/* WARTEND: kein/erst ein Teilnehmer bekannt */
-.de-match-card .tree-player.de-row-pending{
-  background:#2f2f2f !important;
-  color:#e6e6e6 !important;
-  border:1px solid #555 !important;
+/* wartend / nur ein Spieler bekannt */
+.de-match-card .tree-player.de-row-pending:has(.de-player-direct){
+  background:#2f2f2f!important;
+  color:#e6e6e6!important;
+  border-color:#555!important;
 }
 .de-match-card .tree-player.de-row-pending .de-player-direct,
 .de-match-card .tree-player.de-row-pending .de-player-direct-name{
-  color:#e6e6e6 !important;
-  -webkit-text-fill-color:#e6e6e6 !important;
+  color:#e6e6e6!important;
+  -webkit-text-fill-color:#e6e6e6!important;
 }
 
-/* SPIELBEREIT: beide echten Teilnehmer stehen fest */
-.de-match-card .tree-player.de-row-ready{
-  background:#fff !important;
-  color:#000 !important;
-  border:1px solid #ddd !important;
+/* beide Spieler bekannt / spielbereit */
+.de-match-card .tree-player.de-row-ready:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border-color:#ddd!important;
 }
 .de-match-card .tree-player.de-row-ready .de-player-direct,
 .de-match-card .tree-player.de-row-ready .de-player-direct-name{
-  color:#000 !important;
-  -webkit-text-fill-color:#000 !important;
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
 }
 
-/* GEWONNEN */
-.de-match-card .tree-player.de-row-winner{
-  background:#2fa846 !important;
-  color:#fff !important;
-  border:1px solid #58cf6d !important;
-  opacity:1 !important;
-  filter:none !important;
+/* Gewinner */
+.de-match-card .tree-player.de-row-winner:has(.de-player-direct){
+  background:#2fa846!important;
+  color:#fff!important;
+  border-color:#58cf6d!important;
+  opacity:1!important;
+  filter:none!important;
 }
 .de-match-card .tree-player.de-row-winner .de-player-direct,
 .de-match-card .tree-player.de-row-winner .de-player-direct-name{
-  color:#fff !important;
-  -webkit-text-fill-color:#fff !important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
 }
 
-/* VERLOREN */
-.de-match-card .tree-player.de-row-loser{
-  background:#c43737 !important;
-  color:#fff !important;
-  border:1px solid #e15e5e !important;
-  opacity:1 !important;
-  filter:none !important;
+/* Verlierer */
+.de-match-card .tree-player.de-row-loser:has(.de-player-direct){
+  background:#c43737!important;
+  color:#fff!important;
+  border-color:#e15e5e!important;
+  opacity:1!important;
+  filter:none!important;
 }
 .de-match-card .tree-player.de-row-loser .de-player-direct,
 .de-match-card .tree-player.de-row-loser .de-player-direct-name{
-  color:#fff !important;
-  -webkit-text-fill-color:#fff !important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
 }
 
-/* Legfeld und gespeicherte Zahl bleiben unabhängig vom Zustand grau */
-.de-match-card .tree-player.de-row-ready input,
-.de-match-card .tree-player.de-row-pending input,
-.de-match-card .tree-player.de-row-winner .de-result-score,
-.de-match-card .tree-player.de-row-loser .de-result-score{
-  background:#333 !important;
-  color:#fff !important;
-  border-color:#666 !important;
+/* Leg-Feld und gespeicherter Wert bleiben immer grau */
+.de-match-card .tree-player input,
+.de-match-card .tree-player .de-result-score{
+  background:#333!important;
+  color:#fff!important;
+  border-color:#666!important;
+}
+
+/* Freilos ist NIE Verlierer und bleibt neutral */
+.de-match-card .de-bye-row{
+  background:#1b1b1b!important;
+  color:#fff!important;
+  border-color:#4a4a4a!important;
+  opacity:1!important;
+  filter:none!important;
+}
+.de-match-card .de-bye-row .bye-label{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+
+/* =====================================================================
+   V48 – Layout nach Paint-Vorlage
+   ===================================================================== */
+
+.de-bracket-shell{
+  --de-card-w:248px!important;
+  --de-col-gap:46px!important;
+  --de-row-pitch:188px!important;
+}
+
+/* Match selbst kompakt halten */
+.de-match-card,
+.de-match-card.tree-match-editable,
+.de-match-card.bye-card{
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  padding:6px!important;
+  background:#171717!important;
+  border:1px solid #444!important;
+  border-radius:12px!important;
+  box-sizing:border-box!important;
+  overflow:visible!important;
+}
+
+/* Spielerbalken wie in der Paint-Skizze */
+.de-match-card .tree-player{
+  min-height:48px!important;
+  height:48px!important;
+  max-height:48px!important;
+  padding:0 6px!important;
+  margin:0!important;
+  border-radius:3px!important;
+  box-sizing:border-box!important;
+}
+
+/* Direkte Spielerstruktur */
+.de-match-card .de-player-direct{
+  display:grid!important;
+  grid-template-columns:40px minmax(0,1fr)!important;
+  gap:7px!important;
+  align-items:center!important;
+  height:46px!important;
+  min-width:0!important;
+  width:100%!important;
+}
+
+.de-match-card .de-player-direct .player-avatar-small{
+  width:38px!important;
+  height:38px!important;
+  min-width:38px!important;
+  min-height:38px!important;
+  max-width:38px!important;
+  max-height:38px!important;
+  border:2px solid #fff!important;
+}
+
+.de-match-card .de-player-direct-name{
+  font-size:.9rem!important;
+  font-weight:850!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* Leg-/Ergebnisfeld immer rechts und immer grau */
+.de-match-card .tree-player input,
+.de-match-card .tree-player .de-result-score{
+  width:46px!important;
+  min-width:46px!important;
+  max-width:46px!important;
+  height:42px!important;
+  min-height:42px!important;
+  max-height:42px!important;
+  margin:0!important;
+  padding:0!important;
+  justify-self:end!important;
+  align-self:center!important;
+  background:#777!important;
+  color:#fff!important;
+  border:1px solid #aaa!important;
+  border-radius:2px!important;
+  box-sizing:border-box!important;
+  text-align:center!important;
+  font-size:.95rem!important;
+  font-weight:900!important;
+}
+
+/* 1) SPIELBEREIT: beide Spieler stehen fest -> weiß / schwarz */
+.de-match-card .tree-player.de-row-ready:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border:1px solid #d7d7d7!important;
+}
+.de-match-card .tree-player.de-row-ready .de-player-direct,
+.de-match-card .tree-player.de-row-ready .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+}
+
+/* 2) WARTEND: Match noch nicht vollständig -> grau / weiß */
+.de-match-card .tree-player.de-row-pending:has(.de-player-direct){
+  background:#777!important;
+  color:#fff!important;
+  border:1px solid #999!important;
+}
+.de-match-card .tree-player.de-row-pending .de-player-direct,
+.de-match-card .tree-player.de-row-pending .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+/* unbekannter zweiter Platz ebenfalls grau */
+.de-match-card .de-waiting-slot{
+  background:#777!important;
+  color:#fff!important;
+  border:1px solid #999!important;
+}
+.de-match-card .de-waiting-slot *,
+.de-match-card .de-waiting-player span:last-child{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+/* 3) GEWINNER: grün / weiß */
+.de-match-card .tree-player.de-row-winner:has(.de-player-direct),
+.de-match-card .tree-player.tree-winner:has(.de-player-direct){
+  background:#2fa846!important;
+  color:#fff!important;
+  border:1px solid #53c867!important;
+}
+.de-match-card .tree-player.de-row-winner .de-player-direct,
+.de-match-card .tree-player.de-row-winner .de-player-direct-name,
+.de-match-card .tree-player.tree-winner .de-player-direct,
+.de-match-card .tree-player.tree-winner .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+/* 4) VERLIERER: rot / weiß */
+.de-match-card .tree-player.de-row-loser:has(.de-player-direct),
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  background:#d52f2f!important;
+  color:#fff!important;
+  border:1px solid #ef5555!important;
+  opacity:1!important;
+  filter:none!important;
+}
+.de-match-card .tree-player.de-row-loser .de-player-direct,
+.de-match-card .tree-player.de-row-loser .de-player-direct-name,
+.de-match-card .tree-player.tree-loser .de-player-direct,
+.de-match-card .tree-player.tree-loser .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+/* FREILOS wie in deiner Paint-Vorlage rot */
+.de-match-card.bye-card .de-bye-row{
+  background:#d52f2f!important;
+  color:#fff!important;
+  border:1px solid #ef5555!important;
+}
+.de-match-card.bye-card .de-bye-row .bye-label{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.de-match-card.bye-card .bye-avatar{
+  border-color:#fff!important;
+}
+
+/* Abstände innerhalb eines Matches */
+.de-match-card .tree-player + .tree-player{
+  margin-top:4px!important;
+}
+
+.de-match-card .tree-save-button{
+  min-height:38px!important;
+  height:38px!important;
+  margin-top:5px!important;
+  padding:4px 8px!important;
+  border-radius:3px!important;
+  background:#111!important;
+  color:#fff!important;
+  border:1px solid #333!important;
+  font-size:.75rem!important;
+}
+
+.de-match-status{
+  min-height:16px!important;
+  height:auto!important;
+  line-height:16px!important;
+  margin-top:3px!important;
+  font-size:.66rem!important;
+}
+
+/* Baum-Abstände einheitlicher */
+.de-round-body{
+  height:calc(var(--de-max-matches) * var(--de-row-pitch))!important;
+}
+
+.de-match-wrap{
+  height:auto!important;
+}
+
+/* Runde rechts: solange nicht vollständig, grau */
+.de-match-card.de-match-pending{
+  background:#202020!important;
+  border-color:#444!important;
+}
+
+/* Handy */
+@media(max-width:720px){
+  .de-bracket-shell{
+    --de-card-w:242px!important;
+    --de-col-gap:42px!important;
+    --de-row-pitch:188px!important;
+  }
+}
+
+@media(max-width:390px){
+  .de-bracket-shell{
+    --de-card-w:234px!important;
+    --de-col-gap:40px!important;
+    --de-row-pitch:188px!important;
+  }
+  .de-match-card .de-player-direct-name{
+    font-size:.84rem!important;
+  }
 }

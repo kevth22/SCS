@@ -1288,15 +1288,19 @@ function treeMatchCard(match, options = {}) {
   const isDouble = ['winners', 'losers', 'final', 'reset'].includes(match?.bracket);
   const winnerClass1 = match.winner === match.p1 ? 'tree-winner' : '';
   const winnerClass2 = match.winner === match.p2 ? 'tree-winner' : '';
-  const loserClass1 = match.completed && match.loser === match.p1 ? 'tree-loser' : '';
-  const loserClass2 = match.completed && match.loser === match.p2 ? 'tree-loser' : '';
+  const loserClass1 = match.completed && match.loser && match.p1 && match.loser === match.p1 ? 'tree-loser' : '';
+  const loserClass2 = match.completed && match.loser && match.p2 && match.loser === match.p2 ? 'tree-loser' : '';
   const ready = Boolean(match.p1 && match.p2);
-  const rowState1 = match.completed
-    ? (Number(match.s1) > Number(match.s2) ? "de-row-winner" : "de-row-loser")
-    : (ready ? "de-row-ready" : "de-row-pending");
-  const rowState2 = match.completed
-    ? (Number(match.s2) > Number(match.s1) ? "de-row-winner" : "de-row-loser")
-    : (ready ? "de-row-ready" : "de-row-pending");
+  const rowState1 = match.winner === match.p1 && match.p1
+    ? 'de-row-winner'
+    : (match.loser === match.p1 && match.p1
+      ? 'de-row-loser'
+      : (ready ? 'de-row-ready' : 'de-row-pending'));
+  const rowState2 = match.winner === match.p2 && match.p2
+    ? 'de-row-winner'
+    : (match.loser === match.p2 && match.p2
+      ? 'de-row-loser'
+      : (ready ? 'de-row-ready' : 'de-row-pending'));
 
   const winner1 = !!match.completed && Number(match.s1) > Number(match.s2);
   const winner2 = !!match.completed && Number(match.s2) > Number(match.s1);
@@ -1357,8 +1361,8 @@ function treeMatchCard(match, options = {}) {
       ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
       
       ${label ? `<small>${esc(label)}</small>` : ''}
-      <div class="tree-player tree-winner ${rowState1}">${identity(realPlayer)}</div>
-      <div class="tree-player de-bye-row ${rowState2}">${byeIdentity()}</div>
+      <div class="tree-player tree-winner">${identity(realPlayer)}</div>
+      <div class="tree-player de-bye-row">${byeIdentity()}</div>
       <small class="de-match-status">Automatisch weiter</small>
     </article>`;
   }
@@ -1368,13 +1372,13 @@ function treeMatchCard(match, options = {}) {
     
     ${label ? `<small>${esc(label)}</small>` : ''}
     ${grandFinal ? '<div class="de-final-trophy" aria-hidden="true">🏆</div>' : ''}
-    <div class="tree-player ${winnerClass1} ${loserClass1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
+    <div class="tree-player ${winnerClass1} ${loserClass1} ${rowState1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
       ${match.p1 ? identity(match.p1) : (virtualBye1 ? byeIdentity() : waitingIdentity(match.source1))}
       ${canEditMatch
         ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}" aria-label="Ergebnis Spieler 1">`
         : `<b class="de-result-score">${match.completed ? match.s1 : ''}</b>`}
     </div>
-    <div class="tree-player ${winnerClass2} ${loserClass2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
+    <div class="tree-player ${winnerClass2} ${loserClass2} ${rowState2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
       ${match.p2 ? identity(match.p2) : (virtualBye2 ? byeIdentity() : waitingIdentity(match.source2))}
       ${canEditMatch
         ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}" aria-label="Ergebnis Spieler 2">`
