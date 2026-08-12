@@ -1302,7 +1302,14 @@ function treeMatchCard(match, options = {}) {
     sourceStates[1]?.match?.completed && sourceStates[1]?.match?.bye;
 
   const byeIdentity = () => `<span class="de-bye-player"><span class="bye-avatar" aria-hidden="true">→</span><span class="bye-label">FREILOS</span></span>`;
-  const waitingIdentity = () => `<span class="de-waiting-player"><span class="de-waiting-dot" aria-hidden="true">…</span><span>Wartet auf Spieler</span></span>`;
+  const sourceLabel = source => {
+    if (!source) return 'Wartet auf Spieler';
+    const sourceMatch = ctx ? findDoubleKOMatch(ctx, source.matchId) : null;
+    const sourceCode = sourceMatch ? doubleMatchCode(sourceMatch) : '';
+    if (!sourceCode) return 'Wartet auf Spieler';
+    return `${source.outcome === 'loser' ? 'Verlierer' : 'Sieger'} aus ${sourceCode}`;
+  };
+  const waitingIdentity = source => `<span class="de-waiting-player"><span class="de-waiting-dot" aria-hidden="true">…</span><span>${esc(sourceLabel(source))}</span></span>`;
   const identity = id => isDouble ? dePlayerIdentity(id, 'small') : playerIdentity(id, 'small');
 
   const code = isDouble ? doubleMatchCode(match) : '';
@@ -1324,7 +1331,7 @@ function treeMatchCard(match, options = {}) {
     if (!realPlayer) {
       return `<article class="${matchClasses} de-dead-path">
         ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
-        ${matchName ? `<div class="de-match-name">${esc(matchName)}</div>` : ''}
+        
         ${label ? `<small>${esc(label)}</small>` : ''}
         <div class="de-dead-path-icon" aria-hidden="true">×</div>
         <strong>Pfad entfällt</strong>
@@ -1334,7 +1341,7 @@ function treeMatchCard(match, options = {}) {
 
     return `<article class="${matchClasses} bye-card">
       ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
-      ${matchName ? `<div class="de-match-name">${esc(matchName)}</div>` : ''}
+      
       ${label ? `<small>${esc(label)}</small>` : ''}
       <div class="tree-player tree-winner">${identity(realPlayer)}</div>
       <div class="tree-player de-bye-row">${byeIdentity()}</div>
@@ -1344,17 +1351,17 @@ function treeMatchCard(match, options = {}) {
 
   return `<article class="${matchClasses}">
     ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
-    ${matchName ? `<div class="de-match-name">${esc(matchName)}</div>` : ''}
+    
     ${label ? `<small>${esc(label)}</small>` : ''}
     ${grandFinal ? '<div class="de-final-trophy" aria-hidden="true">🏆</div>' : ''}
     <div class="tree-player ${winnerClass1} ${loserClass1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
-      ${match.p1 ? identity(match.p1) : (virtualBye1 ? byeIdentity() : waitingIdentity())}
+      ${match.p1 ? identity(match.p1) : (virtualBye1 ? byeIdentity() : waitingIdentity(match.source1))}
       ${canEditMatch
         ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}" aria-label="Ergebnis Spieler 1">`
         : `<b>${match.completed ? match.s1 : ''}</b>`}
     </div>
     <div class="tree-player ${winnerClass2} ${loserClass2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
-      ${match.p2 ? identity(match.p2) : (virtualBye2 ? byeIdentity() : waitingIdentity())}
+      ${match.p2 ? identity(match.p2) : (virtualBye2 ? byeIdentity() : waitingIdentity(match.source2))}
       ${canEditMatch
         ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}" aria-label="Ergebnis Spieler 2">`
         : `<b>${match.completed ? match.s2 : ''}</b>`}
@@ -1362,7 +1369,7 @@ function treeMatchCard(match, options = {}) {
     ${canEditMatch ? `<button class="tree-save-button" ${saveAttr}="${saveValue}">Ergebnis speichern</button>` : ''}
     ${match.completed
       ? `<small class="de-match-status">Ergebnis ${match.s1}:${match.s2}</small>`
-      : (!ready ? '<small class="de-match-status">Wartet auf vorherige Partie</small>' : '<small class="de-match-status de-ready-text">Spielbereit</small>')}
+      : (!ready ? '<small class="de-match-status">Zuführende Partie noch offen</small>' : '<small class="de-match-status de-ready-text">Spielbereit</small>')}
   </article>`;
 }
 

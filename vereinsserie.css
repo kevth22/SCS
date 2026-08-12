@@ -1295,3 +1295,372 @@ body{background:#050505!important;}
 @media(min-width:1000px){
   .de-bracket-shell{--de-card-w:300px;--de-col-gap:68px;--de-row-pitch:194px}
 }
+
+
+/* =====================================================================
+   V33 – Mobile bracket spacing fix
+   ===================================================================== */
+
+/* A full editable match is ~230px high. Reserve enough vertical space for
+   every slot so cards can never overlap when score controls are visible. */
+.de-bracket-shell{
+  --de-row-pitch:270px!important;
+}
+
+/* The match ID belongs inside the card instead of hanging across another
+   match. */
+.de-match-code{
+  position:static!important;
+  display:inline-flex!important;
+  margin:0 0 7px 2px!important;
+  min-height:28px!important;
+  padding:3px 9px!important;
+  border:0!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+
+/* The old long per-match subtitle is intentionally hidden. Round name is
+   already shown once in the column header. */
+.de-match-name{
+  display:none!important;
+}
+
+/* Give editable cards their real required height instead of forcing them
+   into the compact display-card height. */
+.de-match-card.tree-match-editable{
+  min-height:226px!important;
+}
+.de-match-card:not(.tree-match-editable){
+  min-height:148px!important;
+}
+
+/* Keep controls fully inside their own card. */
+.de-match-card .tree-save-button{
+  position:static!important;
+  width:100%!important;
+  min-height:50px!important;
+  margin:8px 0 0!important;
+}
+.de-match-card .tree-player{
+  position:relative!important;
+  overflow:visible!important;
+}
+
+/* More breathing room around the actual bracket. */
+.de-round-body{
+  padding-top:8px!important;
+  box-sizing:border-box!important;
+}
+
+/* Connector lines use the slot center and therefore stay aligned even when
+   a card switches between waiting, bye and editable states. */
+.de-match-wrap.has-next::after,
+.de-tree-round:not(:first-child) .de-match-wrap::before{
+  top:50%!important;
+}
+
+/* Mobile remains finger-friendly without shrinking the cards. */
+@media(max-width:720px){
+  .de-bracket-shell{
+    --de-card-w:282px!important;
+    --de-col-gap:54px!important;
+    --de-row-pitch:270px!important;
+  }
+  .de-match-card .tree-player{
+    min-height:56px!important;
+  }
+  .de-match-card input{
+    width:58px!important;
+    min-width:58px!important;
+    height:50px!important;
+  }
+  .de-match-card .player-avatar-small{
+    width:48px!important;
+    height:48px!important;
+    flex:0 0 48px!important;
+  }
+}
+
+@media(max-width:390px){
+  .de-bracket-shell{
+    --de-card-w:272px!important;
+    --de-col-gap:50px!important;
+    --de-row-pitch:270px!important;
+  }
+}
+
+/* Larger screens can use a little more vertical air. */
+@media(min-width:1000px){
+  .de-bracket-shell{
+    --de-row-pitch:280px!important;
+  }
+}
+
+
+/* =====================================================================
+   V34 – kompakter mobiler Doppel-KO-Baum
+   ===================================================================== */
+
+.de-bracket-shell{
+  --de-card-w:248px!important;
+  --de-col-gap:42px!important;
+  --de-row-pitch:224px!important;
+}
+
+/* Rundenköpfe kompakter */
+.de-round-head{
+  min-height:42px!important;
+  padding:6px 8px!important;
+  margin-bottom:8px!important;
+  border-radius:10px!important;
+}
+.de-round-head span{
+  min-height:24px!important;
+  padding:2px 7px!important;
+  font-size:.66rem!important;
+}
+.de-round-head strong{
+  font-size:.76rem!important;
+}
+
+/* Matchkarten nicht mehr unnötig riesig */
+.de-match-card{
+  min-height:132px!important;
+  padding:7px!important;
+  border-radius:13px!important;
+}
+.de-match-card.tree-match-editable{
+  min-height:202px!important;
+}
+.de-match-card:not(.tree-match-editable){
+  min-height:132px!important;
+}
+
+/* Match-ID kompakt im Kartenkopf */
+.de-match-code{
+  position:static!important;
+  display:inline-flex!important;
+  min-height:25px!important;
+  margin:0 0 5px 1px!important;
+  padding:2px 7px!important;
+  border:0!important;
+  border-radius:7px!important;
+  background:#fff!important;
+  color:#000!important;
+  font-size:.67rem!important;
+  box-shadow:none!important;
+}
+.de-match-name{
+  display:none!important;
+}
+
+/* WICHTIG: normale Spieler immer dunkel + lesbar.
+   Nur ein feststehender Gewinner wird weiß dargestellt. */
+.de-match-card .tree-player{
+  min-height:48px!important;
+  padding:4px 6px!important;
+  background:#151515!important;
+  color:#fff!important;
+  border:1px solid #292929!important;
+  border-radius:9px!important;
+}
+.de-match-card .tree-player:not(.tree-winner) .player-identity,
+.de-match-card .tree-player:not(.tree-winner) .de-player-tap{
+  color:#fff!important;
+}
+.de-match-card .tree-player.tree-winner{
+  background:#fff!important;
+  color:#000!important;
+  border-color:#fff!important;
+}
+.de-match-card .tree-player.tree-winner .player-identity,
+.de-match-card .tree-player.tree-winner .de-player-tap{
+  color:#000!important;
+}
+.de-match-card .tree-loser{
+  opacity:.55!important;
+}
+
+/* Namen müssen immer sichtbar bleiben */
+.de-player-tap{
+  min-height:44px!important;
+  overflow:visible!important;
+}
+.de-player-tap .player-identity{
+  min-height:44px!important;
+  gap:8px!important;
+  font-size:.88rem!important;
+  font-weight:850!important;
+  overflow:visible!important;
+}
+.de-player-tap .player-identity span:last-child{
+  display:block!important;
+  min-width:0!important;
+  max-width:145px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+/* Profilbilder etwas kleiner, aber gut erkennbar */
+.de-match-card .player-avatar-small,
+.de-finals-grid .player-avatar-small{
+  width:42px!important;
+  height:42px!important;
+  flex:0 0 42px!important;
+  border-width:2px!important;
+}
+.de-waiting-dot,
+.bye-avatar{
+  width:42px!important;
+  height:42px!important;
+  flex:0 0 42px!important;
+}
+
+/* Ergebnisfelder weiterhin fingerfreundlich */
+.de-match-card input{
+  width:50px!important;
+  min-width:50px!important;
+  height:44px!important;
+  padding:5px!important;
+  border-radius:8px!important;
+  font-size:.95rem!important;
+}
+.de-match-card .tree-save-button{
+  min-height:44px!important;
+  margin-top:6px!important;
+  padding:8px 7px!important;
+  border-radius:9px!important;
+  font-size:.75rem!important;
+}
+.de-match-status{
+  min-height:18px!important;
+  margin-top:3px!important;
+  font-size:.67rem!important;
+}
+
+/* Weniger Leerraum im gesamten Baum */
+.de-tree{
+  gap:var(--de-col-gap)!important;
+  padding:12px 14px 18px!important;
+  background:none!important;
+}
+.de-round-body{
+  height:calc(var(--de-max-matches) * var(--de-row-pitch))!important;
+  padding-top:0!important;
+}
+.de-match-wrap{
+  width:100%!important;
+}
+
+/* Linien kompakter */
+.de-match-wrap.has-next::after{
+  width:calc(var(--de-col-gap) / 2)!important;
+}
+.de-tree-round:not(:first-child) .de-match-wrap::before{
+  width:calc(var(--de-col-gap) / 2)!important;
+}
+.de-pair-connector{
+  left:calc(100% + (var(--de-col-gap) / 2))!important;
+}
+
+/* Freilos/Warten kompakter */
+.de-waiting-player,
+.de-bye-player{
+  min-height:42px!important;
+  gap:8px!important;
+  font-size:.82rem!important;
+}
+.de-waiting-slot{
+  background:#0d0d0d!important;
+  color:#888!important;
+}
+.de-bye-row,
+.de-bye-slot{
+  background:#1a1a1a!important;
+  color:#fff!important;
+}
+
+/* Fokusleiste kleiner */
+.de-focus-bar{
+  min-height:42px!important;
+  padding:7px 10px!important;
+  font-size:.72rem!important;
+}
+.de-focus-bar button{
+  min-height:40px!important;
+  padding:6px 9px!important;
+  font-size:.72rem!important;
+}
+
+/* Tabellenbilder nicht überdimensionieren */
+.ranking-table-simple .player-avatar-small,
+.group-card .player-avatar-small,
+.group-table .player-avatar-small,
+.swiss-table .player-avatar-small{
+  width:38px!important;
+  height:38px!important;
+  flex-basis:38px!important;
+  border-width:2px!important;
+}
+
+/* iPhone / kleine Handys */
+@media(max-width:720px){
+  .de-bracket-shell{
+    --de-card-w:244px!important;
+    --de-col-gap:40px!important;
+    --de-row-pitch:224px!important;
+  }
+  .de-match-card.tree-match-editable{
+    min-height:202px!important;
+  }
+  .de-match-card:not(.tree-match-editable){
+    min-height:132px!important;
+  }
+  .de-round-head{
+    min-height:42px!important;
+  }
+}
+
+@media(max-width:390px){
+  .de-bracket-shell{
+    --de-card-w:232px!important;
+    --de-col-gap:38px!important;
+    --de-row-pitch:224px!important;
+  }
+  .de-player-tap .player-identity span:last-child{
+    max-width:132px!important;
+  }
+}
+
+/* Desktop darf leicht größer sein, ohne die extreme V33-Höhe */
+@media(min-width:1000px){
+  .de-bracket-shell{
+    --de-card-w:270px!important;
+    --de-col-gap:48px!important;
+    --de-row-pitch:232px!important;
+  }
+}
+
+
+/* =====================================================================
+   V35 – genaue Quellpartie bei offenen Slots
+   ===================================================================== */
+.de-waiting-player span:last-child{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.76rem;
+  font-weight:800;
+  color:#aaa;
+}
+.de-waiting-slot{
+  min-height:48px!important;
+}
+@media(max-width:390px){
+  .de-waiting-player span:last-child{
+    font-size:.72rem;
+  }
+}
