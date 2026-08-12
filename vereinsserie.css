@@ -1664,3 +1664,49 @@ body{background:#050505!important;}
     font-size:.72rem;
   }
 }
+
+/* V36: feste, kompakte Doppel-KO-Karten + sichtbare Spielernamen */
+.de-bracket-shell{--de-card-w:250px!important;--de-col-gap:42px!important;--de-row-pitch:214px!important}
+.de-match-card,.de-match-card.tree-match-editable,.de-match-card:not(.tree-match-editable),.de-match-card.bye-card{
+ height:194px!important;min-height:194px!important;max-height:194px!important;overflow:hidden!important;box-sizing:border-box!important;padding:7px!important
+}
+.de-match-card .tree-player{
+ display:flex!important;align-items:center!important;gap:6px!important;width:100%!important;min-width:0!important;
+ height:48px!important;min-height:48px!important;max-height:48px!important;box-sizing:border-box!important
+}
+.de-match-card .de-player-tap{
+ flex:1 1 auto!important;width:auto!important;min-width:0!important;max-width:none!important;height:44px!important;min-height:44px!important;overflow:hidden!important
+}
+.de-match-card .de-player-tap .player-identity{
+ display:flex!important;flex:1 1 auto!important;width:100%!important;min-width:0!important;max-width:100%!important;
+ height:44px!important;min-height:44px!important;overflow:hidden!important;color:inherit!important
+}
+.de-match-card .de-player-tap .player-identity>span:last-child{
+ display:block!important;flex:1 1 auto!important;min-width:0!important;max-width:none!important;overflow:hidden!important;
+ text-overflow:ellipsis!important;white-space:nowrap!important;color:inherit!important;opacity:1!important;visibility:visible!important
+}
+article.de-match-card .tree-player:not(.tree-winner):not(.de-bye-row){
+ background:#151515!important;color:#fff!important;border-color:#303030!important
+}
+article.de-match-card .tree-player:not(.tree-winner):not(.de-bye-row) *,
+article.de-match-card .tree-player:not(.tree-winner):not(.de-bye-row) .player-identity{color:#fff!important}
+article.de-match-card .tree-player.tree-winner{background:#fff!important;color:#000!important;border-color:#fff!important}
+article.de-match-card .tree-player.tree-winner *,
+article.de-match-card .tree-player.tree-winner .player-identity{color:#000!important}
+.de-match-card .tree-player input{
+ flex:0 0 46px!important;width:46px!important;min-width:46px!important;height:42px!important;margin-left:auto!important
+}
+.de-match-card .tree-player>b{flex:0 0 auto!important;margin-left:auto!important}
+.de-match-code{height:25px!important;min-height:25px!important;margin:0 0 5px 1px!important}
+.de-match-card .tree-player+.tree-player{margin-top:4px!important}
+.de-match-card .tree-save-button{
+ height:42px!important;min-height:42px!important;max-height:42px!important;margin:6px 0 0!important;padding:5px 8px!important
+}
+.de-match-status{height:18px!important;min-height:18px!important;margin:2px 0 0!important;line-height:18px!important}
+.de-round-body{height:calc(var(--de-max-matches) * var(--de-row-pitch))!important}
+.de-match-wrap{height:194px!important}
+article.de-match-card .de-waiting-slot{background:#0d0d0d!important;border:1px dashed #383838!important;color:#aaa!important}
+article.de-match-card .de-waiting-slot *,
+article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:#aaa!important}
+@media(max-width:720px){.de-bracket-shell{--de-card-w:246px!important;--de-col-gap:40px!important;--de-row-pitch:214px!important}}
+@media(max-width:390px){.de-bracket-shell{--de-card-w:238px!important;--de-col-gap:38px!important;--de-row-pitch:214px!important}}
