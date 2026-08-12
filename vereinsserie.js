@@ -1291,6 +1291,11 @@ function treeMatchCard(match, options = {}) {
   const loserClass1 = match.completed && match.loser === match.p1 ? 'tree-loser' : '';
   const loserClass2 = match.completed && match.loser === match.p2 ? 'tree-loser' : '';
   const ready = Boolean(match.p1 && match.p2);
+
+  const winner1 = !!match.completed && Number(match.s1) > Number(match.s2);
+  const winner2 = !!match.completed && Number(match.s2) > Number(match.s1);
+  const loser1 = !!match.completed && Number(match.s1) < Number(match.s2);
+  const loser2 = !!match.completed && Number(match.s2) < Number(match.s1);
   const canEditMatch = editable && canManage && !treeReadOnly && ready && !match.completed;
 
   const ctx = dayContext || state.current || null;

@@ -2424,3 +2424,153 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
 .de-match-card.de-match-ready .de-match-status{
   color:#e8e8e8!important;
 }
+
+
+/* =====================================================================
+   V44 FINAL FIX – tatsächliche Spielerzeilen
+   ===================================================================== */
+
+/* Match-Karte bleibt dunkel/grau */
+.de-match-card,
+.de-match-card.de-match-ready,
+.de-match-card.de-match-completed {
+  background:#1b1b1b !important;
+  color:#fff !important;
+  border-color:#4b4b4b !important;
+}
+
+/* Noch nicht entschieden / spielbereit: Spielerfläche WEISS */
+.de-match-card .tree-player:has(.de-player-direct) {
+  background:#fff !important;
+  color:#000 !important;
+  border-color:#ddd !important;
+}
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name {
+  color:#000 !important;
+  -webkit-text-fill-color:#000 !important;
+}
+
+/* Leg-Feld rechts GRAU */
+.de-match-card .tree-player input {
+  background:#3a3a3a !important;
+  color:#fff !important;
+  border:2px solid #686868 !important;
+}
+
+/* Ergebniszahl ersetzt nach Abschluss das Input exakt rechts */
+.de-match-card .tree-player .de-result-score {
+  display:grid !important;
+  place-items:center !important;
+  grid-column:2 !important;
+  align-self:center !important;
+  justify-self:end !important;
+  width:48px !important;
+  height:44px !important;
+  min-width:48px !important;
+  min-height:44px !important;
+  margin:0 !important;
+  padding:0 !important;
+  box-sizing:border-box !important;
+  background:#3a3a3a !important;
+  color:#fff !important;
+  border:2px solid #686868 !important;
+  border-radius:9px !important;
+  font-size:1rem !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+}
+
+/* GEWONNEN */
+.de-match-card .tree-player.tree-winner,
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) {
+  background:#2fa846 !important;
+  color:#fff !important;
+  border-color:#58cf6d !important;
+}
+.de-match-card .tree-player.tree-winner .de-player-direct,
+.de-match-card .tree-player.tree-winner .de-player-direct-name {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+
+/* VERLOREN */
+.de-match-card .tree-player.tree-loser,
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) {
+  background:#c43737 !important;
+  color:#fff !important;
+  border-color:#e15e5e !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+.de-match-card .tree-player.tree-loser .de-player-direct,
+.de-match-card .tree-player.tree-loser .de-player-direct-name {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  opacity:1 !important;
+}
+
+/* Ergebnisfeld bleibt bei Sieger/Verlierer grau – nicht grün/rot */
+.de-match-card .tree-player.tree-winner .de-result-score,
+.de-match-card .tree-player.tree-loser .de-result-score {
+  background:#3a3a3a !important;
+  color:#fff !important;
+  border-color:#686868 !important;
+}
+
+
+/* =====================================================================
+   V45 – unbekannte / unvollständige Partien grau
+   ===================================================================== */
+
+/* Match noch nicht vollständig besetzt: ganze Karte grau/dunkel */
+.de-match-card.de-match-pending{
+  background:#242424!important;
+  color:#cfcfcf!important;
+  border-color:#555!important;
+}
+
+/* Wenn nur ein Spieler bekannt ist, bleibt auch dessen Zeile grau statt weiß */
+.de-match-card.de-match-pending .tree-player:has(.de-player-direct){
+  background:#2b2b2b!important;
+  color:#e0e0e0!important;
+  border-color:#555!important;
+}
+.de-match-card.de-match-pending .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card.de-match-pending .tree-player:has(.de-player-direct) .de-player-direct-name{
+  color:#e0e0e0!important;
+  -webkit-text-fill-color:#e0e0e0!important;
+}
+
+/* Offene Zuführungen ebenfalls grau */
+.de-match-card.de-match-pending .de-waiting-slot{
+  background:#222!important;
+  color:#aaa!important;
+  border-color:#4b4b4b!important;
+}
+.de-match-card.de-match-pending .de-waiting-slot *,
+.de-match-card.de-match-pending .de-waiting-player span:last-child{
+  color:#aaa!important;
+}
+
+/* Erst wenn beide Spieler da sind, werden normale Spielerzeilen weiß */
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border-color:#ddd!important;
+}
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+}
+
+/* Freilos-Karten nicht von Pending-Grau überschreiben */
+.de-match-card.bye-card .tree-player.tree-winner{
+  background:#2fa846!important;
+  color:#fff!important;
+}
+.de-match-card.bye-card .de-bye-row{
+  background:#1a1a1a!important;
+  color:#fff!important;
+}
