@@ -1264,7 +1264,7 @@ function treeMatchCard(match, options = {}) {
   const virtualBye2 = !match.p2 && sourceStates[1]?.source?.outcome === 'loser' && sourceStates[1]?.match?.completed && sourceStates[1]?.match?.bye;
 
   const byeIdentity = () => `<span class="de-bye-player"><span class="bye-avatar" aria-hidden="true">→</span><span class="bye-label">FREILOS</span></span>`;
-  const waitingIdentity = () => `<span class="de-bye-player de-waiting-row"><span class="de-waiting-dot" aria-hidden="true">·</span><span>Offen</span></span>`;
+  const waitingIdentity = () => `<span class="de-waiting-player"><span class="de-waiting-dot" aria-hidden="true">…</span><span>Wartet auf Spieler</span></span>`;
 
   if (match.bye) {
     const realPlayer = match.winner || match.p1 || match.p2;
@@ -1290,13 +1290,13 @@ function treeMatchCard(match, options = {}) {
 
   return `<article class="tree-match ${canEditMatch ? 'tree-match-editable' : ''}">
     ${label ? `<small>${esc(label)}</small>` : ''}
-    <div class="tree-player ${winnerClass1}">
+    <div class="tree-player ${winnerClass1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
       ${match.p1 ? playerIdentity(match.p1, 'small') : (virtualBye1 ? byeIdentity() : waitingIdentity())}
       ${canEditMatch
         ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}">`
         : `<b>${match.completed ? match.s1 : ''}</b>`}
     </div>
-    <div class="tree-player ${winnerClass2}">
+    <div class="tree-player ${winnerClass2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
       ${match.p2 ? playerIdentity(match.p2, 'small') : (virtualBye2 ? byeIdentity() : waitingIdentity())}
       ${canEditMatch
         ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}">`
@@ -1305,7 +1305,7 @@ function treeMatchCard(match, options = {}) {
     ${canEditMatch ? `<button class="tree-save-button" ${saveAttr}="${saveValue}">Ergebnis speichern</button>` : ''}
     ${match.completed
       ? `<small>Ergebnis ${match.s1}:${match.s2}</small>`
-      : (!ready ? '<small>Wartet auf vorherige Partie</small>' : '')}
+      : (!ready ? '<small class="de-match-status">Wartet auf vorherige Partie</small>' : '')}
   </article>`;
 }
 
