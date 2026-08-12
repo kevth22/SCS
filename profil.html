@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Mein Profil | Black White Eagles</title>
-  <link rel="stylesheet" href="style.css?v=26.0">
-  <link rel="stylesheet" href="konto.css?v=26.0">
-  <link rel="stylesheet" href="profil.css?v=26.0">
+  <link rel="stylesheet" href="style.css?v=27.0">
+  <link rel="stylesheet" href="konto.css?v=27.0">
+  <link rel="stylesheet" href="profil.css?v=27.0">
   <meta name="theme-color" content="#000000">
 </head>
 <body>
@@ -20,7 +20,7 @@
   <section class="profile-edit-card">
     <div class="profile-picture-editor">
       <div id="profilePreview" class="profile-preview">?</div>
-      <div>
+      <div class="profile-picture-actions">
         <h2 id="profileNickname">Profil</h2>
         <p>Dein Bild wird in Rangliste und Turnierbaum angezeigt.</p>
         <label class="profile-upload-button">Bild auswählen
@@ -45,12 +45,41 @@
   </section>
 </main>
 
+<div id="cropModal" class="crop-modal" hidden>
+  <div class="crop-dialog" role="dialog" aria-modal="true" aria-labelledby="cropTitle">
+    <div class="crop-head">
+      <div>
+        <span class="crop-kicker">Profilbild</span>
+        <h2 id="cropTitle">Bildausschnitt wählen</h2>
+      </div>
+      <button id="closeCrop" class="crop-close" type="button" aria-label="Schließen">×</button>
+    </div>
+
+    <p class="crop-help">Ziehe das Bild mit dem Finger. Mit dem Regler kannst du hinein- oder herauszoomen. Alles innerhalb des Kreises wird später sichtbar.</p>
+
+    <div id="cropStage" class="crop-stage">
+      <canvas id="cropCanvas" width="320" height="320"></canvas>
+      <div class="crop-mask" aria-hidden="true"></div>
+    </div>
+
+    <label class="crop-zoom-label" for="cropZoom">
+      <span>Zoom</span>
+      <input id="cropZoom" type="range" min="1" max="3" step="0.01" value="1">
+    </label>
+
+    <div class="crop-actions">
+      <button id="cancelCrop" type="button" class="secondary-button">Abbrechen</button>
+      <button id="applyCrop" type="button" class="main-button">Ausschnitt übernehmen</button>
+    </div>
+  </div>
+</div>
+
 <nav class="bottom-nav">
   <a href="index.html">🏠<br>Home</a>
   <a href="spieltag-center.html">🚌<br>Spieltag</a>
   <a href="liga.html">🏆<br>Liga</a>
   <a href="vereinsserie.html">🎖️<br>Rangliste</a>
 </nav>
-<script type="module" src="profil.js?v=26.0"></script>
+<script type="module" src="profil.js?v=27.0"></script>
 </body>
 </html>
