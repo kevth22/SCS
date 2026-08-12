@@ -1291,6 +1291,12 @@ function treeMatchCard(match, options = {}) {
   const loserClass1 = match.completed && match.loser === match.p1 ? 'tree-loser' : '';
   const loserClass2 = match.completed && match.loser === match.p2 ? 'tree-loser' : '';
   const ready = Boolean(match.p1 && match.p2);
+  const rowState1 = match.completed
+    ? (Number(match.s1) > Number(match.s2) ? "de-row-winner" : "de-row-loser")
+    : (ready ? "de-row-ready" : "de-row-pending");
+  const rowState2 = match.completed
+    ? (Number(match.s2) > Number(match.s1) ? "de-row-winner" : "de-row-loser")
+    : (ready ? "de-row-ready" : "de-row-pending");
 
   const winner1 = !!match.completed && Number(match.s1) > Number(match.s2);
   const winner2 = !!match.completed && Number(match.s2) > Number(match.s1);
@@ -1351,8 +1357,8 @@ function treeMatchCard(match, options = {}) {
       ${code ? `<div class="de-match-code">${esc(code)}</div>` : ''}
       
       ${label ? `<small>${esc(label)}</small>` : ''}
-      <div class="tree-player tree-winner">${identity(realPlayer)}</div>
-      <div class="tree-player de-bye-row">${byeIdentity()}</div>
+      <div class="tree-player tree-winner ${rowState1}">${identity(realPlayer)}</div>
+      <div class="tree-player de-bye-row ${rowState2}">${byeIdentity()}</div>
       <small class="de-match-status">Automatisch weiter</small>
     </article>`;
   }

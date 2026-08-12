@@ -2221,3 +2221,71 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
     font-size:.94rem !important;
   }
 }
+
+
+/* =====================================================================
+   V47 – EXPLIZITE ZEILENZUSTÄNDE AUS JAVASCRIPT
+   Keine indirekte Erkennung über .de-match-ready oder :has().
+   ===================================================================== */
+
+/* WARTEND: kein/erst ein Teilnehmer bekannt */
+.de-match-card .tree-player.de-row-pending{
+  background:#2f2f2f !important;
+  color:#e6e6e6 !important;
+  border:1px solid #555 !important;
+}
+.de-match-card .tree-player.de-row-pending .de-player-direct,
+.de-match-card .tree-player.de-row-pending .de-player-direct-name{
+  color:#e6e6e6 !important;
+  -webkit-text-fill-color:#e6e6e6 !important;
+}
+
+/* SPIELBEREIT: beide echten Teilnehmer stehen fest */
+.de-match-card .tree-player.de-row-ready{
+  background:#fff !important;
+  color:#000 !important;
+  border:1px solid #ddd !important;
+}
+.de-match-card .tree-player.de-row-ready .de-player-direct,
+.de-match-card .tree-player.de-row-ready .de-player-direct-name{
+  color:#000 !important;
+  -webkit-text-fill-color:#000 !important;
+}
+
+/* GEWONNEN */
+.de-match-card .tree-player.de-row-winner{
+  background:#2fa846 !important;
+  color:#fff !important;
+  border:1px solid #58cf6d !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+.de-match-card .tree-player.de-row-winner .de-player-direct,
+.de-match-card .tree-player.de-row-winner .de-player-direct-name{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+
+/* VERLOREN */
+.de-match-card .tree-player.de-row-loser{
+  background:#c43737 !important;
+  color:#fff !important;
+  border:1px solid #e15e5e !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+.de-match-card .tree-player.de-row-loser .de-player-direct,
+.de-match-card .tree-player.de-row-loser .de-player-direct-name{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+
+/* Legfeld und gespeicherte Zahl bleiben unabhängig vom Zustand grau */
+.de-match-card .tree-player.de-row-ready input,
+.de-match-card .tree-player.de-row-pending input,
+.de-match-card .tree-player.de-row-winner .de-result-score,
+.de-match-card .tree-player.de-row-loser .de-result-score{
+  background:#333 !important;
+  color:#fff !important;
+  border-color:#666 !important;
+}
