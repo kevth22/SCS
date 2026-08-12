@@ -1785,3 +1785,13 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
     font-size:.82rem!important;
   }
 }
+
+
+/* V38 – ausschließlich Spielernamen im Doppel-KO schwarz */
+.de-match-card .player-name-text,
+.de-match-card .tree-player .player-name-text,
+.de-match-card .tree-player:not(.tree-winner) .player-name-text,
+.de-match-card .tree-player.tree-winner .player-name-text,
+.de-match-card .tree-player.tree-loser .player-name-text{
+  color:#000!important;
+}
