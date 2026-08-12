@@ -1268,7 +1268,10 @@ function doubleMatchLabel(match) {
 
 function dePlayerIdentity(id, size = 'small') {
   if (!id) return '';
-  return `<button type="button" class="de-player-tap" data-de-player="${esc(id)}" title="Spielerpfad anzeigen">${playerIdentity(id, size)}</button>`;
+  return `<button type="button" class="de-player-direct" data-de-player="${esc(id)}" title="Spielerpfad anzeigen">
+    ${memberAvatar(id, size)}
+    <strong class="de-player-direct-name">${esc(memberName(id))}</strong>
+  </button>`;
 }
 
 function treeMatchCard(match, options = {}) {

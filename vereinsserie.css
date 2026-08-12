@@ -1787,11 +1787,179 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
 }
 
 
-/* V38 – ausschließlich Spielernamen im Doppel-KO schwarz */
-.de-match-card .player-name-text,
-.de-match-card .tree-player .player-name-text,
-.de-match-card .tree-player:not(.tree-winner) .player-name-text,
-.de-match-card .tree-player.tree-winner .player-name-text,
-.de-match-card .tree-player.tree-loser .player-name-text{
+/* =====================================================================
+   V38 – endgültiger Namens-Fix bei spielbaren Doppel-KO-Partien
+   Struktur: [Avatar + Name] [Ergebnis]
+   ===================================================================== */
+
+.de-match-card .tree-player{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 46px!important;
+  column-gap:8px!important;
+  align-items:center!important;
+  width:100%!important;
+  min-width:0!important;
+  overflow:visible!important;
+}
+
+/* Bei Zeilen ohne Ergebnisfeld darf der Spielerbereich beide Spalten nutzen. */
+.de-match-card .tree-player:not(:has(input)) .de-player-tap{
+  grid-column:1 / -1!important;
+}
+
+/* Der Button darf NICHT künstlich auf 100%-52px verkleinert werden. */
+.de-match-card .de-player-tap{
+  grid-column:1!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:visible!important;
+}
+
+/* Avatar + Name erhalten garantiert den gesamten linken Bereich. */
+.de-match-card .player-identity{
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr)!important;
+  gap:8px!important;
+  align-items:center!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  overflow:visible!important;
+}
+
+.de-match-card .player-name-text{
+  display:block!important;
+  position:relative!important;
+  z-index:5!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
   color:#000!important;
+  -webkit-text-fill-color:#000!important;
+  opacity:1!important;
+  visibility:visible!important;
+  font-size:.86rem!important;
+  font-weight:900!important;
+}
+
+/* Die Spielerfläche selbst bleibt weiß, damit die gewünschte schwarze
+   Namensschrift in jedem Zustand sichtbar ist. */
+.de-match-card .tree-player,
+.de-match-card .tree-player:not(.tree-winner):not(.de-bye-row),
+.de-match-card .tree-player.tree-loser,
+.de-match-card .tree-player.tree-winner{
+  background:#fff!important;
+  color:#000!important;
+}
+
+.de-match-card .tree-player .player-name-text,
+.de-match-card .tree-player.tree-loser .player-name-text,
+.de-match-card .tree-player.tree-winner .player-name-text{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+  opacity:1!important;
+}
+
+/* Ergebnisfeld sitzt ausschließlich rechts und kann den Namen nicht überdecken. */
+.de-match-card .tree-player input{
+  grid-column:2!important;
+  width:46px!important;
+  min-width:46px!important;
+  max-width:46px!important;
+  margin:0!important;
+  justify-self:end!important;
+  position:relative!important;
+  z-index:6!important;
+}
+
+/* Verlierer nur über Rahmen/Avatar zurücknehmen, niemals über Text-Opacity. */
+.de-match-card .tree-player.tree-loser{
+  opacity:1!important;
+}
+.de-match-card .tree-player.tree-loser .player-avatar-small{
+  opacity:.62!important;
+}
+
+
+/* =====================================================================
+   V39 – eigene Spielerzeile ausschließlich für Doppel-KO
+   Keine playerIdentity()-Verschachtelung mehr.
+   ===================================================================== */
+.de-match-card .de-player-direct{
+  grid-column:1!important;
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr)!important;
+  gap:8px!important;
+  align-items:center!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#000!important;
+  text-align:left!important;
+  overflow:visible!important;
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  cursor:pointer!important;
+}
+.de-match-card .de-player-direct-name{
+  display:block!important;
+  position:relative!important;
+  z-index:20!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+  opacity:1!important;
+  visibility:visible!important;
+  font-size:.86rem!important;
+  font-weight:900!important;
+  line-height:1.15!important;
+}
+
+/* Ohne Ergebnisfeld darf die direkte Spielerzeile die ganze Breite nutzen. */
+.de-match-card .tree-player:not(:has(input)) .de-player-direct{
+  grid-column:1 / -1!important;
+}
+
+/* Alle echten Spielerzeilen im Doppel-KO bewusst weiß + schwarze Schrift. */
+.de-match-card .tree-player:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+}
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+}
+
+/* Niederlage verändert nicht mehr den Text; nur der Avatar wird dezent schwächer. */
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  opacity:1!important;
+  filter:none!important;
+  background:#fff!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
+  opacity:1!important;
+  color:#000!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .player-avatar-small{
+  opacity:.62!important;
 }
