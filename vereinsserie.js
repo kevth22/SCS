@@ -225,7 +225,7 @@ function advanceKO(day) {
 
     day.rounds.forEach((round, ri) => {
       day.matches[round].forEach((match, mi) => {
-        if (!match.completed && Boolean(match.p1) !== Boolean(match.p2)) {
+        if (ri === 0 && !match.completed && Boolean(match.p1) !== Boolean(match.p2)) {
           match.winner = match.p1 || match.p2;
           match.completed = true;
           match.bye = true;
@@ -377,16 +377,25 @@ function seededGroupOrder(ids) {
   });
 }
 function setupGroups(day) {
-  const count = day.groupCount === 'auto' ? autoGroupCount(day.attendees.length) : Math.max(2, +day.groupCount || 2);
+  const count = day.groupCount === 'auto' ? autoGroupCount(day.attendees.length) : Math.max(1, +day.groupCount || 1);
   const groups = Array.from({ length: Math.min(count, day.attendees.length) }, (_, index) => ({
     id: `G${index + 1}`, name: `Gruppe ${String.fromCharCode(65 + index)}`, players: [], matches: []
   }));
-  const source = day.groupDrawMode === 'seeded' ? seededGroupOrder(day.attendees) : shuffled(day.attendees);
-  source.forEach((id, index) => {
-    const cycle = Math.floor(index / groups.length);
-    const position = cycle % 2 === 0 ? index % groups.length : groups.length - 1 - (index % groups.length);
-    groups[position].players.push(id);
-  });
+
+  const assignments = day.groupAssignments || {};
+  const hasManualAssignments = day.attendees.every(id => Number.isInteger(+assignments[id]) && +assignments[id] >= 0 && +assignments[id] < groups.length);
+
+  if (hasManualAssignments) {
+    day.attendees.forEach(id => groups[+assignments[id]].players.push(id));
+  } else {
+    const source = day.groupDrawMode === 'seeded' ? seededGroupOrder(day.attendees) : shuffled(day.attendees);
+    source.forEach((id, index) => {
+      const cycle = Math.floor(index / groups.length);
+      const position = cycle % 2 === 0 ? index % groups.length : groups.length - 1 - (index % groups.length);
+      groups[position].players.push(id);
+    });
+  }
+
   groups.forEach(group => {
     for (let i = 0; i < group.players.length; i++) {
       for (let j = i + 1; j < group.players.length; j++) {
@@ -402,6 +411,7 @@ function setupGroups(day) {
   day.groupPhaseDone = false;
   day.ko = null;
 }
+
 function groupTable(group) {
   const rows = Object.fromEntries(group.players.map(id => [id, { id, mp: 0, wins: 0, legsFor: 0, legsAgainst: 0 }]));
   group.matches.forEach(match => {
@@ -485,7 +495,8 @@ function makeGroupsKO(ids, sourceDay = {}) {
     engine: 'groups',
     attendees: [...ids],
     groupCount: sourceDay.groupCount || 'auto',
-    groupDrawMode: sourceDay.groupDrawMode || 'random',
+    groupDrawMode: sourceDay.groupDrawMode || 'manual',
+    groupAssignments: { ...(sourceDay.groupAssignments || {}) },
     qualifyPlaces: Array.isArray(sourceDay.qualifyPlaces) && sourceDay.qualifyPlaces.length
       ? [...sourceDay.qualifyPlaces]
       : [1, 2],
@@ -878,7 +889,29 @@ function renderRanking() {
 function renderCreateParticipants() {
   const box = $('createParticipantsList');
   if (!box) return;
-  box.innerHTML = state.members.length ? state.members.map(member => `<label class="attendance-row"><span>${esc(member.name)} <small>(${esc(member.rolle)})</small></span><input type="checkbox" data-create-attend="${member.id}"></label>`).join('') : '<p>Keine passenden Konten gefunden.</p>';
+
+  // Auswahl beim Wechsel von Turnierart/Gruppenanzahl beibehalten.
+  const previousSelected = new Set(
+    [...box.querySelectorAll('[data-create-attend]:checked')].map(input => input.dataset.createAttend)
+  );
+  const previousAssignments = {};
+  box.querySelectorAll('[data-group-assign]').forEach(select => previousAssignments[select.dataset.groupAssign] = +select.value);
+
+  const groupMode = document.querySelector('input[name="tournamentType"]:checked')?.value === 'groupsko';
+  const groupCount = Math.max(1, +($('createGroupCount')?.value || 1));
+  box.innerHTML = state.members.length ? state.members.map(member => {
+    const checked = previousSelected.has(member.id);
+    const previousGroup = Number.isInteger(previousAssignments[member.id]) ? previousAssignments[member.id] : 0;
+    const safeGroup = Math.min(Math.max(0, previousGroup), groupCount - 1);
+    return `
+    <label class="attendance-row create-attendance-row">
+      <span class="participant-name">${esc(member.name)} <small>(${esc(member.rolle)})</small></span>
+      <span class="participant-controls">
+        ${groupMode ? `<select class="participant-group-select" data-group-assign="${member.id}" ${checked ? '' : 'disabled'} aria-label="Gruppe für ${esc(member.name)}">${Array.from({length: groupCount}, (_, index) => `<option value="${index}" ${index === safeGroup ? 'selected' : ''}>Gruppe ${String.fromCharCode(65 + index)}</option>`).join('')}</select>` : ''}
+        <input type="checkbox" data-create-attend="${member.id}" ${checked ? 'checked' : ''}>
+      </span>
+    </label>`;
+  }).join('') : '<p>Keine passenden Konten gefunden.</p>';
 }
 
 function allTreeDays() {
@@ -1591,15 +1624,18 @@ async function createDay() {
   const selected = [...document.querySelectorAll('[data-create-attend]:checked')].map(input => input.dataset.createAttend);
   if (selected.length < 2) return toast('Bitte mindestens zwei Teilnehmer auswählen.');
 
-  const bracketSize = +(document.querySelector('input[name="koSize"]:checked')?.value || 8);
-  if (![4, 8, 16, 32].includes(bracketSize)) return toast('Bitte ein gültiges K.-o.-Feld auswählen.');
-  if (selected.length > bracketSize) return toast(`Für das ${bracketSize}er Feld kannst du höchstens ${bracketSize} Teilnehmer auswählen.`);
-
   const tournamentType = document.querySelector('input[name="tournamentType"]:checked')?.value || 'ko';
+  const bracketSize = +(document.querySelector('input[name="koSize"]:checked')?.value || 8);
+
+  if (tournamentType !== 'groupsko') {
+    if (![4, 8, 16, 32].includes(bracketSize)) return toast('Bitte ein gültiges K.-o.-Feld auswählen.');
+    if (selected.length > bracketSize) return toast(`Für das ${bracketSize}er Feld kannst du höchstens ${bracketSize} Teilnehmer auswählen.`);
+  }
+
   const day = {
     id: uid(), seasonId: currentSeason.id, status: 'laeuft',
     date: $('dayDate')?.value || new Date().toISOString().slice(0, 10),
-    mode: tournamentType === 'doubleko' ? 'doubleko' : 'premier',
+    mode: tournamentType === 'doubleko' ? 'doubleko' : tournamentType === 'groupsko' ? 'groupsko' : 'premier',
     bracketSize,
     rankingEnabled: $('rankingEnabled')?.checked !== false,
     roundConfig: {},
@@ -1608,7 +1644,32 @@ async function createDay() {
   };
 
   try {
-    if (tournamentType === 'doubleko') {
+    if (tournamentType === 'groupsko') {
+      const groupCount = Math.max(1, +($('createGroupCount')?.value || 1));
+      const qualifyCount = Math.max(1, +($('createQualifyCount')?.value || 2));
+      if (groupCount > selected.length) return toast('Es können nicht mehr Gruppen als Teilnehmer angelegt werden.');
+
+      const assignments = {};
+      const groupSizes = Array(groupCount).fill(0);
+      for (const id of selected) {
+        const select = document.querySelector(`[data-group-assign="${CSS.escape(id)}"]`);
+        if (!select) return toast('Bitte jedem Teilnehmer eine Gruppe zuweisen.');
+        const groupIndex = +select.value;
+        if (!Number.isInteger(groupIndex) || groupIndex < 0 || groupIndex >= groupCount) return toast('Ungültige Gruppenzuordnung.');
+        assignments[id] = groupIndex;
+        groupSizes[groupIndex]++;
+      }
+      if (groupSizes.some(size => size < 2)) return toast('Jede Gruppe braucht mindestens zwei Teilnehmer.');
+      if (groupSizes.some(size => size < qualifyCount)) return toast('Es können nicht mehr Spieler weiterkommen, als in der kleinsten Gruppe vorhanden sind.');
+
+      day.groupCount = groupCount;
+      day.groupDrawMode = 'manual';
+      day.groupAssignments = assignments;
+      day.qualifyPlaces = Array.from({ length: qualifyCount }, (_, index) => index + 1);
+      Object.assign(day, makeGroupsKO(selected, day));
+      day.mode = 'groupsko';
+      day.bracketSize = powerOfTwo(groupCount * qualifyCount);
+    } else if (tournamentType === 'doubleko') {
       Object.assign(day, makeDoubleKO(selected, bracketSize));
       day.mode = 'doubleko';
     } else {
@@ -1617,16 +1678,17 @@ async function createDay() {
     }
     day.status = 'laeuft';
     day.attendees = selected;
-    day.bracketSize = bracketSize;
     state.current = day;
     treeSelectionId = 'current';
     await save();
     selectTab('turnierbaum');
-    toast(`${bracketSize}er ${tournamentType === 'doubleko' ? 'Doppel-K.-o.' : 'K.-o.'}-Feld wurde ausgelost und gestartet.`);
+    if (tournamentType === 'groupsko') toast('Gruppenphase wurde mit deiner Gruppeneinteilung gestartet.');
+    else toast(`${bracketSize}er ${tournamentType === 'doubleko' ? 'Doppel-K.-o.' : 'K.-o.'}-Feld wurde ausgelost und gestartet.`);
   } catch (error) {
     console.error(error); toast(`Turnier konnte nicht gestartet werden: ${error?.message || error}`);
   }
 }
+
 async function deleteCurrentDay() {
   if (!canManage || !state.current) return;
   if (!confirm('Aktuellen Spieltag wirklich löschen?')) return;
@@ -1680,14 +1742,46 @@ function selectTab(name) {
   document.querySelectorAll('.serie-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${name}`));
 }
 function updateModeFields() { updateCreateTournamentInfo(); }
-function updateCreateTournamentInfo() {
+function updateCreateTournamentInfo({ rerenderParticipants = false } = {}) {
+  const tournamentType = document.querySelector('input[name="tournamentType"]:checked')?.value || 'ko';
+  const isGroups = tournamentType === 'groupsko';
   const size = +(document.querySelector('input[name="koSize"]:checked')?.value || 8);
   const selected = document.querySelectorAll('[data-create-attend]:checked').length;
   const free = Math.max(0, size - selected);
+
+  const koField = document.querySelector('.ko-size-fieldset');
+  if (koField) koField.hidden = isGroups;
+  if ($('groupsCreateConfig')) $('groupsCreateConfig').hidden = !isGroups;
+
   if ($('selectedParticipantsCount')) $('selectedParticipantsCount').textContent = `${selected} ausgewählt`;
   if ($('koSizeInfo')) $('koSizeInfo').textContent = selected > size
     ? `${selected} ausgewählt · ${selected - size} zu viel für das ${size}er Feld`
     : `${selected} von ${size} Plätzen belegt · ${free} ${free === 1 ? 'Freilos' : 'Freilose'}`;
+
+  if (isGroups) {
+    const groupCount = Math.max(1, +($('createGroupCount')?.value || 1));
+    const qualifyCount = Math.max(1, +($('createQualifyCount')?.value || 2));
+    const koPlayers = groupCount * qualifyCount;
+    const koSize = powerOfTwo(koPlayers);
+    if ($('groupsCreateInfo')) $('groupsCreateInfo').textContent = `${groupCount} Gruppen · je ${qualifyCount} ${qualifyCount === 1 ? 'kommt' : 'kommen'} weiter · ${koPlayers} Spieler in der K.-o.-Phase${koSize > koPlayers ? ` · ${koSize - koPlayers} Freilos${koSize - koPlayers === 1 ? '' : 'e'}` : ''}`;
+  }
+
+  if (rerenderParticipants) renderCreateParticipants();
+}
+
+function assignParticipantToSmallestGroup(checkbox) {
+  if (!checkbox?.checked) return;
+  const select = document.querySelector(`[data-group-assign="${CSS.escape(checkbox.dataset.createAttend)}"]`);
+  if (!select) return;
+  const groupCount = Math.max(1, +($('createGroupCount')?.value || 1));
+  const counts = Array(groupCount).fill(0);
+  document.querySelectorAll('[data-create-attend]:checked').forEach(input => {
+    if (input === checkbox) return;
+    const assigned = document.querySelector(`[data-group-assign="${CSS.escape(input.dataset.createAttend)}"]`);
+    if (assigned && counts[+assigned.value] !== undefined) counts[+assigned.value]++;
+  });
+  const min = Math.min(...counts);
+  select.value = String(counts.indexOf(min));
 }
 
 function closeSeasonPicker() { $('seasonPickerMenu').hidden = true; $('seasonPickerButton').setAttribute('aria-expanded', 'false'); }
@@ -1752,9 +1846,18 @@ document.querySelectorAll('[data-drawer-tab]').forEach(button => button.addEvent
 if ($('dayDate')) $('dayDate').value = new Date().toISOString().slice(0, 10);
 updateModeFields();
 document.querySelectorAll('input[name="koSize"]').forEach(input => input.addEventListener('change', updateCreateTournamentInfo));
-document.querySelectorAll('input[name="tournamentType"]').forEach(input => input.addEventListener('change', updateCreateTournamentInfo));
+document.querySelectorAll('input[name="tournamentType"]').forEach(input => input.addEventListener('change', () => updateCreateTournamentInfo({ rerenderParticipants: true })));
+$('createGroupCount')?.addEventListener('change', () => updateCreateTournamentInfo({ rerenderParticipants: true }));
+$('createQualifyCount')?.addEventListener('change', () => updateCreateTournamentInfo());
 document.addEventListener('change', event => {
-  if (event.target?.matches?.('[data-create-attend]')) updateCreateTournamentInfo();
+  if (event.target?.matches?.('[data-create-attend]')) {
+    const groupSelect = document.querySelector(`[data-group-assign="${CSS.escape(event.target.dataset.createAttend)}"]`);
+    if (groupSelect) {
+      groupSelect.disabled = !event.target.checked;
+      if (event.target.checked) assignParticipantToSmallestGroup(event.target);
+    }
+    updateCreateTournamentInfo();
+  }
 });
 updateCreateTournamentInfo();
 

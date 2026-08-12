@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=20.0">
+  <link rel="stylesheet" href="vereinsserie.css?v=23.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v20";
+  const resetKey = "bwe-cache-reset-v23";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "20.0");
+    url.searchParams.set("v", "23.0");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -125,18 +125,51 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
         <div class="create-page-head">
           <span class="create-kicker">Vereinsrangliste</span>
           <h2>Turnier erstellen</h2>
-          <p>Teilnehmer auswählen, K.-o.-Feld festlegen und auslosen. Der Spielmodus wird direkt am Board eingestellt.</p>
+          <p>Teilnehmer auswählen, Turnierform festlegen und starten. Der Spielmodus wird direkt am Board eingestellt.</p>
         </div>
 
         <label>Datum<input id="dayDate" type="date"></label>
 
         <fieldset class="tournament-type-fieldset">
           <legend>Turnierart</legend>
-          <p>Wähle zwischen einfachem K.-o. und Doppel-K.-o. Der Spielmodus selbst wird weiterhin am Board eingestellt.</p>
+          <p>Wähle K.-o., Doppel-K.-o. oder Gruppen + K.-o. Der Spielmodus selbst wird weiterhin am Board eingestellt.</p>
           <div class="tournament-type-options">
             <label><input type="radio" name="tournamentType" value="ko" checked><span><strong>K.-o.</strong><small>1 Niederlage = ausgeschieden</small></span></label>
             <label><input type="radio" name="tournamentType" value="doubleko"><span><strong>Doppel-K.-o.</strong><small>2 Niederlagen = ausgeschieden</small></span></label>
+            <label><input type="radio" name="tournamentType" value="groupsko"><span><strong>Gruppen + K.-o.</strong><small>Gruppen frei einteilen, danach K.-o.</small></span></label>
           </div>
+        </fieldset>
+
+        <fieldset id="groupsCreateConfig" class="groups-create-fieldset" hidden>
+          <legend>Gruppenphase</legend>
+          <p>Lege die Anzahl der Gruppen und die Weiterkommer je Gruppe fest. Die Spieler ordnest du unten direkt einer Gruppe zu.</p>
+          <div class="groups-create-options">
+            <label>Anzahl Gruppen
+              <select id="createGroupCount">
+                <option value="1">1 Gruppe</option>
+                <option value="2" selected>2 Gruppen</option>
+                <option value="3">3 Gruppen</option>
+                <option value="4">4 Gruppen</option>
+                <option value="5">5 Gruppen</option>
+                <option value="6">6 Gruppen</option>
+                <option value="7">7 Gruppen</option>
+                <option value="8">8 Gruppen</option>
+              </select>
+            </label>
+            <label>Weiter pro Gruppe
+              <select id="createQualifyCount">
+                <option value="1">1 Platz</option>
+                <option value="2" selected>2 Plätze</option>
+                <option value="3">3 Plätze</option>
+                <option value="4">4 Plätze</option>
+                <option value="5">5 Plätze</option>
+                <option value="6">6 Plätze</option>
+                <option value="7">7 Plätze</option>
+                <option value="8">8 Plätze</option>
+              </select>
+            </label>
+          </div>
+          <div id="groupsCreateInfo" class="ko-size-info">2 Gruppen · je 2 kommen weiter · 4 Spieler in der K.-o.-Phase</div>
         </fieldset>
 
         <fieldset class="ko-size-fieldset">
@@ -174,6 +207,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=20.0"></script>
+<script type="module" src="vereinsserie.js?v=23.0"></script>
 </body>
 </html>

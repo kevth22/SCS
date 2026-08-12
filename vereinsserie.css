@@ -630,3 +630,31 @@ body{background:#050505!important;}
   .tree-player{padding:7px 6px;font-size:.86rem}
   .de-finals-grid{grid-template-columns:1fr;padding:12px}
 }
+
+
+/* V22 – Gruppen + K.-o. beim Erstellen */
+.tournament-type-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+.groups-create-fieldset{border:1px solid #343434;border-radius:14px;padding:16px;margin:20px 0;background:#0d0d0d}
+.groups-create-fieldset legend{padding:0 8px;font-weight:900}
+.groups-create-fieldset>p{margin:0 0 14px;color:#999;font-size:.84rem;line-height:1.45}
+.groups-create-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.groups-create-options label{margin:0!important}
+.create-attendance-row{gap:10px}
+.participant-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.participant-controls{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.participant-group-select{min-width:112px;padding:8px 9px!important;border-radius:9px!important;font-size:.82rem}
+.participant-group-select:disabled{opacity:.35}
+@media(max-width:650px){
+  .tournament-type-options{grid-template-columns:1fr}
+  .tournament-type-options span{min-height:68px}
+  .groups-create-options{grid-template-columns:1fr 1fr}
+  .create-attendance-row{align-items:center!important;padding:10px 9px!important}
+  .participant-name{font-size:.88rem;line-height:1.15}
+  .participant-name small{display:block;margin-top:2px;font-size:.68rem;color:#888}
+  .participant-controls{gap:7px}
+  .participant-group-select{min-width:100px;max-width:112px;padding:7px 6px!important;font-size:.76rem}
+}
+@media(max-width:390px){
+  .groups-create-options{grid-template-columns:1fr}
+  .participant-group-select{min-width:92px;max-width:100px;font-size:.72rem}
+}
