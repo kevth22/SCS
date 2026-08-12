@@ -61,7 +61,7 @@ function memberAvatar(id, size = 'normal') {
   return `<span class="${cls} player-avatar-fallback">${esc(initials || '?')}</span>`;
 }
 function playerIdentity(id, size = 'normal') {
-  return `<span class="player-identity">${memberAvatar(id, size)}<span>${esc(memberName(id))}</span></span>`;
+  return `<span class="player-identity">${memberAvatar(id, size)}<span class="player-name-text">${esc(memberName(id))}</span></span>`;
 }
 function isRankingEligible(memberId) {
   const member = state.members.find(m => m.id === memberId);
@@ -1677,7 +1677,8 @@ function renderDoubleKOTree(day) {
     button.onclick = event => {
       event.preventDefault();
       event.stopPropagation();
-      deFocusedPlayer = button.dataset.dePlayer;
+      const playerId = button.dataset.dePlayer;
+      deFocusedPlayer = deFocusedPlayer === playerId ? null : playerId;
       renderDoubleKOTree(day);
     };
   });

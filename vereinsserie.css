@@ -1710,3 +1710,78 @@ article.de-match-card .de-waiting-slot *,
 article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:#aaa!important}
 @media(max-width:720px){.de-bracket-shell{--de-card-w:246px!important;--de-col-gap:40px!important;--de-row-pitch:214px!important}}
 @media(max-width:390px){.de-bracket-shell{--de-card-w:238px!important;--de-col-gap:38px!important;--de-row-pitch:214px!important}}
+
+
+/* =====================================================================
+   V37 – Spielernamen immer sichtbar + Spielerpfad Toggle
+   ===================================================================== */
+
+/* Der Name bekommt eine eigene Klasse und darf nie durch ältere Regeln
+   transparent, weiß-auf-weiß oder unsichtbar werden. */
+.de-match-card .player-name-text{
+  display:block!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  opacity:1!important;
+  visibility:visible!important;
+  filter:none!important;
+  text-shadow:none!important;
+  font-size:.88rem!important;
+  font-weight:850!important;
+}
+
+/* Vor Ergebnis: dunkle Zeile, weißer Name */
+.de-match-card .tree-player:not(.tree-winner):not(.tree-loser) .player-name-text{
+  color:#fff!important;
+}
+
+/* Verlierer: weiterhin lesbar – nur leicht abgedunkelt, nicht unsichtbar */
+.de-match-card .tree-player.tree-loser{
+  opacity:1!important;
+  filter:none!important;
+  background:#101010!important;
+  color:#cfcfcf!important;
+}
+.de-match-card .tree-player.tree-loser .player-name-text,
+.de-match-card .tree-player.tree-loser .de-player-tap,
+.de-match-card .tree-player.tree-loser .player-identity{
+  color:#cfcfcf!important;
+  opacity:1!important;
+  visibility:visible!important;
+  filter:none!important;
+}
+
+/* Gewinner: weißer Balken, schwarzer Name */
+.de-match-card .tree-player.tree-winner .player-name-text{
+  color:#000!important;
+}
+
+/* Alte Regeln dürfen den gesamten player-identity-Inhalt nicht ausblenden. */
+.de-match-card .player-identity,
+.de-match-card .de-player-tap{
+  opacity:1!important;
+  visibility:visible!important;
+  filter:none!important;
+}
+
+/* Ergebnisfelder bekommen ihren eigenen Platz rechts, Name bleibt links sichtbar. */
+.de-match-card .tree-player{
+  grid-template-columns:minmax(0,1fr) auto!important;
+}
+.de-match-card .de-player-tap{
+  max-width:calc(100% - 52px)!important;
+}
+.de-match-card .tree-player:not(:has(input)) .de-player-tap{
+  max-width:100%!important;
+}
+
+/* Auf kleinen Handys Name etwas kompakter, aber sichtbar. */
+@media(max-width:390px){
+  .de-match-card .player-name-text{
+    font-size:.82rem!important;
+  }
+}
