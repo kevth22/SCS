@@ -671,3 +671,141 @@ body{background:#050505!important;}
 
 /* ===== V25 – Gruppen-Weiterkommer während des Turniers ===== */
 .running-group-config{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;margin:0 0 14px;background:#111;border:1px solid #363636;border-radius:14px}.running-group-config label{display:flex;align-items:center;gap:12px;margin:0!important;font-weight:800}.running-group-config select{min-width:210px;padding:9px 10px!important;border-radius:10px!important}.running-group-config small{color:#999;text-align:right}@media(max-width:650px){.running-group-config{align-items:stretch;flex-direction:column}.running-group-config label{align-items:stretch;flex-direction:column;gap:7px}.running-group-config select{width:100%;min-width:0}.running-group-config small{text-align:left}}
+
+
+/* ===== V28 – echter Doppel-K.-o.-Baum, größere Spielerbilder ===== */
+.de-tree{
+  align-items:stretch;
+  gap:44px;
+  padding:18px 22px 24px;
+}
+.de-tree-round{
+  width:270px;
+  flex:0 0 270px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-around;
+  gap:22px;
+  min-height:100%;
+}
+.de-tree-round h3{
+  position:sticky;
+  top:0;
+  z-index:3;
+  margin:0 0 4px;
+  padding:9px 10px;
+  border:1px solid #383838;
+  border-radius:10px;
+  background:#0c0c0c;
+  color:#ddd;
+  text-align:center;
+  font-size:.78rem;
+}
+.de-tree-round .tree-match{
+  position:relative;
+  flex:0 0 auto;
+  min-height:116px;
+  padding:9px;
+  border-color:#4a4a4a;
+  box-shadow:0 7px 20px #0006;
+}
+.de-tree-round:not(:last-child) .tree-match::after{
+  content:"";
+  position:absolute;
+  right:-45px;
+  top:50%;
+  width:45px;
+  border-top:2px solid #555;
+}
+.de-tree-round:not(:first-child) .tree-match::before{
+  content:"";
+  position:absolute;
+  left:-45px;
+  top:50%;
+  width:45px;
+  border-top:2px solid #555;
+}
+.de-tree .tree-player{min-height:50px}
+.de-tree .player-avatar-small,
+.de-finals-grid .player-avatar-small{
+  width:44px;
+  height:44px;
+  flex-basis:44px;
+  border-width:3px;
+}
+.de-tree .player-avatar-fallback,
+.de-finals-grid .player-avatar-fallback{font-size:.82rem}
+.de-tree .player-identity,
+.de-finals-grid .player-identity{gap:10px;font-size:.95rem;font-weight:750}
+
+.de-bye-player{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  font-weight:900;
+}
+.bye-avatar{
+  width:44px;
+  height:44px;
+  flex:0 0 44px;
+  display:inline-grid;
+  place-items:center;
+  border:3px solid #fff;
+  border-radius:50%;
+  box-sizing:border-box;
+  background:repeating-linear-gradient(135deg,#151515 0 6px,#292929 6px 12px);
+  color:#fff;
+  font-size:1.25rem;
+  font-weight:1000;
+  box-shadow:0 3px 12px #0008;
+}
+.de-bye-row{
+  background:#202020!important;
+  color:#fff!important;
+  border-top:1px dashed #777!important;
+}
+.de-bye-row .bye-label{letter-spacing:.04em}
+.de-waiting-row{
+  color:#8e8e8e;
+  background:#101010;
+  border:1px dashed #3b3b3b;
+}
+.de-waiting-dot{
+  width:44px;height:44px;flex:0 0 44px;border:2px dashed #555;border-radius:50%;
+  display:inline-grid;place-items:center;color:#777;font-weight:900
+}
+
+/* Tabellenbilder bewusst größer als bisher */
+.ranking-table-simple .player-avatar-small,
+.group-card .player-avatar-small,
+.group-table .player-avatar-small,
+.swiss-table .player-avatar-small{
+  width:40px!important;
+  height:40px!important;
+  flex-basis:40px!important;
+  border-width:3px!important;
+}
+.ranking-table-simple .ranking-player,
+.group-card .player-identity,
+.group-table .player-identity,
+.swiss-table .player-identity{gap:9px!important}
+
+@media(max-width:700px){
+  .de-tree{gap:34px;padding:14px 16px 22px}
+  .de-tree-round{width:250px;flex-basis:250px;gap:20px}
+  .de-tree-round:not(:last-child) .tree-match::after{right:-35px;width:35px}
+  .de-tree-round:not(:first-child) .tree-match::before{left:-35px;width:35px}
+  .de-tree .tree-player{font-size:.9rem;min-height:50px}
+  .de-tree .player-avatar-small,
+  .de-finals-grid .player-avatar-small,
+  .bye-avatar,.de-waiting-dot{
+    width:44px!important;height:44px!important;flex-basis:44px!important
+  }
+  .group-card .player-avatar-small,
+  .group-table .player-avatar-small,
+  .ranking-table-simple .player-avatar-small,
+  .swiss-table .player-avatar-small{
+    width:38px!important;height:38px!important;flex-basis:38px!important
+  }
+}

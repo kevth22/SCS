@@ -1244,14 +1244,22 @@ function treeMatchCard(match, options = {}) {
   const winnerClass2 = match.winner === match.p2 ? 'tree-winner' : '';
   const ready = Boolean(match.p1 && match.p2);
   const canEditMatch = editable && canManage && !treeReadOnly && ready && !match.completed;
+  const sourceStates = [match.source1, match.source2].map(source => source ? {
+    source,
+    match: findDoubleKOMatch(state.current || {}, source.matchId)
+  } : null);
+  const virtualBye1 = !match.p1 && sourceStates[0]?.source?.outcome === 'loser' && sourceStates[0]?.match?.completed && sourceStates[0]?.match?.bye;
+  const virtualBye2 = !match.p2 && sourceStates[1]?.source?.outcome === 'loser' && sourceStates[1]?.match?.completed && sourceStates[1]?.match?.bye;
+
+  const byeIdentity = () => `<span class="de-bye-player"><span class="bye-avatar" aria-hidden="true">→</span><span class="bye-label">FREILOS</span></span>`;
+  const waitingIdentity = () => `<span class="de-bye-player de-waiting-row"><span class="de-waiting-dot" aria-hidden="true">·</span><span>Offen</span></span>`;
 
   if (match.bye) {
+    const realPlayer = match.winner || match.p1 || match.p2;
     return `<article class="tree-match bye-card">
       ${label ? `<small>${esc(label)}</small>` : ''}
-      <div class="tree-player tree-winner">
-        ${playerIdentity(match.winner || match.p1 || match.p2, 'small')}
-        <b>Freilos</b>
-      </div>
+      <div class="tree-player tree-winner">${realPlayer ? playerIdentity(realPlayer, 'small') : waitingIdentity()}</div>
+      <div class="tree-player de-bye-row">${byeIdentity()}</div>
       <small>Automatisch weiter</small>
     </article>`;
   }
@@ -1259,13 +1267,13 @@ function treeMatchCard(match, options = {}) {
   return `<article class="tree-match ${canEditMatch ? 'tree-match-editable' : ''}">
     ${label ? `<small>${esc(label)}</small>` : ''}
     <div class="tree-player ${winnerClass1}">
-      ${match.p1 ? playerIdentity(match.p1, 'small') : '<span>Offen</span>'}
+      ${match.p1 ? playerIdentity(match.p1, 'small') : (virtualBye1 ? byeIdentity() : waitingIdentity())}
       ${canEditMatch
         ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}">`
         : `<b>${match.completed ? match.s1 : ''}</b>`}
     </div>
     <div class="tree-player ${winnerClass2}">
-      ${match.p2 ? playerIdentity(match.p2, 'small') : '<span>Offen</span>'}
+      ${match.p2 ? playerIdentity(match.p2, 'small') : (virtualBye2 ? byeIdentity() : waitingIdentity())}
       ${canEditMatch
         ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}">`
         : `<b>${match.completed ? match.s2 : ''}</b>`}
@@ -1452,14 +1460,14 @@ function renderGroupsTree(day) {
 }
 
 function doubleTreeRound(round, bracketLabel) {
-  return `<section class="tree-round de-tree-round">
+  return `<section class="tree-round de-tree-round" data-de-round="${round.matches?.[0]?.roundIndex ?? 0}">
     <h3>${esc(round.title)}</h3>
     ${(round.matches || []).map(match => treeMatchCard(match, {
       editable: true,
       prefix: `de-${match.id}`,
       saveAttr: 'data-de-save',
       saveValue: match.id,
-      label: bracketLabel
+      label: ''
     })).join('')}
   </section>`;
 }
