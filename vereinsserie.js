@@ -1371,7 +1371,7 @@ function treeMatchCard(match, options = {}) {
     </div>
     ${canEditMatch ? `<button class="tree-save-button" ${saveAttr}="${saveValue}">Ergebnis speichern</button>` : ''}
     ${match.completed
-      ? `<small class="de-match-status">Ergebnis ${match.s1}:${match.s2}</small>`
+      ? ''
       : (!ready ? '<small class="de-match-status">Zuführende Partie noch offen</small>' : '<small class="de-match-status de-ready-text">Spielbereit</small>')}
   </article>`;
 }

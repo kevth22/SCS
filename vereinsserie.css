@@ -2307,3 +2307,120 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
   background:#111!important;
   color:#fff!important;
 }
+
+
+/* =====================================================================
+   V43 – gewünschtes Doppel-KO Farbschema + Ergebnis rechts
+   Außenkarte dunkel/grau
+   Spielerzeile weiß
+   Eingabefeld grau
+   Gewinner grün
+   Verlierer rot
+   ===================================================================== */
+
+/* Außenkarte bleibt dunkel/grau, auch wenn das Spiel bereit ist */
+.de-match-card,
+.de-match-card.de-match-ready,
+.de-match-card.de-match-completed{
+  background:#1a1a1a!important;
+  color:#fff!important;
+  border-color:#4a4a4a!important;
+}
+
+/* Normale Spielerzeile: weiß + schwarze Schrift */
+.de-match-card .tree-player:has(.de-player-direct),
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border-color:#ddd!important;
+}
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player:has(.de-player-direct) .de-player-direct-name,
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+}
+
+/* Legs-Eingabefeld bleibt grau/dunkel */
+.de-match-card .tree-player input,
+.de-match-card.de-match-ready .tree-player input{
+  background:#2d2d2d!important;
+  color:#fff!important;
+  border:2px solid #666!important;
+}
+
+/* Ergebnis nach Abschluss genau rechts in derselben Spalte wie das Eingabefeld */
+.de-match-card .tree-player .de-result-score{
+  grid-column:2!important;
+  align-self:center!important;
+  justify-self:end!important;
+  display:grid!important;
+  place-items:center!important;
+  width:48px!important;
+  min-width:48px!important;
+  max-width:48px!important;
+  height:44px!important;
+  min-height:44px!important;
+  max-height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:2px solid #666!important;
+  border-radius:9px!important;
+  background:#2d2d2d!important;
+  color:#fff!important;
+  font-size:1rem!important;
+  font-weight:1000!important;
+  box-sizing:border-box!important;
+}
+
+/* Gewinner: grün + weiße Schrift */
+.de-match-card .tree-player.tree-winner:has(.de-player-direct){
+  background:#2e9f43!important;
+  color:#fff!important;
+  border-color:#55c96a!important;
+}
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player.tree-winner:has(.de-player-direct) .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.de-match-card .tree-player.tree-winner .de-result-score{
+  background:#256f36!important;
+  color:#fff!important;
+  border-color:#6bd17a!important;
+}
+
+/* Verlierer: rot + weiße Schrift */
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  background:#b83232!important;
+  color:#fff!important;
+  border-color:#db5a5a!important;
+  opacity:1!important;
+  filter:none!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+}
+.de-match-card .tree-player.tree-loser .de-result-score{
+  background:#7a2323!important;
+  color:#fff!important;
+  border-color:#e07171!important;
+}
+
+/* Button auf dunkler Außenkarte weiß */
+.de-match-card .tree-save-button{
+  background:#fff!important;
+  color:#000!important;
+  border-color:#fff!important;
+}
+
+/* "Spielbereit" auf dunkler Außenkarte hell */
+.de-match-card .de-ready-text,
+.de-match-card.de-match-ready .de-ready-text,
+.de-match-card.de-match-ready .de-match-status{
+  color:#e8e8e8!important;
+}
