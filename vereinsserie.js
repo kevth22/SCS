@@ -1361,13 +1361,13 @@ function treeMatchCard(match, options = {}) {
       ${match.p1 ? identity(match.p1) : (virtualBye1 ? byeIdentity() : waitingIdentity(match.source1))}
       ${canEditMatch
         ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}" aria-label="Ergebnis Spieler 1">`
-        : `<b>${match.completed ? match.s1 : ''}</b>`}
+        : `<b class="de-result-score">${match.completed ? match.s1 : ''}</b>`}
     </div>
     <div class="tree-player ${winnerClass2} ${loserClass2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
       ${match.p2 ? identity(match.p2) : (virtualBye2 ? byeIdentity() : waitingIdentity(match.source2))}
       ${canEditMatch
         ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}" aria-label="Ergebnis Spieler 2">`
-        : `<b>${match.completed ? match.s2 : ''}</b>`}
+        : `<b class="de-result-score">${match.completed ? match.s2 : ''}</b>`}
     </div>
     ${canEditMatch ? `<button class="tree-save-button" ${saveAttr}="${saveValue}">Ergebnis speichern</button>` : ''}
     ${match.completed

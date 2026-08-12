@@ -2201,3 +2201,109 @@ article.de-match-card .de-waiting-slot .de-waiting-player span:last-child{color:
 .de-match-card .tree-player.tree-loser > b{
   color:#fff!important;
 }
+
+
+/* =====================================================================
+   V42 – Ergebniswerte rechts in Spielerzeile + klare Matchzustände
+   ===================================================================== */
+
+/* Abgeschlossenes Ergebnis sitzt exakt dort, wo vorher das Eingabefeld war. */
+.de-match-card .tree-player .de-result-score{
+  grid-column:2!important;
+  align-self:center!important;
+  justify-self:end!important;
+  display:grid!important;
+  place-items:center!important;
+  width:48px!important;
+  min-width:48px!important;
+  max-width:48px!important;
+  height:44px!important;
+  min-height:44px!important;
+  max-height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:1px solid #555!important;
+  border-radius:9px!important;
+  background:#171717!important;
+  color:#fff!important;
+  font-size:1rem!important;
+  font-weight:1000!important;
+  line-height:1!important;
+  box-sizing:border-box!important;
+}
+
+/* Gewinner grün + weiß, Ergebnis passend rechts. */
+.de-match-card .tree-player.tree-winner:has(.de-player-direct){
+  background:#2e9f43!important;
+  color:#fff!important;
+  border-color:#54c866!important;
+}
+.de-match-card .tree-player.tree-winner .de-result-score{
+  background:#1f7330!important;
+  border-color:#76d684!important;
+  color:#fff!important;
+}
+
+/* Verlierer rot + weiß, Ergebnis passend rechts. */
+.de-match-card .tree-player.tree-loser:has(.de-player-direct){
+  background:#b93737!important;
+  color:#fff!important;
+  border-color:#dc5b5b!important;
+  opacity:1!important;
+  filter:none!important;
+}
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct,
+.de-match-card .tree-player.tree-loser:has(.de-player-direct) .de-player-direct-name{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.de-match-card .tree-player.tree-loser .de-result-score{
+  background:#812525!important;
+  border-color:#e37373!important;
+  color:#fff!important;
+}
+
+/* Spielbereite Matchkarte: weißer Außenhintergrund. */
+.de-match-card.de-match-ready{
+  background:#fff!important;
+  border-color:#fff!important;
+  color:#000!important;
+}
+
+/* Innerhalb einer spielbereiten Partie bleiben die Spielerzeilen weiß,
+   Namen schwarz und Eingabefelder sichtbar. */
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct){
+  background:#fff!important;
+  color:#000!important;
+  border-color:#dcdcdc!important;
+}
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct,
+.de-match-card.de-match-ready .tree-player:has(.de-player-direct) .de-player-direct-name{
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+}
+.de-match-card.de-match-ready .tree-player input{
+  background:#fff!important;
+  color:#000!important;
+  border:2px solid #333!important;
+}
+
+/* Button innerhalb weißer spielbereiter Karte klar absetzen. */
+.de-match-card.de-match-ready .tree-save-button{
+  background:#111!important;
+  color:#fff!important;
+  border-color:#111!important;
+}
+
+/* "Spielbereit" auf weißem Kartenhintergrund lesbar. */
+.de-match-card.de-match-ready .de-match-status,
+.de-match-card.de-match-ready .de-ready-text{
+  color:#111!important;
+}
+
+/* Nach Abschluss soll die Karte selbst wieder dunkel bleiben;
+   nur Sieger/Verlierer tragen ihre Statusfarbe. */
+.de-match-card.de-match-completed{
+  background:#111!important;
+  color:#fff!important;
+}
