@@ -36,6 +36,10 @@ function renderAccountControls() {
       <span>${escapeHtml(role)}</span>
     </div>
 
+    <a href="profil.html">
+      👤 Mein Profil
+    </a>
+
     ${adminLink}
 
     <button id="logoutButton" class="secondary-button" type="button">

@@ -38,10 +38,12 @@ const db = getFirestore(app);
 const spieltageRef = collection(db, "spieltage");
 const zusagenRef = collection(db, "zusagen");
 const urlaubeRef = collection(db, "urlaube");
+const mitgliederRef = collection(db, "mitglieder");
 
 let aktuellerUser = JSON.parse(gespeicherterUser);
 let spieltage = [];
 let zusagen = [];
+let geburtstage = [];
 let aktuellesDatum = new Date();
 let ausgewaehltesDatum = null;
 
@@ -95,6 +97,22 @@ onSnapshot(zusagenRef, (snapshot) => {
   }
 
   erinnerungenPruefen();
+});
+
+onSnapshot(mitgliederRef, (snapshot) => {
+  geburtstage = [];
+  snapshot.forEach((docSnap) => {
+    const daten = docSnap.data();
+    const rolle = String(daten.rolle || '').toLowerCase();
+    if (!["mitglied", "captain", "kassenwart", "admin"].includes(rolle)) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(daten.geburtstag || ''))) return;
+    geburtstage.push({
+      id: docSnap.id,
+      name: daten.nickname || daten.benutzername || docSnap.id,
+      geburtstag: daten.geburtstag
+    });
+  });
+  kalenderZeichnen();
 });
 
 onSnapshot(urlaubeRef, (snapshot) => {
@@ -353,6 +371,15 @@ function kalenderZeichnen() {
         zeigeSpieltag(spieltag.id);
       };
 
+      feld.appendChild(event);
+    });
+
+    const geburtstageHeute = geburtstage.filter(person => person.geburtstag.slice(5) === datumString.slice(5));
+    geburtstageHeute.forEach(person => {
+      const event = document.createElement("div");
+      event.classList.add("kalender-event", "geburtstag-event");
+      event.innerHTML = `<strong>🎂 ${person.name}</strong><br><small>Geburtstag</small>`;
+      event.onclick = function (e) { e.stopPropagation(); };
       feld.appendChild(event);
     });
 

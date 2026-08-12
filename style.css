@@ -2435,3 +2435,6 @@ body .konto-meldung.fehler { background:#252525 !important; color:#fff !importan
 body .konto-meldung.erfolg { background:#202020 !important; color:#fff !important; border:1px solid #fff !important; }
 body .app-header { background:linear-gradient(145deg,#000,#242424) !important; }
 body .app-header::before, body .app-header::after { display:none !important; }
+
+/* V24 – Geburtstage im Kalender */
+.kalender-event.geburtstag-event{background:#fff!important;color:#000!important;border:1px solid #fff!important;box-shadow:0 3px 10px #0004}.kalender-event.geburtstag-event small{color:#444!important}

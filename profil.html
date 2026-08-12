@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Mein Profil | Black White Eagles</title>
+  <link rel="stylesheet" href="style.css?v=24.0">
+  <link rel="stylesheet" href="konto.css?v=24.0">
+  <link rel="stylesheet" href="profil.css?v=24.0">
+  <meta name="theme-color" content="#000000">
+</head>
+<body>
+<header class="app-header">
+  <img src="black-white-eagles-logo.png?v=11.1" class="logo" alt="Black White Eagles Logo">
+  <h1>Mein Profil</h1>
+  <p>Spielerprofil bearbeiten</p>
+</header>
+
+<main class="app-container profile-page">
+  <section class="profile-edit-card">
+    <div class="profile-picture-editor">
+      <div id="profilePreview" class="profile-preview">?</div>
+      <div>
+        <h2 id="profileNickname">Profil</h2>
+        <p>Dein Bild wird in Rangliste und Turnierbaum angezeigt.</p>
+        <label class="profile-upload-button">Bild auswählen
+          <input id="profileImageInput" type="file" accept="image/*" hidden>
+        </label>
+        <button id="removeProfileImage" type="button" class="secondary-button">Bild entfernen</button>
+      </div>
+    </div>
+
+    <div class="profile-form-grid">
+      <label>Scolia-Name
+        <input id="scoliaName" type="text" maxlength="60" placeholder="Dein Name bei Scolia">
+      </label>
+      <label>Geburtstag
+        <input id="birthday" type="date">
+      </label>
+    </div>
+
+    <p class="profile-note">Der Geburtstag wird automatisch im Vereinskalender angezeigt. Er erzeugt keinen Spieltag und erscheint deshalb nicht im Spieltag-Center.</p>
+    <button id="saveProfile" type="button" class="main-button">Profil speichern</button>
+    <p id="profileMessage" class="profile-message"></p>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠<br>Home</a>
+  <a href="spieltag-center.html">🚌<br>Spieltag</a>
+  <a href="liga.html">🏆<br>Liga</a>
+  <a href="vereinsserie.html">🎖️<br>Rangliste</a>
+</nav>
+<script type="module" src="profil.js?v=24.0"></script>
+</body>
+</html>

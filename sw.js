@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v23-one-group";
+const VERSION = "bwe-v24-profile-groups";
 
 const CORE_FILES = [
   "./",
@@ -65,7 +65,10 @@ const CORE_FILES = [
   "./index.js",
   "./black-white-eagles-logo.png?v=11.1",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png",
+  "./profil.html",
+  "./profil.js",
+  "./profil.css"
 ];
 
 self.addEventListener("install", event => {

@@ -41,7 +41,10 @@ export function publicUserData(username, data) {
     nickname: data.nickname || username,
     rolle: String(data.rolle || "gast").toLowerCase(),
     aktiv: data.aktiv === true,
-    mussPasswortAendern: data.mussPasswortAendern === true
+    mussPasswortAendern: data.mussPasswortAendern === true,
+    scoliaName: data.scoliaName || "",
+    geburtstag: data.geburtstag || "",
+    profilbild: data.profilbild || ""
   };
 }
 
@@ -193,7 +196,7 @@ export async function registerAccount({ vorname, nachname, username, password })
       passwortSalt: salt,
       passwortIterationen: HASH_ITERATIONS,
       datenschutzAkzeptiert: true,
-      datenschutzVersion: "2026-07",
+      datenschutzVersion: "2026-08",
       erstelltAm: serverTimestamp()
     });
   });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=23.0">
+  <link rel="stylesheet" href="vereinsserie.css?v=25.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v23";
+  const resetKey = "bwe-cache-reset-v25";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "23.0");
+    url.searchParams.set("v", "25.0");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -158,6 +158,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
             </label>
             <label>Weiter pro Gruppe
               <select id="createQualifyCount">
+                <option value="0">Niemand – nur Gruppenwertung</option>
                 <option value="1">1 Platz</option>
                 <option value="2" selected>2 Plätze</option>
                 <option value="3">3 Plätze</option>
@@ -207,6 +208,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=23.0"></script>
+<script type="module" src="vereinsserie.js?v=25.0"></script>
 </body>
 </html>
