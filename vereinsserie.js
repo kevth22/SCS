@@ -1335,6 +1335,12 @@ function treeMatchCard(match, options = {}) {
   const onPath = Boolean(deFocusedPlayer && [match.p1, match.p2, match.winner, match.loser].includes(deFocusedPlayer));
   const focusClass = deFocusedPlayer ? (onPath ? 'de-path-active' : 'de-path-dim') : '';
   const stateClass = match.completed ? 'de-match-completed' : ready ? 'de-match-ready' : 'de-match-pending';
+  const singleRowState1 = match.completed
+    ? (match.winner === match.p1 ? 'ko-row-winner' : (match.p1 ? 'ko-row-loser' : 'ko-row-pending'))
+    : (ready ? 'ko-row-ready' : 'ko-row-pending');
+  const singleRowState2 = match.completed
+    ? (match.winner === match.p2 ? 'ko-row-winner' : (match.p2 ? 'ko-row-loser' : 'ko-row-pending'))
+    : (ready ? 'ko-row-ready' : 'ko-row-pending');
   const matchClasses = [
     'tree-match',
     canEditMatch ? 'tree-match-editable' : '',
@@ -1372,13 +1378,13 @@ function treeMatchCard(match, options = {}) {
     
     ${label ? `<small>${esc(label)}</small>` : ''}
     ${grandFinal ? '<div class="de-final-trophy" aria-hidden="true">🏆</div>' : ''}
-    <div class="tree-player ${winnerClass1} ${loserClass1} ${rowState1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
+    <div class="tree-player ${winnerClass1} ${loserClass1} ${isDouble ? rowState1 : singleRowState1} ${!match.p1 ? (virtualBye1 ? 'de-bye-slot' : 'ko-waiting-slot') : ''}">
       ${match.p1 ? identity(match.p1) : (virtualBye1 ? byeIdentity() : waitingIdentity(match.source1))}
       ${canEditMatch
         ? `<input id="${prefix}-s1" type="number" min="0" inputmode="numeric" value="${match.s1 ?? ''}" aria-label="Ergebnis Spieler 1">`
         : `<b class="de-result-score">${match.completed ? match.s1 : ''}</b>`}
     </div>
-    <div class="tree-player ${winnerClass2} ${loserClass2} ${rowState2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'de-waiting-slot') : ''}">
+    <div class="tree-player ${winnerClass2} ${loserClass2} ${isDouble ? rowState2 : singleRowState2} ${!match.p2 ? (virtualBye2 ? 'de-bye-slot' : 'ko-waiting-slot') : ''}">
       ${match.p2 ? identity(match.p2) : (virtualBye2 ? byeIdentity() : waitingIdentity(match.source2))}
       ${canEditMatch
         ? `<input id="${prefix}-s2" type="number" min="0" inputmode="numeric" value="${match.s2 ?? ''}" aria-label="Ergebnis Spieler 2">`
