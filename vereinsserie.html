@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=26.0">
+  <link rel="stylesheet" href="vereinsserie.css?v=26.2">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v26";
+  const resetKey = "bwe-cache-reset-v26.2";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "26.0");
+    url.searchParams.set("v", "26.2");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -234,6 +234,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=26.0"></script>
+<script type="module" src="vereinsserie.js?v=26.2"></script>
 </body>
 </html>

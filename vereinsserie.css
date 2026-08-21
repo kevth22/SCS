@@ -1695,3 +1695,185 @@ body .tree-match:not(.de-match-card) .de-bye-row *{color:#fff!important;-webkit-
   .ranking-table-simple td{font-size:.68rem!important}
   .ranking-table-simple td:nth-child(2){font-size:.7rem!important}
 }
+
+/* ==========================================================
+   V26.1 – Mobile Design-Fixes
+   Verhindert globale button-Regeln aus style.css in Modals/
+   Turnierbaum und erzwingt volle Seitenbreite auf Mobilgeraeten.
+   ========================================================== */
+
+/* Vereinsserie darf durch breite Turnierbaeume nie selbst schmal werden. */
+html,
+body{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+body{
+  margin:0!important;
+}
+.series-page-header{
+  display:flex!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+.serie-wrap{
+  display:block!important;
+  width:100%!important;
+  max-width:1120px!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+.serie-panel,
+.admin-grid,
+.single-admin-grid,
+.config-card,
+.tournament-create-card,
+#tab-erstellen,
+#tab-turnierbaum,
+#dayWorkspace{
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+
+/* Der globale button-Style setzt sonst jeden Button auf 100 % Breite. */
+#profileModal .modal-close{
+  position:absolute!important;
+  top:12px!important;
+  right:12px!important;
+  left:auto!important;
+  width:44px!important;
+  min-width:44px!important;
+  max-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  padding:0!important;
+  margin:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #555!important;
+  border-radius:50%!important;
+  background:#161616!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  font-size:1.8rem!important;
+  line-height:1!important;
+  text-transform:none!important;
+  box-shadow:0 5px 16px #0008!important;
+  z-index:5!important;
+}
+#profileModal .modal-card{
+  box-sizing:border-box!important;
+}
+#profileModal .profile-modal-head{
+  padding-right:54px!important;
+}
+
+/* Bestleistungen bleiben auch auf kleinen Displays immer zu dritt nebeneinander. */
+#profileModal .best-cards,
+.best-player-row .best-cards{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  width:100%!important;
+  min-width:0!important;
+}
+#profileModal .best-card,
+.best-player-row .best-card{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+}
+
+/* Kleine Steuerbuttons im Turnierbaum duerfen nicht zu weissen Vollbreiten-Balken werden. */
+.de-focus-bar button{
+  width:auto!important;
+  min-width:0!important;
+  max-width:max-content!important;
+  flex:0 0 auto!important;
+}
+.tournament-view-tabs button{
+  width:auto!important;
+  min-width:0!important;
+  flex:0 0 auto!important;
+}
+.de-match-card .de-player-direct,
+.de-match-card .de-player-tap{
+  background:transparent!important;
+  color:inherit!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  text-transform:none!important;
+}
+.de-match-card .de-player-direct{
+  width:100%!important;
+}
+
+@media(max-width:720px){
+  .series-page-header{
+    width:100vw!important;
+    max-width:100vw!important;
+  }
+  .serie-wrap{
+    width:100vw!important;
+    max-width:100vw!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+  #tab-erstellen,
+  #tab-turnierbaum,
+  #tab-bestleistungen,
+  #tab-rangliste{
+    width:100%!important;
+    max-width:100%!important;
+  }
+  .tournament-create-card{
+    width:100%!important;
+    max-width:100%!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+  #profileModal{
+    padding:12px!important;
+    align-items:center!important;
+  }
+  #profileModal .modal-card{
+    width:calc(100vw - 24px)!important;
+    max-width:620px!important;
+    max-height:calc(100dvh - 110px)!important;
+    padding:18px!important;
+    padding-top:20px!important;
+    overflow-x:hidden!important;
+  }
+  #profileModal .profile-modal-head{
+    min-height:78px!important;
+    padding-right:50px!important;
+    margin-bottom:14px!important;
+  }
+  #profileModal .best-profile-head .player-avatar{
+    width:68px!important;
+    height:68px!important;
+    flex-basis:68px!important;
+  }
+  #profileModal .best-card{
+    min-height:78px!important;
+  }
+}
+
+/* ==========================================================
+   V26.2 – KO-Baum: Rundenkopf verdeckt keine Spieler mehr
+   Auf Mobilgeraeten darf der weisse sticky Rundenkopf beim
+   vertikalen Scrollen nicht ueber die Matchkarten gleiten.
+   ========================================================== */
+@media(max-width:720px){
+  .tournament-tree .tree-round > h3,
+  .tree-round > h3{
+    position:static!important;
+    top:auto!important;
+    z-index:auto!important;
+  }
+}
