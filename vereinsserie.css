@@ -1626,3 +1626,72 @@ body .tree-match:not(.de-match-card) .tree-player.ko-row-loser *,body .tree-matc
 body .tree-match:not(.de-match-card) .de-bye-row{background:#d52f2f!important;color:#fff!important;border:1px solid #ef5555!important}
 body .tree-match:not(.de-match-card) .de-bye-row *{color:#fff!important;-webkit-text-fill-color:#fff!important}
 .tree-match:not(.de-match-card) .tree-save-button{width:100%!important;height:38px!important;margin:5px 0 0!important;background:#111!important;color:#fff!important;border:1px solid #333!important;border-radius:4px!important;font-size:.74rem!important;font-weight:900!important}
+
+
+/* ==========================================================
+   V26 Bestleistungen + Zusatzpunkte
+   ========================================================== */
+.ranking-bonus strong{color:#fff;font-weight:950}
+.best-entry-card{margin:0 0 18px;padding:16px;background:#111;border:1px solid #333;border-radius:16px}
+.best-entry-head,.best-overview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.best-entry-head h3,.best-overview-head h3{margin:2px 0 0}
+.best-entry-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.best-entry-grid label,.best-overview-head label{display:grid;gap:6px;font-size:.82rem;font-weight:800;color:#ddd}
+.best-entry-grid select,.best-entry-grid input,.best-overview-head select{width:100%;min-height:44px;background:#191919;color:#fff;border:1px solid #444;border-radius:10px;padding:8px 10px;box-sizing:border-box}
+.best-entry-card .primary{margin-top:10px;width:100%}
+.best-overview-head{margin-top:6px}
+.best-overview-head label{min-width:min(300px,45vw)}
+.best-overview-list{display:grid;gap:12px}
+.best-player-row{background:#0f0f0f;border:1px solid #303030;border-radius:15px;padding:12px}
+.best-player-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.best-player-head strong{font-size:1rem}
+.best-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+.best-card{min-width:0;background:#111;color:#fff;border:2px solid #fff;border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+.best-card strong{font-size:.8rem;line-height:1.05;white-space:nowrap}
+.best-card span{font-size:1.45rem;line-height:1;font-weight:950}
+.best-inline-detail{margin-top:10px;background:#fff;color:#111;border-radius:12px;padding:10px}
+.best-detail-title{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid #ddd}
+.best-detail-title strong{font-size:1rem}
+.best-detail-title button{border:0;background:transparent;color:#111;font-size:1.4rem;line-height:1;cursor:pointer}
+.best-detail-list{display:grid;gap:0}
+.best-detail-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 2px;border-bottom:1px solid #e5e5e5}
+.best-detail-row:last-child{border-bottom:0}
+.best-detail-row>span{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.best-delete{width:26px;height:26px;border-radius:50%;border:0;background:#d52f2f;color:#fff;font-weight:900;cursor:pointer}
+.best-empty{margin:8px 0;color:#555}
+.best-empty-panel{padding:22px;text-align:center;border:1px dashed #444;border-radius:14px;color:#aaa}
+.best-profile-head{margin-bottom:14px}
+.best-profile-head .player-avatar{width:76px;height:76px;flex-basis:76px;border:3px solid #fff}
+#profileContent>.best-cards{margin-bottom:10px}
+#profileContent>.best-inline-detail{margin-bottom:12px}
+@media(max-width:720px){
+  .best-entry-grid{grid-template-columns:1fr 1fr}
+  .best-overview-head{align-items:flex-end}
+  .best-overview-head label{min-width:44%}
+  .best-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .best-card{padding:9px 2px;border-radius:10px}
+  .best-card strong{font-size:.67rem}
+  .best-card span{font-size:1.25rem}
+}
+@media(max-width:390px){
+  .best-entry-grid{grid-template-columns:1fr}
+  .best-overview-head{display:grid;grid-template-columns:1fr}
+  .best-overview-head label{min-width:0}
+  .best-card strong{font-size:.62rem;letter-spacing:-.02em}
+  .best-card span{font-size:1.15rem}
+}
+
+/* V26 Rangliste: 7 Spalten weiterhin ohne horizontales Wischen */
+.ranking-table-simple th:nth-child(1),.ranking-table-simple td:nth-child(1){width:8%!important}
+.ranking-table-simple th:nth-child(2),.ranking-table-simple td:nth-child(2){width:27%!important;min-width:0!important}
+.ranking-table-simple th:nth-child(3),.ranking-table-simple td:nth-child(3){width:12%!important}
+.ranking-table-simple th:nth-child(4),.ranking-table-simple td:nth-child(4){width:12%!important}
+.ranking-table-simple th:nth-child(5),.ranking-table-simple td:nth-child(5){width:14%!important}
+.ranking-table-simple th:nth-child(6),.ranking-table-simple td:nth-child(6){width:14%!important}
+.ranking-table-simple th:nth-child(7),.ranking-table-simple td:nth-child(7){width:13%!important}
+@media(max-width:700px){
+  .ranking-table-simple th,.ranking-table-simple td{padding:8px 1px!important}
+  .ranking-table-simple th{font-size:.56rem!important}
+  .ranking-table-simple td{font-size:.68rem!important}
+  .ranking-table-simple td:nth-child(2){font-size:.7rem!important}
+}

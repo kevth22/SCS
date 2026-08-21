@@ -40,7 +40,7 @@ function blankStats() {
   return { points: 0, days: 0, wins: 0, titles: 0, legsFor: 0, legsAgainst: 0, byMode: {}, history: [] };
 }
 function blankSeason(name = 'Saison 2026/27') {
-  return { id: uid(), name, status: 'aktiv', createdAt: new Date().toISOString(), ranking: {}, days: [] };
+  return { id: uid(), name, status: 'aktiv', createdAt: new Date().toISOString(), ranking: {}, days: [], bestleistungen: [] };
 }
 function season() {
   return state.seasons.find(s => s.id === state.activeSeasonId) || state.seasons[0] || null;
@@ -130,6 +130,7 @@ async function load() {
   if (snap.exists()) state = { ...state, ...snap.data() };
   state.members ||= [];
   state.seasons ||= [];
+  state.seasons.forEach(item => { item.bestleistungen ||= []; });
   if (!state.seasons.length) {
     const first = blankSeason();
     state.seasons = [first];
@@ -485,10 +486,54 @@ function groupTable(group) {
     rows[match.winner].mp += 2;
     rows[match.winner].wins += 1;
   });
-  return Object.values(rows).sort((a, b) =>
-    b.mp - a.mp || (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
-    b.legsFor - a.legsFor || memberName(a.id).localeCompare(memberName(b.id), 'de')
-  );
+
+  // Zuerst nach den normalen Matchpunkten gruppieren. Bei Punktgleichheit
+  // entscheidet der direkte Vergleich vor der gesamten Leg-Differenz.
+  // Sind mehr als zwei Spieler punktgleich, wird eine Mini-Tabelle nur aus
+  // den direkten Duellen dieser Spieler gebildet.
+  const pointGroups = new Map();
+  Object.values(rows).forEach(row => {
+    if (!pointGroups.has(row.mp)) pointGroups.set(row.mp, []);
+    pointGroups.get(row.mp).push(row);
+  });
+
+  const sorted = [];
+  [...pointGroups.keys()].sort((a, b) => b - a).forEach(mp => {
+    const tied = pointGroups.get(mp);
+    if (tied.length === 1) {
+      sorted.push(tied[0]);
+      return;
+    }
+
+    const tiedIds = new Set(tied.map(row => row.id));
+    const direct = Object.fromEntries(tied.map(row => [row.id, {
+      mp: 0, legsFor: 0, legsAgainst: 0
+    }]));
+
+    group.matches.forEach(match => {
+      if (!match.completed || !tiedIds.has(match.p1) || !tiedIds.has(match.p2)) return;
+      const s1 = match.legs1 || match.s1 || 0;
+      const s2 = match.legs2 || match.s2 || 0;
+      direct[match.p1].legsFor += s1;
+      direct[match.p1].legsAgainst += s2;
+      direct[match.p2].legsFor += s2;
+      direct[match.p2].legsAgainst += s1;
+      if (match.winner && direct[match.winner]) direct[match.winner].mp += 2;
+    });
+
+    tied.sort((a, b) => {
+      const da = direct[a.id], db = direct[b.id];
+      return db.mp - da.mp ||
+        (db.legsFor - db.legsAgainst) - (da.legsFor - da.legsAgainst) ||
+        db.legsFor - da.legsFor ||
+        (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
+        b.legsFor - a.legsFor ||
+        memberName(a.id).localeCompare(memberName(b.id), 'de');
+    });
+    sorted.push(...tied);
+  });
+
+  return sorted;
 }
 function allGroupsDone(day) {
   return day.groups.every(group => group.matches.every(match => match.completed));
@@ -971,6 +1016,176 @@ function rollbackDay(currentSeason, day) {
   });
 }
 
+// ---------- Bestleistungen / Zusatzpunkte ----------
+const BEST_TYPES = {
+  highscore: { label: 'Highscore', min: 141, max: 180, lowerIsBetter: false },
+  highfinish: { label: 'Highfinish', min: 100, max: 170, lowerIsBetter: false },
+  shortgame: { label: 'Shortgame', min: 9, max: 18, lowerIsBetter: true }
+};
+function allSeasonDays(currentSeason = season()) {
+  if (!currentSeason) return [];
+  const days = [...(currentSeason.days || [])];
+  if (state.current && state.current.seasonId === currentSeason.id) days.push(state.current);
+  return days;
+}
+function performanceEntries(currentSeason = season()) {
+  currentSeason ||= season();
+  currentSeason.bestleistungen ||= [];
+  return currentSeason.bestleistungen;
+}
+function performanceBonus(type, value) {
+  value = Number(value);
+  if (type === 'highscore') return value >= 180 ? 3 : value >= 160 ? 2 : value >= 141 ? 1 : 0;
+  if (type === 'highfinish') return value >= 140 ? 3 : value >= 120 ? 2 : value >= 100 ? 1 : 0;
+  if (type === 'shortgame') return value <= 12 ? 3 : value <= 15 ? 2 : value <= 18 ? 1 : 0;
+  return 0;
+}
+function rankedFinishedDayIds(currentSeason = season()) {
+  return new Set((currentSeason?.days || []).filter(day => day.rankingEnabled !== false).map(day => day.id));
+}
+function playerBonusPoints(playerId, currentSeason = season()) {
+  if (!currentSeason) return 0;
+  const validDays = rankedFinishedDayIds(currentSeason);
+  const perDayType = new Map();
+  performanceEntries(currentSeason).forEach(entry => {
+    if (entry.playerId !== playerId || !validDays.has(entry.dayId) || !BEST_TYPES[entry.type]) return;
+    const key = `${entry.dayId}|${entry.type}`;
+    const bonus = performanceBonus(entry.type, entry.value);
+    perDayType.set(key, Math.max(perDayType.get(key) || 0, bonus));
+  });
+  return [...perDayType.values()].reduce((sum, value) => sum + value, 0);
+}
+function entriesForPlayer(playerId, { dayId = null } = {}, currentSeason = season()) {
+  return performanceEntries(currentSeason).filter(entry => entry.playerId === playerId && (!dayId || entry.dayId === dayId));
+}
+function groupedPerformanceHtml(playerId, type, { dayId = null, allowDelete = false } = {}) {
+  const entries = entriesForPlayer(playerId, { dayId }).filter(entry => entry.type === type);
+  const grouped = new Map();
+  entries.forEach(entry => {
+    const key = String(entry.value);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(entry);
+  });
+  const cfg = BEST_TYPES[type];
+  const values = [...grouped.keys()].map(Number).sort((a, b) => cfg.lowerIsBetter ? a - b : b - a);
+  if (!values.length) return '<p class="best-empty">Noch keine Leistung eingetragen.</p>';
+  return `<div class="best-detail-list">${values.map(value => {
+    const rows = grouped.get(String(value));
+    const suffix = type === 'shortgame' ? ' Darts' : '';
+    const deleteButtons = allowDelete ? rows.map(entry => `<button type="button" class="best-delete" data-delete-best="${esc(entry.id)}" title="Eintrag löschen">×</button>`).join('') : '';
+    return `<div class="best-detail-row"><strong>${rows.length}× ${value}${suffix}</strong><span>${deleteButtons}</span></div>`;
+  }).join('')}</div>`;
+}
+function performanceCount(playerId, type, dayId = null) {
+  return entriesForPlayer(playerId, { dayId }).filter(entry => entry.type === type).length;
+}
+function bestCardsHtml(playerId, { dayId = null, prefix = 'profile' } = {}) {
+  return `<div class="best-cards">${Object.entries(BEST_TYPES).map(([type, cfg]) => {
+    const count = performanceCount(playerId, type, dayId);
+    return `<button type="button" class="best-card" data-best-toggle="${type}" data-best-player="${esc(playerId)}" data-best-day="${esc(dayId || '')}" data-best-prefix="${esc(prefix)}"><strong>${esc(cfg.label)}</strong><span>${count}</span></button>`;
+  }).join('')}</div><div id="${esc(prefix)}-best-detail" class="best-inline-detail" hidden></div>`;
+}
+function wireBestCardToggles(root = document) {
+  root.querySelectorAll('[data-best-toggle]').forEach(button => {
+    button.onclick = () => {
+      const prefix = button.dataset.bestPrefix || 'profile';
+      const detail = document.getElementById(`${prefix}-best-detail`);
+      if (!detail) return;
+      const type = button.dataset.bestToggle;
+      const playerId = button.dataset.bestPlayer;
+      const dayId = button.dataset.bestDay || null;
+      const sameOpen = !detail.hidden && detail.dataset.openType === type;
+      if (sameOpen) { detail.hidden = true; detail.dataset.openType = ''; return; }
+      detail.innerHTML = `<div class="best-detail-title"><strong>${esc(BEST_TYPES[type]?.label || type)}</strong><button type="button" aria-label="Details schließen">×</button></div>${groupedPerformanceHtml(playerId, type, { dayId, allowDelete: canManage })}`;
+      detail.dataset.openType = type;
+      detail.hidden = false;
+      detail.querySelector('.best-detail-title button')?.addEventListener('click', () => { detail.hidden = true; detail.dataset.openType = ''; });
+      detail.querySelectorAll('[data-delete-best]').forEach(del => del.onclick = async () => {
+        const currentSeason = season();
+        if (!canManage || !currentSeason) return;
+        currentSeason.bestleistungen = performanceEntries(currentSeason).filter(entry => entry.id !== del.dataset.deleteBest);
+        await save();
+        toast('Bestleistung gelöscht.');
+      });
+    };
+  });
+}
+function selectablePerformanceDays(currentSeason = season()) {
+  return allSeasonDays(currentSeason).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+function renderBestleistungen() {
+  const currentSeason = season();
+  if (!currentSeason) return;
+  currentSeason.bestleistungen ||= [];
+  const days = selectablePerformanceDays(currentSeason);
+  const daySelect = $('bestDaySelect');
+  const playerSelect = $('bestPlayerSelect');
+  const overviewFilter = $('bestOverviewFilter');
+  if (daySelect) {
+    const old = daySelect.value;
+    daySelect.innerHTML = days.length ? days.map(day => `<option value="${esc(day.id)}">${esc(day.date || 'Ohne Datum')} · ${esc(MODES[day.mode] || day.mode || 'Turnier')}${day.status === 'abgeschlossen' ? '' : ' · läuft'}</option>`).join('') : '<option value="">Noch kein Turnier vorhanden</option>';
+    if (days.some(day => day.id === old)) daySelect.value = old;
+  }
+  if (playerSelect) renderBestPlayerOptions();
+  if (overviewFilter) {
+    const old = overviewFilter.value || 'season';
+    overviewFilter.innerHTML = `<option value="season">Gesamte Saison</option>${days.map(day => `<option value="${esc(day.id)}">${esc(day.date || 'Ohne Datum')} · ${esc(MODES[day.mode] || day.mode || 'Turnier')}</option>`).join('')}`;
+    if ([...overviewFilter.options].some(option => option.value === old)) overviewFilter.value = old;
+  }
+  updateBestValueHint();
+  renderBestOverview();
+}
+function renderBestPlayerOptions() {
+  const playerSelect = $('bestPlayerSelect');
+  const dayId = $('bestDaySelect')?.value;
+  if (!playerSelect) return;
+  const old = playerSelect.value;
+  const day = selectablePerformanceDays().find(item => item.id === dayId);
+  const attendeeIds = new Set(day?.attendees || []);
+  const players = state.members.filter(m => attendeeIds.has(m.id));
+  playerSelect.innerHTML = players.length ? players.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('') : '<option value="">Keine Teilnehmer</option>';
+  if (players.some(m => m.id === old)) playerSelect.value = old;
+}
+function renderBestOverview() {
+  const currentSeason = season();
+  const box = $('bestOverviewList');
+  if (!currentSeason || !box) return;
+  const filter = $('bestOverviewFilter')?.value || 'season';
+  const dayId = filter === 'season' ? null : filter;
+  const players = state.members.filter(m => isRankingEligible(m.id)).filter(m => entriesForPlayer(m.id, { dayId }).length > 0);
+  box.innerHTML = players.length ? players.map((m, index) => `<article class="best-player-row"><div class="best-player-head">${memberAvatar(m.id, 'small')}<strong>${esc(m.name)}</strong></div>${bestCardsHtml(m.id, { dayId, prefix: `overview-${index}` })}</article>`).join('') : '<div class="best-empty-panel">Noch keine Bestleistungen für diese Auswahl eingetragen.</div>';
+  wireBestCardToggles(box);
+}
+function updateBestValueHint() {
+  const type = $('bestTypeSelect')?.value || 'highscore';
+  const input = $('bestValueInput');
+  const hint = $('bestValueHint');
+  const cfg = BEST_TYPES[type];
+  if (!cfg || !input) return;
+  input.min = cfg.min; input.max = cfg.max;
+  input.placeholder = type === 'shortgame' ? 'z. B. 18' : type === 'highfinish' ? 'z. B. 116' : 'z. B. 141';
+  if (hint) hint.textContent = type === 'shortgame' ? 'Shortgame: 9 bis 18 Darts.' : `${cfg.label}: ${cfg.min} bis ${cfg.max}.`;
+}
+async function addBestPerformance() {
+  if (!canManage) return toast('Nur Admin, Captain oder Kassenwart dürfen Bestleistungen eintragen.');
+  const currentSeason = season();
+  const dayId = $('bestDaySelect')?.value;
+  const playerId = $('bestPlayerSelect')?.value;
+  const type = $('bestTypeSelect')?.value;
+  const value = Number($('bestValueInput')?.value);
+  const cfg = BEST_TYPES[type];
+  const day = selectablePerformanceDays(currentSeason).find(item => item.id === dayId);
+  if (!day) return toast('Bitte zuerst ein Turnier auswählen.');
+  if (!playerId || !state.members.some(m => m.id === playerId)) return toast('Bitte einen Spieler auswählen.');
+  if (!(day.attendees || []).includes(playerId)) return toast('Der Spieler war bei diesem Turnier nicht als Teilnehmer eingetragen.');
+  if (!cfg || !Number.isInteger(value) || value < cfg.min || value > cfg.max) return toast(`Ungültiger Wert für ${cfg?.label || 'Bestleistung'}.`);
+  currentSeason.bestleistungen ||= [];
+  currentSeason.bestleistungen.push({ id: uid(), playerId, dayId, date: day.date || '', type, value, createdAt: new Date().toISOString() });
+  $('bestValueInput').value = '';
+  await save();
+  toast(`${cfg.label} ${value}${type === 'shortgame' ? ' Darts' : ''} gespeichert.`);
+}
+
 // ---------- Render ----------
 function statFor(currentSeason, id, mode = 'all') {
   const base = currentSeason?.ranking?.[id] || blankStats();
@@ -978,8 +1193,12 @@ function statFor(currentSeason, id, mode = 'all') {
 }
 function rankingRows(filter = $('modeFilter')?.value || 'all') {
   const currentSeason = season();
-  return state.members.filter(m => isRankingEligible(m.id)).map(m => ({ m, st: statFor(currentSeason, m.id, filter) }))
-    .sort((a, b) => b.st.points - a.st.points || b.st.titles - a.st.titles ||
+  return state.members.filter(m => isRankingEligible(m.id)).map(m => {
+    const st = statFor(currentSeason, m.id, filter);
+    const bonus = filter === 'all' ? playerBonusPoints(m.id, currentSeason) : 0;
+    return { m, st, bonus, totalPoints: Number(st.points || 0) + bonus };
+  })
+    .sort((a, b) => b.totalPoints - a.totalPoints || b.st.titles - a.st.titles ||
       (b.st.legsFor - b.st.legsAgainst) - (a.st.legsFor - a.st.legsAgainst) ||
       a.m.name.localeCompare(b.m.name, 'de'));
 }
@@ -1010,7 +1229,7 @@ function renderSeason() {
 }
 function renderRanking() {
   const rows = rankingRows();
-  $('rankingBody').innerHTML = rows.length ? rows.map((row, i) => `<tr data-player="${row.m.id}"><td><strong>${i + 1}</strong></td><td><strong class="ranking-player">${memberAvatar(row.m.id, 'small')}<span>${esc(row.m.name)}</span></strong></td><td><strong>${row.st.points || 0}</strong></td><td>${row.st.legsFor || 0}</td><td>${row.st.legsAgainst || 0}</td><td>${(row.st.legsFor || 0) - (row.st.legsAgainst || 0)}</td></tr>`).join('') : '<tr><td colspan="6">Noch keine gewerteten Turnierergebnisse vorhanden.</td></tr>';
+  $('rankingBody').innerHTML = rows.length ? rows.map((row, i) => `<tr data-player="${row.m.id}"><td><strong>${i + 1}</strong></td><td><strong class="ranking-player">${memberAvatar(row.m.id, 'small')}<span>${esc(row.m.name)}</span></strong></td><td><strong>${row.totalPoints || 0}</strong></td><td class="ranking-bonus"><strong>+${row.bonus || 0}</strong></td><td>${row.st.legsFor || 0}</td><td>${row.st.legsAgainst || 0}</td><td>${(row.st.legsFor || 0) - (row.st.legsAgainst || 0)}</td></tr>`).join('') : '<tr><td colspan="7">Noch keine gewerteten Turnierergebnisse vorhanden.</td></tr>';
   document.querySelectorAll('[data-player]').forEach(row => row.onclick = () => openProfile(row.dataset.player));
 }
 function renderCreateParticipants() {
@@ -1878,7 +2097,7 @@ function renderAdminDrawer() {
   box.querySelectorAll('[data-reopen-day]').forEach(button => button.onclick = () => reopenDay(button.dataset.reopenDay));
 }
 function renderAll() {
-  renderPermissions(); renderSeason(); renderRanking(); renderCreateParticipants(); renderCurrent(); renderHistory(); renderDeleteList(); renderAdminDrawer(); updateModeFields();
+  renderPermissions(); renderSeason(); renderRanking(); renderBestleistungen(); renderCreateParticipants(); renderCurrent(); renderHistory(); renderDeleteList(); renderAdminDrawer(); updateModeFields();
 }
 
 
@@ -2069,8 +2288,11 @@ async function deleteSeason() {
 function openProfile(id) {
   const member = state.members.find(m => m.id === id); if (!member) return;
   const stats = season()?.ranking?.[id] || blankStats();
-  $('profileContent').innerHTML = `<div class="profile-modal-head">${memberAvatar(member.id)}<div><h2>${esc(member.name)}</h2><p>${esc(member.rolle)}${member.scoliaName ? ` · Scolia: ${esc(member.scoliaName)}` : ''}</p></div></div><div class="profile-stats"><div><strong>${stats.points}</strong>Punkte</div><div><strong>${stats.days}</strong>Spieltage</div><div><strong>${stats.wins}</strong>Siege</div><div><strong>${stats.titles}</strong>Titel</div><div><strong>${stats.legsFor}:${stats.legsAgainst}</strong>Legs</div><div><strong>${stats.legsFor - stats.legsAgainst}</strong>Diff.</div></div>`;
+  const bonus = playerBonusPoints(id);
+  const total = Number(stats.points || 0) + bonus;
+  $('profileContent').innerHTML = `<div class="profile-modal-head best-profile-head">${memberAvatar(member.id)}<div><h2>${esc(member.name)}</h2><p>${esc(member.rolle)}${member.scoliaName ? ` · Scolia: ${esc(member.scoliaName)}` : ''}</p></div></div>${bestCardsHtml(id, { prefix: 'profile' })}<div class="profile-stats"><div><strong>${total}</strong>Gesamtpunkte</div><div><strong>+${bonus}</strong>Zusatzpunkte</div><div><strong>${stats.days}</strong>Spieltage</div><div><strong>${stats.wins}</strong>Siege</div><div><strong>${stats.titles}</strong>Titel</div><div><strong>${stats.legsFor - stats.legsAgainst}</strong>Diff.</div></div>`;
   $('profileModal').hidden = false;
+  wireBestCardToggles($('profileContent'));
 }
 function selectTab(name) {
   document.querySelectorAll('.serie-tabs button').forEach(button => button.classList.toggle('active', button.dataset.tab === name));
@@ -2202,5 +2424,9 @@ document.addEventListener('change', event => {
   }
 });
 updateCreateTournamentInfo();
+$('bestTypeSelect')?.addEventListener('change', updateBestValueHint);
+$('bestDaySelect')?.addEventListener('change', renderBestPlayerOptions);
+$('addBestPerformanceBtn')?.addEventListener('click', addBestPerformance);
+$('bestOverviewFilter')?.addEventListener('change', renderBestOverview);
 
 load().catch(error => { console.error(error); toast(`Daten konnten nicht geladen werden: ${error?.message || error}`); });

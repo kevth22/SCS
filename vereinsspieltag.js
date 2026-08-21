@@ -408,10 +408,54 @@ function groupTable(group) {
     rows[match.winner].mp += 2;
     rows[match.winner].wins += 1;
   });
-  return Object.values(rows).sort((a, b) =>
-    b.mp - a.mp || (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
-    b.legsFor - a.legsFor || memberName(a.id).localeCompare(memberName(b.id), 'de')
-  );
+
+  // Zuerst nach den normalen Matchpunkten gruppieren. Bei Punktgleichheit
+  // entscheidet der direkte Vergleich vor der gesamten Leg-Differenz.
+  // Sind mehr als zwei Spieler punktgleich, wird eine Mini-Tabelle nur aus
+  // den direkten Duellen dieser Spieler gebildet.
+  const pointGroups = new Map();
+  Object.values(rows).forEach(row => {
+    if (!pointGroups.has(row.mp)) pointGroups.set(row.mp, []);
+    pointGroups.get(row.mp).push(row);
+  });
+
+  const sorted = [];
+  [...pointGroups.keys()].sort((a, b) => b - a).forEach(mp => {
+    const tied = pointGroups.get(mp);
+    if (tied.length === 1) {
+      sorted.push(tied[0]);
+      return;
+    }
+
+    const tiedIds = new Set(tied.map(row => row.id));
+    const direct = Object.fromEntries(tied.map(row => [row.id, {
+      mp: 0, legsFor: 0, legsAgainst: 0
+    }]));
+
+    group.matches.forEach(match => {
+      if (!match.completed || !tiedIds.has(match.p1) || !tiedIds.has(match.p2)) return;
+      const s1 = match.legs1 || match.s1 || 0;
+      const s2 = match.legs2 || match.s2 || 0;
+      direct[match.p1].legsFor += s1;
+      direct[match.p1].legsAgainst += s2;
+      direct[match.p2].legsFor += s2;
+      direct[match.p2].legsAgainst += s1;
+      if (match.winner && direct[match.winner]) direct[match.winner].mp += 2;
+    });
+
+    tied.sort((a, b) => {
+      const da = direct[a.id], db = direct[b.id];
+      return db.mp - da.mp ||
+        (db.legsFor - db.legsAgainst) - (da.legsFor - da.legsAgainst) ||
+        db.legsFor - da.legsFor ||
+        (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
+        b.legsFor - a.legsFor ||
+        memberName(a.id).localeCompare(memberName(b.id), 'de');
+    });
+    sorted.push(...tied);
+  });
+
+  return sorted;
 }
 function allGroupsDone(day) {
   return day.groups.every(group => group.matches.every(match => match.completed));

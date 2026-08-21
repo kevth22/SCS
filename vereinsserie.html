@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Black White Eagles Vereinsrangliste</title>
   <link rel="stylesheet" href="style.css?v=11.1">
-  <link rel="stylesheet" href="vereinsserie.css?v=25.0">
+  <link rel="stylesheet" href="vereinsserie.css?v=26.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
@@ -15,7 +15,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <script>
 (async function () {
-  const resetKey = "bwe-cache-reset-v25";
+  const resetKey = "bwe-cache-reset-v26";
   if (sessionStorage.getItem(resetKey)) return;
 
   try {
@@ -31,7 +31,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
     sessionStorage.setItem(resetKey, "done");
     const url = new URL(window.location.href);
-    url.searchParams.set("v", "25.0");
+    url.searchParams.set("v", "26.0");
     window.location.replace(url.toString());
   } catch (error) {
     console.warn("Alter App-Cache konnte nicht vollständig entfernt werden.", error);
@@ -56,6 +56,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
     <button type="button" data-nav-tab="rangliste" class="active"><span class="nav-icon">▥</span><strong>Rangliste</strong></button>
     <button type="button" data-nav-tab="erstellen" data-requires-manage="true"><span class="nav-icon">＋</span><strong>Turnier erstellen</strong></button>
     <button type="button" data-nav-tab="turnierbaum"><span class="nav-icon">⌘</span><strong>Turnierbaum</strong></button>
+    <button type="button" data-nav-tab="bestleistungen"><span class="nav-icon">★</span><strong>Bestleistungen</strong></button>
   </nav>
 </aside>
 
@@ -91,6 +92,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
           <th><span class="head-full">Platz</span><span class="head-mobile">Pl.</span></th>
           <th>Name</th>
           <th><span class="head-full">Punkte</span><span class="head-mobile">Pkt.</span></th>
+          <th><span class="head-full">Zusatzpunkte</span><span class="head-mobile">Extra</span></th>
           <th><span class="head-full">Gewonnene Legs</span><span class="head-mobile">Legs<br>+</span></th>
           <th><span class="head-full">Verlorene Legs</span><span class="head-mobile">Legs<br>−</span></th>
           <th><span class="head-full">Differenz</span><span class="head-mobile">Diff.</span></th>
@@ -98,7 +100,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
         <tbody id="rankingBody"></tbody>
       </table>
     </div>
-    <p class="legend"><strong>Wertung:</strong> Punkte werden nach der Platzierung vergeben. Nicht gewertete Turniere bleiben im Turnierbaum sichtbar, verändern die Rangliste aber nicht.</p>
+    <p class="legend"><strong>Wertung:</strong> Gesamtpunkte = Platzierungspunkte + Zusatzpunkte aus Bestleistungen. Nicht gewertete Turniere verändern die Rangliste nicht.</p>
     <select id="modeFilter" hidden><option value="all">Alle Modi</option></select>
   </section>
 
@@ -117,6 +119,30 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
     <div id="currentDayAdminActions" class="workspace-actions admin-only" hidden>
       <button id="deleteCurrentDayBtn" class="danger-button">Laufendes Turnier löschen</button>
     </div>
+  </section>
+
+  <section id="tab-bestleistungen" class="serie-panel">
+    <div class="panel-head">
+      <div><h2>Bestleistungen</h2><p>Highscores ab 141, Highfinishes ab 100 und Shortgames bis 18 Darts.</p></div>
+    </div>
+
+    <article class="best-entry-card admin-only" id="bestEntryCard">
+      <div class="best-entry-head"><div><span class="create-kicker">Bestleistung</span><h3>Leistung eintragen</h3></div><span class="pill">Saison</span></div>
+      <div class="best-entry-grid">
+        <label>Turnier / Spieltag<select id="bestDaySelect"></select></label>
+        <label>Spieler<select id="bestPlayerSelect"></select></label>
+        <label>Kategorie<select id="bestTypeSelect"><option value="highscore">Highscore</option><option value="highfinish">Highfinish</option><option value="shortgame">Shortgame</option></select></label>
+        <label>Wert<input id="bestValueInput" type="number" inputmode="numeric" placeholder="z. B. 141"></label>
+      </div>
+      <p id="bestValueHint" class="hint">Highscore: 141 bis 180.</p>
+      <button id="addBestPerformanceBtn" class="primary">Bestleistung hinzufügen</button>
+    </article>
+
+    <div class="best-overview-head">
+      <div><h3>Übersicht</h3><p>Wähle Saison oder einen einzelnen Spieltag.</p></div>
+      <label>Anzeige<select id="bestOverviewFilter"><option value="season">Gesamte Saison</option></select></label>
+    </div>
+    <div id="bestOverviewList" class="best-overview-list"></div>
   </section>
 
   <section id="tab-erstellen" class="serie-panel admin-only">
@@ -208,6 +234,6 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=25.0"></script>
+<script type="module" src="vereinsserie.js?v=26.0"></script>
 </body>
 </html>
