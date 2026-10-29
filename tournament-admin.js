@@ -2,7 +2,7 @@ import {
   standings, groupDone, allGroupsDone, qualification, qualificationDrift, rules, diff, matchEntries,
   divisions, editMatch, swapSlots, setManualSeeds, previewFinals, startFinals,
   createDecider, withdrawPlayer, reactivatePlayer, reentryAllowed, withdrawn, tournamentComplete,
-  clone, swappableBracket, groupProgression
+  clone, swappableBracket, groupProgression, swapGroupPlayers
 } from './tournament-engine.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,11 +12,12 @@ const label = key => ['silver', 'previewSilver'].includes(key) ? 'Silber' : ['go
 // Auch ältere, im PWA-Cache gespeicherte HTML-Seiten können bereits das neue
 // JavaScript laden. Die Komponente stellt deshalb ihren eigenen CSS-Bezug sicher.
 function ensureTournamentStyles() {
-  const href = new URL('./tournament-admin.css?v=5', import.meta.url).href;
+  const href = new URL('./tournament-admin.css?v=6', import.meta.url).href;
   if ([...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href === href)) return;
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href;
   document.head.append(link);
 }
+if (typeof document !== 'undefined') ensureTournamentStyles();
 
 export function renderPlayerAvatar(member, name) {
   if (member?.profilbild) return `<img class="player-avatar player-avatar-small" src="${esc(member.profilbild)}" alt="">`;
@@ -45,23 +46,27 @@ export async function confirmPlan(plan, name, action) {
     ${plan.drift.length ? '<p role="alert">Die aktuelle Gruppentabelle weicht von der eingefrorenen Qualifikation ab. Der gestartete Turnierbaum bleibt bestehen.</p>' : ''}`, 'Änderung bestätigen');
   return Boolean(result);
 }
-function matchList(entries, name, editable) {
+function playerName(id, name, editable) {
+  return editable && id ? `<button type="button" class="tournament-player-name group-name-button" data-swap-player="${esc(id)}" aria-label="Spieler tauschen: ${esc(name(id))}">${esc(name(id))}</button>` : `<span class="tournament-player-name">${esc(name(id))}</span>`;
+}
+function matchList(entries, name, editable, day = {}) {
   return `<div class="tournament-match-list">${entries.map(e => `<article class="tournament-match ${e.match.conflict ? 'has-conflict' : ''}">
-    <div><small>${esc(e.label)}</small><strong>${esc(name(e.match.p1))} – ${esc(name(e.match.p2))}</strong><span>${esc(score(e.match))}${e.match.conflict ? ' · ⚠ Korrektur erforderlich' : ''}</span></div>
-    ${editable ? `<button type="button" data-admin-match="${esc(e.match.id)}">${e.match.conflict ? 'Konflikt lösen' : !e.match.completed && !e.match.annulled ? 'Ergebnis eintragen' : 'Ergebnis bearbeiten'}</button>` : ''}</article>`).join('')}</div>`;
+    <div><small>${esc(e.label)}</small><strong class="group-match-names">${playerName(e.match.p1, name, editable && e.phase === 'group')}<span> – </span>${playerName(e.match.p2, name, editable && e.phase === 'group')}</strong><span>${esc(score(e.match))}${e.match.conflict ? ' · ⚠ Korrektur erforderlich' : ''}</span>${e.match.archivedOriginal ? `<small>Ursprüngliches Ergebnis: ${esc(score(e.match.archivedOriginal))}. Es bleibt diesen ursprünglichen Spielern zugeordnet.</small>` : ''}</div>
+    ${editable && ['group', 'decider'].includes(e.phase) && day.groupFormat?.format !== 'sets' && e.match.p1 && e.match.p2 && !e.match.annulled && !e.match.conflict ? `<form class="group-inline-score" data-inline-score="${esc(e.match.id)}"><label>${esc(name(e.match.p1))}<input name="s1" aria-label="Legs ${esc(name(e.match.p1))}" type="number" inputmode="numeric" min="0" step="1" required value="${e.match.s1 ?? ''}"></label><label>${esc(name(e.match.p2))}<input name="s2" aria-label="Legs ${esc(name(e.match.p2))}" type="number" inputmode="numeric" min="0" step="1" required value="${e.match.s2 ?? ''}"></label><button type="submit">${e.match.completed ? 'Ergebnis korrigieren' : 'Ergebnis speichern'}</button></form>` : ''}
+    ${editable ? `<button type="button" class="match-details-button" data-admin-match="${esc(e.match.id)}">${e.match.conflict ? 'Konflikt lösen' : 'Details / Spiel bearbeiten'}</button>` : ''}</article>`).join('')}</div>`;
 }
 function progressionLegend(day) {
   const config = rules(day), split = config.gold.length && config.silver.length;
   return `<div class="group-progression-legend" aria-label="Markierung der Qualifikationsplätze">${['gold', 'silver'].filter(key => config[key].length).map(key => `<span class="group-qual-badge group-qual-${split ? key : 'ko'}">Platz ${config[key].join(', ')} → ${split ? key === 'gold' ? 'Gold' : 'Silber' : 'K.-o.'}</span>`).join('')}<small>Während der Gruppenphase gelten die Markierungen vorläufig. Ungeklärte Plätze werden nicht willkürlich einer Endrunde zugeordnet.</small></div>`;
 }
-function groupPlayerCell(id, name, avatar, action) {
-  return `<span class="tournament-player-identity">${avatar(id)}<span class="tournament-player-name">${esc(name(id))}</span></span>${action ? `<div class="group-player-controls">${action}</div>` : ''}`;
+function groupPlayerCell(id, name, avatar, action, editable = false, compactAction = '') {
+  return `<span class="tournament-player-identity">${avatar(id)}${playerName(id, name, editable)}${compactAction}</span>${action ? `<div class="group-player-controls">${action}</div>` : ''}`;
 }
 function standingRow(day, group, row, table, done, name, avatar, editable) {
   const next = groupProgression(day, group, row, table);
   const badge = next ? `<span class="group-qual-badge group-qual-${next.kind}">${esc(next.label)}${next.provisional && next.kind !== 'unresolved' ? ' · vorläufig' : ''}</span>` : '';
-  const action = editable ? `<button type="button" class="group-withdraw-button" data-withdraw="${esc(row.id)}" aria-label="Spieler rausnehmen: ${esc(name(row.id))}">Spieler rausnehmen</button>` : '';
-  return `<tr data-group-player="${esc(row.id)}" class="${next ? `group-qual-${next.kind}` : ''}"><td>${!done && row.unresolved ? '–' : `${row.place}${row.unresolved ? ' ?' : ''}`}</td><td>${groupPlayerCell(row.id, name, avatar, badge + action)}</td><td>${row.mp}</td><td>${row.legsFor}</td><td>${row.legsAgainst}</td><td>${diff(row)}</td></tr>`;
+  const action = editable ? `<button type="button" class="group-withdraw-button" data-withdraw="${esc(row.id)}" title="Spieler rausnehmen" aria-label="Spieler rausnehmen: ${esc(name(row.id))}">×</button>` : '';
+  return `<tr data-group-player="${esc(row.id)}" class="${next ? `group-qual-${next.kind}` : ''}"><td>${!done && row.unresolved ? '–' : `${row.place}${row.unresolved ? ' ?' : ''}`}</td><td>${groupPlayerCell(row.id, name, avatar, badge, editable, action)}</td><td>${row.mp}</td><td>${row.legsFor}</td><td>${row.legsAgainst}</td><td>${diff(row)}</td></tr>`;
 }
 function withdrawnRow(day, id, name, avatar, editable) {
   const check = reentryAllowed(day, id);
@@ -119,8 +124,9 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish, 
       const table = standings(g, day), done = groupDone(g, day);
       return `<section class="group-card"><h3>${esc(g.name)}</h3>${!done ? '<p class="group-progress">Vorläufige Tabelle · Gruppenspiele noch offen</p>' : ''}<div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => standingRow(day, g, r, table, done, name, avatar, editable)).join('')}${table.withdrawn.map(id => withdrawnRow(day, id, name, avatar, editable)).join('')}</tbody></table></div>
         ${done ? table.ties.map((t, i) => `<p role="status">Platz ${t.place}–${t.endPlace} ungeklärt: ${t.players.map(name).map(esc).join(', ')} ${editable ? `<button type="button" data-decider="${esc(g.id)}|${i}">Entscheidungsspiel anlegen</button>` : ''}</p>`).join('') : ''}
-        <section class="group-matches"><h4>Begegnungen</h4>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'group'), name, editable)}</section>
-        ${(g.deciderMatches || []).length ? `<details><summary>Entscheidungsspiele</summary>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'decider'), name, editable)}</details>` : ''}</section>`;
+        <section class="group-matches"><h4>Begegnungen · Legs direkt eintragen</h4>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'group'), name, editable, day)}</section>
+        ${(g.deciderMatches || []).length ? `<details><summary>Entscheidungsspiele</summary>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'decider'), name, editable, day)}</details>` : ''}
+        ${(g.archivedMatches || []).length ? `<details><summary>Ursprüngliche Begegnungen nach Spielertausch</summary>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'archived-group'), name, editable, day)}</details>` : ''}</section>`;
     }).join('')}</div>`;
     html += qualificationHtml(day, name, editable);
     if (day.finalPreview) for (const k of ['gold', 'silver']) html += bracketHtml(day.finalPreview[k], k === 'gold' ? 'previewGold' : 'previewSilver', name, editable);
@@ -141,9 +147,21 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish, 
   const wire = (selector, fn) => section.querySelectorAll(selector).forEach(button => button.onclick = async () => {
     try { await fn(button); } catch (error) { await dialog('Änderung nicht möglich', `<p>${esc(error.message)}</p>`, 'Schließen'); }
   });
+  section.querySelectorAll('[data-inline-score]').forEach(form => form.onsubmit = async event => {
+    event.preventDefault();
+    const data = new FormData(form), a = Number(data.get('s1')), b = Number(data.get('s2'));
+    await run('Leg-Ergebnis speichern / korrigieren', draft => editMatch(draft, form.dataset.inlineScore, { status: 'completed', s1: a, s2: b, legs1: a, legs2: b }));
+  });
+  wire('[data-swap-player]', async button => {
+    const id = button.dataset.swapPlayer;
+    const candidates = day.groups.flatMap(g => g.players.filter(other => other !== id && !withdrawn(day, other)).map(other => ({ id: other, group: g.name })));
+    const data = await dialog('Spielerplätze tauschen', `<p>${esc(name(id))} mit einem vorhandenen Teilnehmer tauschen.</p><p>Ergebnisse bleiben bei den tatsächlichen Spielern. Bei denselben Gegnern werden die Ergebnisfelder passend gedreht. Neue Gegner erhalten keine fremden Ergebnisse. Nicht mehr passende gespielte Gruppenspiele bleiben historisch erhalten und müssen als Konflikt geprüft werden. Tabellenplätze werden weiterhin aus den Ergebnissen berechnet.</p><label>Tauschpartner<select name="other">${candidates.map(r => `<option value="${esc(r.id)}">${esc(name(r.id))} · ${esc(r.group)}</option>`).join('')}</select></label>`, 'Tausch prüfen');
+    if (data) await run(`Spielerplätze tauschen: ${name(id)} ↔ ${name(data.get('other'))}`, draft => swapGroupPlayers(draft, id, data.get('other')), true);
+  });
   wire('[data-admin-match]', async button => {
     const entry = matchEntries(day).find(e => e.match.id === button.dataset.adminMatch), m = entry.match;
-    const eligible = entry.group ? day.groups.find(g => g.id === entry.group).players : day.attendees;
+    const archived = entry.phase === 'archived-group';
+    const eligible = archived ? [m.p1, m.p2] : entry.group ? day.groups.find(g => g.id === entry.group).players : day.attendees;
     const config = entry.group ? day.groupFormat : entry.phase === 'swiss' ? day.swissFormat : day.roundConfig?.[entry.round];
     const isSets = config?.format === 'sets';
     const expected = m.conflict?.expected;
@@ -151,7 +169,7 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish, 
     const data = await dialog('Spiel bearbeiten / Ergebnis korrigieren', `<p>${esc(entry.label)} · ${esc(m.id)}</p>
       ${m.conflict ? `<p role="alert">${esc(m.conflict.reason)} ${expected ? `Vorgesehene Teilnehmer: ${expected.map(name).map(esc).join(' – ')}. Das alte Ergebnis bleibt in der Historie.` : 'Vorgängerkonflikte zuerst prüfen. Danach die korrekte Paarung und Wertung ausdrücklich speichern.'}</p>` : ''}
       <div class="two-cols"><label>Spieler 1<select name="p1">${options(expected ? expected[0] : m.p1)}</select></label><label>Spieler 2<select name="p2">${options(expected ? expected[1] : m.p2)}</select></label></div>
-      <label>Aktion / Status<select name="status">${[['completed', 'Ergebnis speichern / korrigieren'], ['pending', 'Zurücksetzen / erneut öffnen'], ['live', 'Läuft'], ['void', 'Administrativ annullieren'], ['walkover', 'Kampflos werten']].map(([v, text]) => `<option value="${v}" ${v === (['pending', 'live'].includes(m.status) ? 'completed' : m.status) ? 'selected' : ''}>${text}</option>`).join('')}</select></label>
+      <label>Aktion / Status<select name="status">${(archived ? [['void', 'Nach Prüfung aus Gruppenwertung nehmen; ursprüngliches Ergebnis bleibt in der Historie']] : [['completed', 'Ergebnis speichern / korrigieren'], ['pending', 'Zurücksetzen / erneut öffnen'], ['live', 'Läuft'], ['void', 'Administrativ annullieren'], ['walkover', 'Kampflos werten']]).map(([v, text]) => `<option value="${v}" ${v === (['pending', 'live'].includes(m.status) ? 'completed' : m.status) ? 'selected' : ''}>${text}</option>`).join('')}</select></label>
       <div class="two-cols"><label>Ergebnis Spieler 1<input name="s1" type="number" min="0" step="1" value="${m.s1 ?? ''}"></label><label>Ergebnis Spieler 2<input name="s2" type="number" min="0" step="1" value="${m.s2 ?? ''}"></label>${isSets ? `<label>Gewonnene Legs Spieler 1<input name="legs1" type="number" min="0" step="1" value="${m.legs1 ?? m.s1 ?? 0}"></label><label>Gewonnene Legs Spieler 2<input name="legs2" type="number" min="0" step="1" value="${m.legs2 ?? m.s2 ?? 0}"></label>` : ''}</div>
       <p>${isSets ? 'Bei Set-Spielen die Gesamtlegs zusätzlich eintragen.' : 'Die gewonnenen Legs werden direkt aus dem Ergebnis übernommen.'}</p>
       <label>Gewinner (bei kampfloser Wertung erforderlich)<select name="winner"><option value="">Aus Ergebnis bestimmen</option>${eligible.map(id => `<option value="${esc(id)}">${esc(name(id))}</option>`).join('')}</select></label>

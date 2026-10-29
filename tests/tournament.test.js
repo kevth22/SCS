@@ -402,3 +402,67 @@ test('Markierungen folgen nach Endrundenstart der eingefrorenen Qualifikation un
   day.participation.A = { status: 'withdrawn' };
   assert.equal(T.groupProgression(day, g, a, table), null);
 });
+test('Tausch in derselben Gruppe erhält Punkte, Legs, Sieger und Spiel-IDs bei den tatsächlichen Spielern', () => {
+  const original = orderedGroupDay(), before = T.standings(original.groups[0], original).rows;
+  const changed = plan(original, d => T.swapGroupPlayers(d, 'A', 'D')).day;
+  assert.deepEqual(T.standings(changed.groups[0], changed).rows, before);
+  assert.deepEqual(new Set(changed.groups[0].matches.map(m => m.id)), new Set(original.groups[0].matches.map(m => m.id)));
+  for (const m of changed.groups[0].matches) assert.equal(m.winner, original.groups[0].matches.find(old => old.id === m.id).winner);
+  assert.equal(T.matchEntries(changed).filter(e => e.match.conflict).length, 0);
+  assert.deepEqual(changed.audit.at(-1).before.groups[0].players, ['A', 'B', 'C', 'D']);
+});
+test('Beim Seitentausch eines Set-Spiels folgen auch getrennte Gesamtlegs dem Spieler', () => {
+  const game = match('A', 'B', 2, 1); game.legs1 = 6; game.legs2 = 4;
+  const day = dayFor([group(['A', 'B'], [game])]); day.groupFormat = { format: 'sets' };
+  const changed = plan(day, d => T.swapGroupPlayers(d, 'A', 'B')).day;
+  const m = changed.groups[0].matches[0];
+  assert.deepEqual([m.p1, m.p2, m.s1, m.s2, m.legs1, m.legs2, m.winner], ['B', 'A', 1, 2, 4, 6, 'A']);
+  assert.equal(T.standings(changed.groups[0], changed).rows.find(r => r.id === 'A').legsFor, 6);
+});
+test('Gruppenübergreifender Tausch offener Teilnehmer erzeugt gültige Paarungen ohne fremde Ergebnisse', () => {
+  const original = dayFor([group(['A', 'B'], [T.blankMatch('A', 'B')], 'G1'), group(['C', 'D'], [T.blankMatch('C', 'D')], 'G2')]);
+  const changed = plan(original, d => T.swapGroupPlayers(d, 'A', 'C'));
+  assert.deepEqual(changed.day.groups.map(g => g.players), [['C', 'B'], ['A', 'D']]);
+  assert.ok(changed.day.groups.flatMap(g => g.matches).every(m => !m.completed && m.s1 === null && m.s2 === null));
+  assert.equal(changed.effects.length, 4); // neue Spiele und die ersetzten offenen Partien
+  T.validateDay(changed.day);
+});
+test('Nicht mehr passende gespielte Gruppenduelle bleiben mit Originalspielern als prüfpflichtige Historie erhalten', () => {
+  const a = match('A', 'B', 2, 1), b = match('C', 'D', 0, 2);
+  const original = dayFor([group(['A', 'B'], [a], 'G1'), group(['C', 'D'], [b], 'G2')]);
+  let day = plan(original, d => T.swapGroupPlayers(d, 'A', 'C')).day;
+  const archived = T.matchEntries(day).filter(e => e.phase === 'archived-group');
+  assert.equal(archived.length, 2); assert.ok(archived.every(e => e.match.conflict));
+  assert.deepEqual(archived.find(e => e.match.id === a.id).match.archivedOriginal, a);
+  assert.deepEqual(archived.find(e => e.match.id === b.id).match.archivedOriginal, b);
+  assert.ok(day.groups.every(g => T.standings(g, day).rows.every(r => r.mp === 0 && r.legsFor === 0)));
+  assert.throws(() => T.previewFinals(day), /Korrekturkonflikte/);
+  for (const e of archived) day = plan(day, d => T.editMatch(d, e.match.id, { status: 'void' })).day;
+  assert.ok(T.matchEntries(day).filter(e => e.phase === 'archived-group').every(e => !e.match.conflict && e.match.archivedOriginal.completed));
+  assert.deepEqual(original.groups[0].matches[0], a);
+});
+test('Gruppentausch nach Endrundenstart überschreibt weder Qualifikation noch gespielten K.-o.-Baum', () => {
+  const ids = ['A', 'B', 'C', 'D'];
+  let day = dayFor([group(['A', 'B'], [match('A', 'B', 2, 0)], 'G1'), group(['C', 'D'], [match('C', 'D', 2, 1)], 'G2')]);
+  for (const key of ['gold', 'silver']) T.setManualSeeds(day, key, T.qualification(day, key).rows.map(r => r.id));
+  T.previewFinals(day); T.startFinals(day); day = fillBracket(day, 'gold');
+  const snapshot = T.clone(day.qualificationSnapshot), tree = T.clone(day.ko);
+  day = plan(day, d => T.swapGroupPlayers(d, 'A', 'C')).day;
+  assert.deepEqual(day.qualificationSnapshot, snapshot); assert.deepEqual(day.ko, tree);
+  assert.deepEqual(new Set(day.groups.flatMap(g => g.players)), new Set(ids));
+  assert.ok(T.matchEntries(day).some(e => e.match.conflict));
+});
+test('Nach Gruppentausch bleiben unpassende Entscheidungsergebnisse archiviert und manuell auflösbar', () => {
+  const first = group(['A', 'B', 'C'], [match('A', 'B', 2, 0), match('B', 'C', 2, 0), match('C', 'A', 2, 0)], 'G1');
+  const second = group(['D', 'E', 'F'], [match('D', 'E', 2, 0), match('E', 'F', 2, 0), match('F', 'D', 2, 0)], 'G2');
+  let day = dayFor([first, second]); T.createDecider(day, first.id, first.players);
+  for (const m of first.deciderMatches) Object.assign(m, { s1: 2, s2: 0, legs1: 2, legs2: 0, completed: true, status: 'completed', winner: m.p1, loser: m.p2 });
+  day = plan(day, d => T.swapGroupPlayers(d, 'A', 'D')).day;
+  const archives = T.matchEntries(day).filter(e => e.phase === 'archived-group');
+  assert.ok(archives.some(e => e.match.tieBreak && e.match.archivedOriginal.winner === 'A'));
+  for (const e of archives) {
+    assert.throws(() => plan(day, d => T.editMatch(d, e.match.id, { status: 'void', p1: null })), /historisch/);
+    day = plan(day, d => T.editMatch(d, e.match.id, { status: 'void' })).day;
+  }
+  assert.ok(T.matchEntries(day).every(e => !e.match.conflict));
+});

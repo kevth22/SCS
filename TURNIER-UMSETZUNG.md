@@ -256,3 +256,49 @@ Die drei Chromium-Prüfungen testen zusätzlich die direkte Ergebniseingabe ohne
 separate Leg-Eingabe, Korrektur, Rückzug/Abbruch/Wiedereinstieg aus der Spielerzeile,
 Gold-/Silberfarben und die einheitliche Farbe bei nur einer K.-o.-Endrunde.
 Keine neue Datenquelle, keine Datenmigration und keine Änderung produktiver Ergebnisse.
+
+## Kompakte Steuerung, Inline-Legs und Spielertausch
+
+Die Rückzugsaktion ist jetzt ein kompaktes, beschriftetes ×-Symbol direkt neben
+dem Namen. Ein Klick auf den Spielernamen in der Gruppentabelle oder einer
+Gruppenbegegnung öffnet den Tausch mit einem anderen aktiven Turnierteilnehmer.
+Eine falsche Namenszuordnung wird dabei ausdrücklich nicht durch Übertragen
+fremder Ergebnisse auf eine andere Identität korrigiert.
+
+Beim Tausch innerhalb derselben Gruppe wird der Rundenturnier-Spielplan an die
+getauschten Startplätze angepasst. Bereits vorhandene Begegnungen derselben
+beiden Spieler behalten ihre Spiel-ID und Ergebnisse. Wird dabei die Reihenfolge
+der Gegner gedreht, werden Ergebnis- und Gesamtleg-Felder mitgedreht; Sieger,
+Punkte und Legs bleiben ihren tatsächlichen Spielern zugeordnet. Die berechnete
+Tabellenreihenfolge bleibt weiterhin ergebnisabhängig.
+
+Beim Tausch zwischen Gruppen erhalten neu entstehende Gegner zunächst offene
+Begegnungen. Bereits gespielte Duelle, die nicht mehr in die neue Gruppeneinteilung
+passen, werden unter `archivedMatches` mit vollständigem `archivedOriginal` und
+ursprünglicher Gruppenreferenz erhalten. Sie werden nicht auf neue Gegner
+übertragen und zählen nicht zur neuen Gruppenwertung. Der Änderungsvorschlag
+listet diese Fälle als Konflikte auf. Der Admin muss sie ausdrücklich prüfen und
+aus der Gruppenwertung nehmen; die Originalergebnisse bleiben in der Historie.
+Solange diese Konflikte offen sind, lässt sich die Endrunde nicht starten.
+Eingefrorene Endrundenqualifikation und bereits gespielte K.-o.-Bäume bleiben
+auch bei einem nachträglichen Gruppentausch unverändert.
+
+Bei Leg-Spielen erscheinen die beiden Zahlenfelder jetzt direkt in jeder offenen
+beziehungsweise bearbeitbaren Spielkarte. Speichern und Korrigieren verwenden
+weiterhin den bestätigten Plan-/Firestore-Speicherpfad; zusätzliche Spieldetails
+bleiben über eine kleine separate Aktion erreichbar. Set-Spiele behalten die
+ausführliche Bearbeitung mit ihren getrennten Gesamtleg-Werten.
+
+Die Erstellungsseite begrenzt Feldsets, Grid-Spalten, native Datumseingaben und
+Auswahlfelder auf die verfügbare Breite. Diese Styles werden schon beim Laden
+der Komponente eingebunden, auch wenn gerade kein Turnier angezeigt wird.
+
+Validierung: 61 automatisierte Tests bestanden, einschließlich personengebundener
+Ergebnisse beim Seitentausch, Set-Gesamtlegs, gruppenübergreifender Spielplanänderung,
+archivierter Entscheidungs-/Gruppenergebnisse und eingefrorener Endrunden.
+Die Browserprüfung testet Inline-Eingabe/Korrektur, das kompakte Symbol,
+Namensklick/Tausch mit angepasster sichtbarer Ergebnisorientierung und weiterhin
+Rückzug/Wiedereinstieg/Farbmarkierungen. Zusätzlich wird die tatsächliche
+Erstellungs-HTML-Seite bei 375, 390, 430 und 1440 Pixeln mit K.-o.- und
+Gruppenfeldern auf volle nutzbare Breite und fehlende Überbreite geprüft.
+Keine produktiven Ergebnisse oder Datenbankregeln wurden für diese Tests verändert.
