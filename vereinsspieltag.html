@@ -40,6 +40,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 })();
 </script>
 
+<link rel="stylesheet" href="tournament-admin.css?v=1">
 </head>
 <body>
 <button id="seriesAdminMenuBtn" class="series-admin-menu-btn admin-only" type="button" aria-label="Spieltagsverwaltung öffnen">☰</button>
@@ -143,16 +144,16 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
         <div id="groupsConfigWrap" class="groups-config" hidden>
           <h3>Gruppenphase einstellen</h3>
           <div class="two-cols">
-            <label>Anzahl Gruppen<select id="groupCount">
-              <option value="auto">Automatisch</option>
+            <label>Gold / K.-o.: Gruppenplätze (optional, z. B. 1,2)<input id="goldQualifyPlaces" placeholder="Standard: gewählte Weiterkommer"></label><label>Silber: Gruppenplätze (optional, z. B. 3,4)<input id="silverQualifyPlaces" placeholder="Keine Silberrunde"></label><label>Anzahl Gruppen<select id="groupCount">
+              <option value="auto">Automatisch</option><option value="1">1 Gruppe</option>
               <option value="2">2 Gruppen</option>
               <option value="3">3 Gruppen</option>
               <option value="4">4 Gruppen</option>
               <option value="5">5 Gruppen</option>
-              <option value="6">6 Gruppen</option>
+              <option value="6">6 Gruppen</option><option value="7">7 Gruppen</option><option value="8">8 Gruppen</option>
             </select></label>
             <label>Gruppenauslosung<select id="groupDrawMode">
-              <option value="random">Zufällig</option>
+              <option value="random">Zufällig</option><option value="manual">Manuelle Gruppenzuordnung</option>
               <option value="seeded">Nach Vereinsrangliste setzen</option>
             </select></label>
           </div>
@@ -212,6 +213,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsspieltag.js?v=14.0"></script>
+<script type="module" src="vereinsspieltag.js?v=tournament-2"></script>
 </body>
 </html>
+

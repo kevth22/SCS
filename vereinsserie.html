@@ -40,6 +40,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 })();
 </script>
 
+<link rel="stylesheet" href="tournament-admin.css?v=1">
 </head>
 <body>
 
@@ -170,7 +171,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
           <legend>Gruppenphase</legend>
           <p>Lege die Anzahl der Gruppen und die Weiterkommer je Gruppe fest. Die Spieler ordnest du unten direkt einer Gruppe zu.</p>
           <div class="groups-create-options">
-            <label>Anzahl Gruppen
+            <label>Gold / K.-o.: Gruppenplätze (optional, z. B. 1,2)<input id="goldQualifyPlaces" placeholder="Standard: gewählte Weiterkommer"></label><label>Silber: Gruppenplätze (optional, z. B. 3,4)<input id="silverQualifyPlaces" placeholder="Keine Silberrunde"></label><label>Gruppenzuordnung<select id="createGroupDrawMode"><option value="manual">Manuell</option><option value="random">Automatisch zufällig</option><option value="seeded">Nach Vereinsrangliste</option></select></label><label>Anzahl Gruppen
               <select id="createGroupCount">
                 <option value="1">1 Gruppe</option>
                 <option value="2" selected>2 Gruppen</option>
@@ -234,6 +235,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=26.2"></script>
+<script type="module" src="vereinsserie.js?v=tournament-2"></script>
 </body>
 </html>
+

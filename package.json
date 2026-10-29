@@ -7,7 +7,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "push:spieltag": "node scripts/spieltag-push.js"
+    "push:spieltag": "node scripts/spieltag-push.js",
+    "test": "node --test --test-isolation=none tests/*.test.js",
+    "test:browser": "python tests/browser-smoke.py",
+    "check": "node --check tournament-engine.js && node --check tournament-double.js && node --check tournament-admin.js && node --check tournament-persistence.js && node --check vereinsserie.js && node --check vereinsspieltag.js && node --check sw.js"
   },
   "dependencies": {
     "firebase-admin": "^13.4.0"
