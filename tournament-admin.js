@@ -9,6 +9,12 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 const score = m => m.annulled ? 'Annulliert' : m.bye ? 'Freilos' : m.completed ? `${m.s1}:${m.s2}${m.walkover ? ' · kampflos' : ''}` : m.status === 'live' ? 'Läuft' : m.withdrawalHold ? 'Erneut geöffnet · Rückzugswertung manuell prüfen' : 'Offen';
 const label = key => ['silver', 'previewSilver'].includes(key) ? 'Silber' : ['gold', 'previewGold'].includes(key) ? 'Gold / K.-o.' : 'K.-o.';
 
+export function renderPlayerAvatar(member, name) {
+  if (member?.profilbild) return `<img class="player-avatar player-avatar-small" src="${esc(member.profilbild)}" alt="">`;
+  const initials = String(name || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+  return `<span class="player-avatar player-avatar-small player-avatar-fallback" aria-hidden="true">${esc(initials || '?')}</span>`;
+}
+
 // Native dialog: Tastaturbedienung, Fokusbindung und mobile Darstellung.
 function dialog(title, body, accept = 'Speichern') {
   return new Promise(resolve => {
@@ -72,7 +78,7 @@ function withdrawalHtml(day, name, editable) {
         ${editable ? withdrawn(day, id) ? `<button type="button" data-reactivate="${esc(id)}" ${check.allowed ? '' : 'disabled'}>Wieder aktivieren</button>` : `<button type="button" data-withdraw="${esc(id)}">Spieler zurückziehen</button>` : ''}</article>`;
     }).join('')}</details>`;
 }
-export function renderTournamentAdmin({ day, host, name, editable, run, finish }) {
+export function renderTournamentAdmin({ day, host, name, editable, run, finish, avatar = id => renderPlayerAvatar(null, name(id)) }) {
   if (!day || day.engine === 'draft') return;
   const section = document.createElement('section'); section.className = 'tournament-admin';
   let html = '';
@@ -80,7 +86,7 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish }
     host.replaceChildren();
     html += `<div class="groups-grid">${day.groups.map(g => {
       const table = standings(g, day), done = groupDone(g, day);
-      return `<section class="group-card"><h3>${esc(g.name)}</h3>${!done ? '<p class="group-progress">Vorläufige Tabelle · Gruppenspiele noch offen</p>' : ''}<div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => `<tr><td>${!done && r.unresolved ? '–' : `${r.place}${r.unresolved ? ' ?' : ''}`}</td><td>${esc(name(r.id))}</td><td>${r.mp}</td><td>${r.legsFor}</td><td>${r.legsAgainst}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
+      return `<section class="group-card"><h3>${esc(g.name)}</h3>${!done ? '<p class="group-progress">Vorläufige Tabelle · Gruppenspiele noch offen</p>' : ''}<div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => `<tr><td>${!done && r.unresolved ? '–' : `${r.place}${r.unresolved ? ' ?' : ''}`}</td><td><span class="tournament-player-identity">${avatar(r.id)}<span class="tournament-player-name">${esc(name(r.id))}</span></span></td><td>${r.mp}</td><td>${r.legsFor}</td><td>${r.legsAgainst}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
         ${table.withdrawn.map(id => `<p>${esc(name(id))} · Zurückgezogen</p>`).join('')}
         ${done ? table.ties.map((t, i) => `<p role="status">Platz ${t.place}–${t.endPlace} ungeklärt: ${t.players.map(name).map(esc).join(', ')} ${editable ? `<button type="button" data-decider="${esc(g.id)}|${i}">Entscheidungsspiel anlegen</button>` : ''}</p>`).join('') : ''}
         <details><summary>Alle Begegnungen und Entscheidungsspiele</summary>${matchList(matchEntries(day).filter(e => e.group === g.id), name, editable)}</details></section>`;

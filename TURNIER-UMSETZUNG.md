@@ -210,3 +210,10 @@ Aufrufe. Die abschließende Setzlistenprüfung wartet auf das Ende der Gruppenph
 Validierung dieser Nachbesserung: `npm test` mit 51 bestandenen Tests,
 `npm run check`, `git diff --check` und Chromium-Prüfungen bei 1440×1000 sowie
 390×844 bestanden. Keine Datenmigration und keine Änderung produktiver Ergebnisse.
+
+Die Gruppentabelle zeigt außerdem wieder das bestehende Spielerprofilbild direkt
+nach der Platzierung und vor dem Namen. Die Vereinsrangliste verwendet dazu ihre
+vorhandene Avatarfunktion; die ältere Spieltagsansicht übernimmt `profilbild` aus
+den vorhandenen Mitgliedsdaten. Ohne Profilbild erscheinen die Initialen. Die
+Browserprüfung kontrolliert ein tatsächlich geladenes Bild, die sichtbare Reihenfolge
+Platzierung → Profilbild → Name sowie die Initialen bei fehlendem Bild.

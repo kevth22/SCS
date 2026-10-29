@@ -1,5 +1,5 @@
 import * as Tournament from './tournament-engine.js';
-import { renderTournamentAdmin, confirmPlan } from './tournament-admin.js';
+import { renderTournamentAdmin, confirmPlan, renderPlayerAvatar } from './tournament-admin.js';
 import { createTournamentWriter } from './tournament-persistence.js';
 import { refreshDouble, recomputeDoubleStats } from './tournament-double.js';
 import { db, getLogin } from './auth-utils.js';
@@ -105,6 +105,7 @@ async function runTournamentChange(action, mutate, alwaysConfirm = false) {
 function mountTournamentAdmin(day, editable = canManage) {
   Tournament.normalizeDay(day);
   renderTournamentAdmin({ day, host: $('dayWorkspace'), name: memberName, editable,
+    avatar: id => renderPlayerAvatar(state.members.find(member => member.id === id), memberName(id)),
     run: runTournamentChange, finish: finishDay });
 }
 async function saveTournamentScore(match, prefix, config) {
@@ -126,7 +127,8 @@ async function syncMembers(showToast = true) {
       members.push({
         id: item.id,
         name: data.nickname || data.spitzname || data.benutzername || item.id,
-        rolle: role
+        rolle: role,
+        profilbild: data.profilbild || ''
       });
     }
   });
