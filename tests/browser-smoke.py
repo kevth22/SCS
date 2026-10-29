@@ -20,12 +20,18 @@ const displayName = id => id === 'Tim' ? 'Hackenschorschie mit langem Spielernam
 const member = {profilbild: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="blue"/></svg>')};
 function render() { T.normalizeDay(day); renderTournamentAdmin({day,host:document.getElementById('host'),name:displayName,avatar:id=>renderPlayerAvatar(id === 'Max' ? member : null,displayName(id)),editable:true,finish:()=>{},run: async (action,mutate) => { const p=T.planChange(day,action,'admin',mutate); if(await confirmPlan(p,id=>id||'Offen',action)) { day=p.day; window.day=day; render(); } } }); }
 window.day=day; render(); window.ready=true;
+window.completeGroups = () => { for (const g of day.groups) for (const m of g.matches) { const a=day.attendees.indexOf(m.p1)<day.attendees.indexOf(m.p2); T.editMatch(day,m.id,{status:'completed',s1:a?2:0,s2:a?0:2,legs1:a?2:0,legs2:a?0:2}); } day.qualificationRules={gold:[1,2],silver:[3,4]}; render(); };
+window.freezeFinals = () => { for (const key of ['gold','silver']) T.setManualSeeds(day,key,T.qualification(day,key).rows.map(r=>r.id)); T.previewFinals(day); T.startFinals(day); render(); };
+window.correctGroup = () => { const m=day.groups[0].matches[0]; T.editMatch(day,m.id,{status:'completed',s1:0,s2:2,legs1:0,legs2:2}); render(); };
 </script></body></html>'''
 
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path == '/__test':
-            data = HARNESS.encode()
+        if self.path.split('?')[0] == '/__test':
+            html = HARNESS
+            if 'legacy=1' in self.path:
+                html = html.replace('<link rel="stylesheet" href="/tournament-admin.css">', '')
+            data = html.encode()
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(data)))
@@ -41,13 +47,16 @@ Thread(target=server.serve_forever, daemon=True).start()
 try:
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path='/usr/bin/chromium', headless=True, args=['--no-sandbox'])
-        for width, height in [(1440, 1000), (390, 844)]:
+        for width, height, legacy in [(1440, 1000, False), (390, 844, False), (390, 844, True)]:
             page = browser.new_page(viewport={'width': width, 'height': height})
             errors = []
             page.on('pageerror', lambda e: errors.append(str(e)))
-            page.goto(f'http://127.0.0.1:{server.server_port}/__test')
+            page.goto(f'http://127.0.0.1:{server.server_port}/__test' + ('?legacy=1' if legacy else ''))
             page.wait_for_function('window.ready === true')
             expect(page.get_by_role('heading', name='Gruppe A', exact=True)).to_be_visible()
+            expect(page.locator('.group-card > h3').first).to_have_css('color', 'rgb(0, 0, 0)')
+            expect(page.locator('link[href$="tournament-admin.css?v=4"]')).to_have_count(1)
+            expect(page.locator('.tournament-qualification table')).to_have_count(0)
             max_row = page.locator('.group-card tbody tr').filter(has=page.locator('.tournament-player-name', has_text='Max'))
             expect(max_row.locator('td').nth(1).locator('img.player-avatar')).to_have_count(1)
             page.wait_for_function("[...document.querySelectorAll('.group-card img')].every(img => img.complete && img.naturalWidth > 0)")
@@ -84,7 +93,18 @@ try:
             assert page.evaluate("window.day.groups[0].matches.find(m => m.p1==='Max').winner") == 'Ben'
             assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Seite läuft horizontal über'
             assert not errors, errors
-            print(f'PASS Browser {width}x{height}: Korrektur, Vorschau, Abbruch, Rückzug, Wiedereinstieg, echte App-Container, lange Namen, sichtbare Überschriften, keine vorzeitigen Entscheidungsspiele, Platzierung → geladenes Profilbild → Name, Initialen ohne Profilbild')
+            page.evaluate('window.completeGroups()')
+            expect(page.locator('.tournament-qualification table')).to_have_count(2)
+            expect(page.locator('.tournament-qualification tbody tr')).to_have_count(8)
+            expect(page.locator('.tournament-qualification tbody tr').first.locator('td').first).to_have_text('offen')
+            page.evaluate('window.freezeFinals()')
+            max_qualified = page.locator('.tournament-qualification tbody tr').filter(has_text='Max')
+            expect(max_qualified.locator('td').nth(4)).to_have_text('6')
+            page.evaluate('window.correctGroup()')
+            expect(max_qualified.locator('td').nth(4)).to_have_text('6')
+            expect(page.locator('.tournament-qualification [role=alert]')).to_contain_text('weichen ab')
+            assert not errors, errors
+            print(f'PASS Browser {width}x{height}, altes HTML ohne CSS-Link={legacy}: Profilbilder, Layout, Dialoge, Qualifikation erst nach Gruppenabschluss, eingefrorene Qualifikation nach Korrektur, Styles automatisch geladen')
             page.close()
         browser.close()
 finally:

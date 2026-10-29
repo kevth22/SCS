@@ -9,6 +9,15 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 const score = m => m.annulled ? 'Annulliert' : m.bye ? 'Freilos' : m.completed ? `${m.s1}:${m.s2}${m.walkover ? ' · kampflos' : ''}` : m.status === 'live' ? 'Läuft' : m.withdrawalHold ? 'Erneut geöffnet · Rückzugswertung manuell prüfen' : 'Offen';
 const label = key => ['silver', 'previewSilver'].includes(key) ? 'Silber' : ['gold', 'previewGold'].includes(key) ? 'Gold / K.-o.' : 'K.-o.';
 
+// Auch ältere, im PWA-Cache gespeicherte HTML-Seiten können bereits das neue
+// JavaScript laden. Die Komponente stellt deshalb ihren eigenen CSS-Bezug sicher.
+function ensureTournamentStyles() {
+  const href = new URL('./tournament-admin.css?v=4', import.meta.url).href;
+  if ([...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href === href)) return;
+  const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href;
+  document.head.append(link);
+}
+
 export function renderPlayerAvatar(member, name) {
   if (member?.profilbild) return `<img class="player-avatar player-avatar-small" src="${esc(member.profilbild)}" alt="">`;
   const initials = String(name || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
@@ -57,11 +66,13 @@ function qualificationHtml(day, name, editable) {
     <p>Qualifikationsplätze: ${['gold', 'silver'].map(k => `${label(k)}: ${rules(day)[k].join(', ') || 'keine'}`).join(' · ')}</p>
     ${!done ? '<p>Die Gruppenphase läuft. Setzlisten und Gleichstände werden nach Abschluss der Gruppenspiele geprüft.</p>' : ''}
     ${drift.length ? '<p class="has-conflict" role="alert">Gruppenwertung und eingefrorene Qualifikation weichen ab. Gespeicherte Teilnehmer und Paarungen bleiben unverändert.</p>' : ''}
-    ${['gold', 'silver'].filter(k => rules(day)[k].length).map(key => {
+    ${(done || frozen ? ['gold', 'silver'] : []).filter(k => rules(day)[k].length).map(key => {
       const q = qualification(day, key);
-      return `<h4>${esc(label(key))}</h4><div class="table-scroll"><table><thead><tr><th>Setzplatz</th><th>Spieler</th><th>Gruppe</th><th>Gruppenplatz</th><th>Punkte</th><th>Leg-Diff.</th></tr></thead><tbody>${q.rows.map(r => `<tr><td>${r.seed}</td><td>${esc(name(r.id))}</td><td>${esc(r.group)}</td><td>${r.place}${r.unresolved ? ' ?' : ''}</td><td>${r.mp}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
-        ${done && q.unresolved.length ? '<p role="alert">Ungeklärte Gruppenplätze: Entscheidungsspiele erforderlich.</p>' : ''}
-        ${done && q.seedTies.length ? `<p role="alert">Gleiche Setzkriterien: ${q.seedTies.map(ids => ids.map(name).map(esc).join(' / ')).join('; ')}. Reihenfolge ausdrücklich speichern.</p>` : ''}
+      if (!frozen && q.unresolved.length) return `<h4>${esc(label(key))}</h4><p role="alert">Qualifikationsrelevante Gruppenplätze sind noch ungeklärt. Zuerst die Entscheidungsspiele abschließen; danach werden Qualifikanten und Setzliste angezeigt.</p>`;
+      const saved = day.qualificationSnapshot?.[key];
+      const rows = frozen ? saved?.seeds || (saved?.players || []).map((id, index) => ({ id, seed: index + 1 })) : q.rows;
+      return `<h4>${esc(label(key))}</h4><div class="table-scroll"><table><thead><tr><th>Setzplatz</th><th>Spieler</th><th>Gruppe</th><th>Gruppenplatz</th><th>Punkte</th><th>Leg-Diff.</th></tr></thead><tbody>${rows.map(r => `<tr><td>${!frozen && q.seedTies.some(ids => ids.includes(r.id)) ? 'offen' : r.seed}</td><td>${esc(name(r.id))}</td><td>${esc(r.group || '–')}</td><td>${r.place ?? '–'}</td><td>${r.mp ?? '–'}</td><td>${r.legsFor === undefined ? '–' : diff(r)}</td></tr>`).join('')}</tbody></table></div>
+        ${done && !frozen && q.seedTies.length ? `<p role="alert">Gleiche Setzkriterien: ${q.seedTies.map(ids => ids.map(name).map(esc).join(' / ')).join('; ')}. Reihenfolge ausdrücklich speichern.</p>` : ''}
         ${done && editable && !frozen ? `<button type="button" data-seeds="${key}">Setzliste prüfen / manuell korrigieren</button>` : ''}
         ${frozen ? `<p>Eingefrorene Teilnehmer: ${(day.qualificationSnapshot?.[key]?.players || []).map(name).map(esc).join(', ')}</p>` : ''}`;
     }).join('')}
@@ -80,6 +91,7 @@ function withdrawalHtml(day, name, editable) {
 }
 export function renderTournamentAdmin({ day, host, name, editable, run, finish, avatar = id => renderPlayerAvatar(null, name(id)) }) {
   if (!day || day.engine === 'draft') return;
+  ensureTournamentStyles();
   const section = document.createElement('section'); section.className = 'tournament-admin';
   let html = '';
   if (day.groups) {
