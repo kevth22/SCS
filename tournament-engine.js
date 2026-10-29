@@ -257,6 +257,7 @@ export function matchEntries(day) {
   for (const g of day.groups || []) {
     result.push(...(g.matches || []).map(match => ({ match, phase: 'group', group: g.id, label: g.name })));
     result.push(...(g.deciderMatches || []).map(match => ({ match, phase: 'decider', group: g.id, label: `${g.name} · Entscheidungsspiel` })));
+    result.push(...(g.archivedMatches || []).map(match => ({ match, phase: 'archived-group', group: g.id, label: `${g.name} · ursprüngliche Begegnung nach Spielertausch` })));
   }
   for (const { key, bracket } of divisions(day)) {
     for (const r of bracket.rounds) result.push(...bracket.matches[r].map(match => ({ match, phase: key, round: r, label: `${key === 'silver' ? 'Silber' : key === 'gold' ? 'Gold / K.-o.' : 'K.-o.'} · ${r}` })));
@@ -356,6 +357,7 @@ export function editMatch(day, id, change) {
   const entry = matchEntries(day).find(e => e.match.id === id);
   if (!entry) fail('Spiel wurde nicht gefunden.');
   const m = entry.match, old = clone(m);
+  if (entry.phase === 'archived-group' && (change.status !== 'void' || Object.hasOwn(change, 'p1') && change.p1 !== m.p1 || Object.hasOwn(change, 'p2') && change.p2 !== m.p2)) fail('Die ursprüngliche Begegnung bleibt historisch erhalten. Sie kann hier nach Prüfung nur aus der Gruppenwertung genommen werden.');
   if (old.annulled && old.withdrawalVoids?.some(player => withdrawn(day, player)) && change.status !== 'void') fail('Dieses Gruppenspiel bleibt wegen des vollständigen Rückzugs annulliert. Zuerst einen zulässigen Wiedereinstieg buchen.');
   const allowed = ['p1', 'p2', 's1', 's2', 'legs1', 'legs2', 'status', 'winner', 'note'];
   for (const key of Object.keys(change)) if (!allowed.includes(key)) fail(`Nicht bearbeitbares Feld: ${key}`);
@@ -370,7 +372,7 @@ export function editMatch(day, id, change) {
   if (m.p1 && m.p1 === m.p2) fail('Ein Spieler darf nicht gegen sich selbst spielen.');
   const eligible = entry.group ? day.groups.find(g => g.id === entry.group).players : day.attendees;
   for (const player of [m.p1, m.p2].filter(Boolean)) {
-    if (!eligible?.includes(player)) fail('Spieler gehört nicht zu dieser Phase / Gruppe.');
+    if (!eligible?.includes(player) && entry.phase !== 'archived-group') fail('Spieler gehört nicht zu dieser Phase / Gruppe.');
     if (withdrawn(day, player) && ['completed', 'live'].includes(status)) fail('Zurückgezogene Spieler dürfen nicht spielen.');
   }
   if (status === 'completed' || status === 'walkover') {
@@ -410,6 +412,62 @@ export function editMatch(day, id, change) {
   if (entry.phase === 'group') day.finalPreview = null;
   return old;
 }
+export function swapGroupPlayers(day, firstId, secondId) {
+  if (firstId === secondId) fail('Zwei verschiedene Teilnehmer auswählen.');
+  if (withdrawn(day, firstId) || withdrawn(day, secondId)) fail('Zurückgezogene Teilnehmer können nicht getauscht werden.');
+  const first = day.groups?.find(g => g.players.includes(firstId)), second = day.groups?.find(g => g.players.includes(secondId));
+  if (!first || !second) fail('Beide Spieler müssen bereits an der Gruppenphase teilnehmen.');
+  if (matchEntries(day).some(e => e.match.conflict)) fail('Zuerst die bestehenden Korrekturkonflikte auflösen.');
+  const affected = [...new Set([first, second])], previous = affected.flatMap(g => g.matches || []);
+  const previousGroups = new Map(affected.flatMap(g => (g.matches || []).map(m => [m.id, g.id])));
+  const signatures = new Map(affected.map(g => [g.id, groupSignature(g, day)]));
+  const pairKey = (a, b) => JSON.stringify([a, b].sort());
+  const byPair = new Map();
+  for (const m of previous) {
+    const key = pairKey(m.p1, m.p2);
+    if (byPair.has(key)) fail('Die betroffenen Gruppen enthalten doppelte Begegnungen. Diese zuerst korrigieren.');
+    byPair.set(key, m);
+  }
+  const firstIndex = first.players.indexOf(firstId), secondIndex = second.players.indexOf(secondId);
+  first.players[firstIndex] = secondId; second.players[secondIndex] = firstId;
+  const reused = new Set();
+  for (const g of affected) {
+    g.matches = roundRobinMatches(g.players).map(scheduled => {
+      const old = byPair.get(pairKey(scheduled.p1, scheduled.p2));
+      if (!old) return scheduled;
+      const m = clone(old); reused.add(m.id);
+      if (m.p1 !== scheduled.p1) {
+        [m.p1, m.p2] = [m.p2, m.p1]; [m.s1, m.s2] = [m.s2, m.s1];
+        [m.legs1, m.legs2] = [m.legs2, m.legs1];
+      }
+      m.groupRound = scheduled.groupRound;
+      return m;
+    });
+  }
+  for (const g of affected) for (const old of previous.filter(m => !reused.has(m.id) && (g.players.includes(m.p1) || g.players.includes(m.p2)))) {
+    // Jedes nicht mehr passende Ergebnis nur einmal und mit seinen tatsächlichen
+    // ursprünglichen Spielern sichern. Niemals Werte auf neue Gegner übertragen.
+    if (affected.some(group => group.archivedMatches?.some(m => m.id === old.id))) continue;
+    if (!old.completed && old.status !== 'live' && !old.annulled) continue;
+    g.archivedMatches ||= [];
+    g.archivedMatches.push({ ...clone(old), archivedOriginal: clone(old), archivedFromGroup: previousGroups.get(old.id),
+      ...old.annulled ? {} : { conflict: { reason: 'Nach dem Gruppentausch gehören diese ursprünglichen Gegner nicht mehr zu derselben Gruppe. Originalergebnis prüfen und ausdrücklich aus der Gruppenwertung nehmen.' } } });
+  }
+  for (const g of affected) {
+    if (first === second) {
+      for (const event of g.deciders || []) if (event.signature === signatures.get(g.id)) event.signature = groupSignature(g, day);
+    } else {
+      for (const m of g.deciderMatches || []) if (!g.players.includes(m.p1) || !g.players.includes(m.p2)) {
+        g.archivedMatches ||= [];
+        g.archivedMatches.push({ ...clone(m), archivedOriginal: clone(m), archivedFromGroup: g.id,
+          ...(m.completed && !m.annulled || m.status === 'live' ? { conflict: { reason: 'Die ursprünglichen Teilnehmer dieses Entscheidungsspiels gehören nicht mehr zur selben Gruppe. Wertung prüfen.' } } : { annulled: true, status: 'void' }) });
+      }
+      g.deciderMatches = (g.deciderMatches || []).filter(m => g.players.includes(m.p1) && g.players.includes(m.p2));
+    }
+  }
+  if (day.groupAssignments) day.groups.forEach((g, i) => g.players.forEach(id => { day.groupAssignments[id] = i; }));
+  day.finalPreview = null; day.manualSeeds = {};
+}
 export function swapSlots(day, division, matchA, sideA, matchB, sideB) {
   if (!['p1', 'p2'].includes(sideA) || !['p1', 'p2'].includes(sideB)) fail('Ungültige Spielposition.');
   const bracket = swappableBracket(day, division);
@@ -444,6 +502,7 @@ export function swappableBracket(day, key) {
   return divisions(day).find(d => d.key === key)?.bracket;
 }
 export function previewFinals(day) {
+  if (matchEntries(day).some(e => e.match.conflict)) fail('Zuerst die Korrekturkonflikte auflösen.');
   if (day.koStartedAt || day.groupPhaseDone) fail('Die K.-o.-Phase ist eingefroren. Bestehende Paarungen gezielt bearbeiten.');
   if (!allGroupsDone(day)) fail('Zuerst alle regulären Gruppenspiele abschließen oder annullieren.');
   const result = { signatures: {} };
@@ -458,6 +517,7 @@ export function previewFinals(day) {
   day.finalPreview = result;
 }
 export function startFinals(day) {
+  if (matchEntries(day).some(e => e.match.conflict)) fail('Zuerst die Korrekturkonflikte auflösen.');
   if (day.koStartedAt || day.groupPhaseDone) fail('Die K.-o.-Phase wurde bereits gestartet.');
   if (!day.finalPreview) fail('Zuerst einen Turnierbaum als Vorschau erstellen.');
   if (!allGroupsDone(day)) fail('Gruppenphase ist noch offen.');
@@ -525,7 +585,9 @@ export function reentryAllowed(day, id) {
   if (!m || m.conflict || m.walkover || m.bye || m.completed && !p.originals[m.id]?.completed) return { allowed: false, reason: 'Die maßgebliche nächste Partie wurde bereits gewertet oder ist korrekturbedürftig.' };
   if (matchEntries(day).some(e => e.match.conflict)) return { allowed: false, reason: 'Zuerst die offenen Turnierkonflikte auflösen.' };
   for (const [matchId, original] of Object.entries(p.originals)) {
-    const current = matchEntries(day).find(e => e.match.id === matchId)?.match;
+    const entry = matchEntries(day).find(e => e.match.id === matchId);
+    if (entry?.phase === 'archived-group') return { allowed: false, reason: 'Die ursprüngliche Gruppenzuordnung wurde geändert. Ein automatischer Wiedereinstieg ist nicht mehr sicher.' };
+    const current = entry?.match;
     if (!current || current.p1 !== original.p1 || current.p2 !== original.p2) return { allowed: false, reason: 'Ursprüngliche Spielzuordnungen wurden verändert.' };
   }
   return { allowed: true, reason: 'Annullierte Gruppenergebnisse können nach Bestätigung wiederhergestellt werden.' };
@@ -548,6 +610,13 @@ export function reactivatePlayer(day, id) {
 export function validateDay(day) {
   const entries = matchEntries(day), ids = entries.map(e => e.match.id);
   if (!unique(ids)) fail('Doppelte Spiel-ID.');
+  if (day.groups) {
+    const players = day.groups.flatMap(g => g.players);
+    if (!unique(players) || day.attendees && (players.length !== day.attendees.length || players.some(id => !day.attendees.includes(id)))) fail('Alle Gruppenteilnehmer müssen genau einer Gruppe zugeordnet bleiben.');
+    for (const g of day.groups) for (const m of g.matches) {
+      if (!g.players.includes(m.p1) || !g.players.includes(m.p2)) fail('Eine reguläre Gruppenbegegnung enthält einen Spieler aus einer anderen Gruppe.');
+    }
+  }
   for (const e of entries) {
     const m = e.match;
     if (m.conflict) continue; // Ein expliziter Konflikt bewahrt das bisherige Ergebnis.
@@ -651,11 +720,16 @@ export function planChange(original, action, actor, mutate, reconcile = () => {}
     return !old || JSON.stringify(old.match) !== JSON.stringify(e.match);
   }).map(e => ({ id: e.match.id, label: e.label, players: [e.match.p1, e.match.p2],
     conflict: Boolean(e.match.conflict), completed: e.match.completed, status: e.match.status }));
+  for (const old of beforeEntries) if (!after.some(e => e.match.id === old.match.id)) {
+    effects.push({ id: old.match.id, label: old.label, players: [old.match.p1, old.match.p2],
+      conflict: false, completed: old.match.completed, status: 'Durch neue Spielplanzuordnung ersetzt' });
+  }
   const changed = beforeEntries.filter(e => effects.some(x => x.id === e.match.id)).map(e => ({ id: e.match.id, value: e.match }));
   // Paarungen, Ergebnisse und Regeln vorher/nachher bleiben nachvollziehbar.
   record(day, action, { matches: changed, qualificationRules: original.qualificationRules || null,
     qualifyPlaces: original.qualifyPlaces || null, manualSeeds: original.manualSeeds || null,
-    participation: original.participation || null }, actor);
+    participation: original.participation || null,
+    groups: original.groups?.map(g => ({ id: g.id, players: g.players.slice() })) || null }, actor);
   day.lastAdminChange = { at: now(), actor, action };
   return { day, effects, drift: qualificationDrift(day) };
 }

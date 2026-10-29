@@ -11,6 +11,16 @@
 .tournament-player-name { text-align: left; }
 .group-player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; max-width: 220px; margin-top: .4rem; white-space: normal; }
 .tournament-admin .group-player-controls button { width: auto !important; padding: .35rem .5rem; font-size: .74rem; text-transform: none; }
+.tournament-admin button.group-name-button { width: auto !important; min-width: 0 !important; max-width: 170px !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; color: inherit !important; box-shadow: none !important; font: inherit !important; text-transform: none !important; text-align: left; white-space: normal !important; overflow-wrap: anywhere; }
+.tournament-admin button.group-name-button:hover, .tournament-admin button.group-name-button:focus-visible { text-decoration: underline; }
+.tournament-admin button.group-withdraw-button { width: 30px !important; min-width: 30px !important; max-width: 30px !important; height: 30px !important; min-height: 30px !important; flex: 0 0 30px; margin: 0 !important; padding: 0 !important; border: 1px solid #777 !important; border-radius: 50% !important; background: #222 !important; color: #fff !important; font-size: 20px !important; line-height: 1 !important; }
+.group-match-names { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
+.group-inline-score { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; min-width: 0; width: 100%; }
+.group-inline-score label { display: grid; gap: .3rem; min-width: 0; font-size: .85rem; overflow-wrap: anywhere; }
+.group-inline-score input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: .5rem; border: 1px solid #777; border-radius: .4rem; font-size: 16px; text-align: center; }
+.tournament-admin .group-inline-score button { grid-column: 1 / -1; justify-self: end; width: auto !important; padding: .5rem .8rem; }
+.tournament-admin button.match-details-button { width: auto !important; padding: .35rem .6rem; font-size: .78rem; background: #222 !important; color: #ddd !important; border-color: #666 !important; }
+.tournament-admin .group-matches .tournament-match { display: grid; grid-template-columns: minmax(0, 1fr); }
 .group-progression-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .group-progression-legend small { flex-basis: 100%; color: #bbb; line-height: 1.4; }
 .group-qual-badge { display: inline-flex; align-items: center; border: 1px solid currentColor; border-radius: .4rem; padding: .2rem .4rem; font-size: .75rem; font-weight: 700; white-space: normal; }
@@ -48,3 +58,18 @@
 .tournament-admin .tree-round { min-width: 210px; max-width: 280px; }
 .tournament-admin .table-scroll, .tournament-admin .tournament-tree-scroll { overflow-x: auto; min-width: 0; max-width: 100%; }
 @media (max-width: 600px) { .tournament-match { flex-direction: column; align-items: stretch; } .tournament-dialog .two-cols { grid-template-columns: 1fr; } .tournament-admin .groups-grid { grid-template-columns: 1fr; } }
+
+/* Feldsets und native Datumsfelder dürfen den mobilen Layout-Viewport nicht verbreitern. */
+#tab-erstellen, #tab-erstellen .admin-grid, #tab-erstellen .tournament-create-card,
+#tab-erstellen fieldset, #tab-erstellen label, #tab-erstellen .groups-create-options,
+#tab-erstellen .create-participants, #tab-erstellen .attendance-list { min-width: 0 !important; min-inline-size: 0 !important; max-width: 100% !important; box-sizing: border-box; }
+#tab-erstellen .single-admin-grid { width: 100% !important; grid-template-columns: minmax(0, 1fr) !important; }
+#tab-erstellen fieldset { width: 100%; }
+#tab-erstellen input:not([type=checkbox]):not([type=radio]), #tab-erstellen select { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; font-size: 16px; }
+#tab-erstellen .groups-create-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  #tab-erstellen { padding: 12px !important; }
+  #tab-erstellen .tournament-create-card { padding: 16px !important; }
+  #tab-erstellen .groups-create-options { grid-template-columns: minmax(0, 1fr); }
+  #tab-erstellen .tournament-type-options, #tab-erstellen .ko-size-options { min-width: 0; }
+}
