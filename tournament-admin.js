@@ -2,7 +2,7 @@ import {
   standings, groupDone, allGroupsDone, qualification, qualificationDrift, rules, diff, matchEntries,
   divisions, editMatch, swapSlots, setManualSeeds, previewFinals, startFinals,
   createDecider, withdrawPlayer, reactivatePlayer, reentryAllowed, withdrawn, tournamentComplete,
-  clone, swappableBracket
+  clone, swappableBracket, groupProgression
 } from './tournament-engine.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,7 +12,7 @@ const label = key => ['silver', 'previewSilver'].includes(key) ? 'Silber' : ['go
 // Auch ältere, im PWA-Cache gespeicherte HTML-Seiten können bereits das neue
 // JavaScript laden. Die Komponente stellt deshalb ihren eigenen CSS-Bezug sicher.
 function ensureTournamentStyles() {
-  const href = new URL('./tournament-admin.css?v=4', import.meta.url).href;
+  const href = new URL('./tournament-admin.css?v=5', import.meta.url).href;
   if ([...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href === href)) return;
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href;
   document.head.append(link);
@@ -48,7 +48,25 @@ export async function confirmPlan(plan, name, action) {
 function matchList(entries, name, editable) {
   return `<div class="tournament-match-list">${entries.map(e => `<article class="tournament-match ${e.match.conflict ? 'has-conflict' : ''}">
     <div><small>${esc(e.label)}</small><strong>${esc(name(e.match.p1))} – ${esc(name(e.match.p2))}</strong><span>${esc(score(e.match))}${e.match.conflict ? ' · ⚠ Korrektur erforderlich' : ''}</span></div>
-    ${editable ? `<button type="button" data-admin-match="${esc(e.match.id)}">${e.match.conflict ? 'Konflikt lösen' : 'Spiel bearbeiten'}</button>` : ''}</article>`).join('')}</div>`;
+    ${editable ? `<button type="button" data-admin-match="${esc(e.match.id)}">${e.match.conflict ? 'Konflikt lösen' : !e.match.completed && !e.match.annulled ? 'Ergebnis eintragen' : 'Ergebnis bearbeiten'}</button>` : ''}</article>`).join('')}</div>`;
+}
+function progressionLegend(day) {
+  const config = rules(day), split = config.gold.length && config.silver.length;
+  return `<div class="group-progression-legend" aria-label="Markierung der Qualifikationsplätze">${['gold', 'silver'].filter(key => config[key].length).map(key => `<span class="group-qual-badge group-qual-${split ? key : 'ko'}">Platz ${config[key].join(', ')} → ${split ? key === 'gold' ? 'Gold' : 'Silber' : 'K.-o.'}</span>`).join('')}<small>Während der Gruppenphase gelten die Markierungen vorläufig. Ungeklärte Plätze werden nicht willkürlich einer Endrunde zugeordnet.</small></div>`;
+}
+function groupPlayerCell(id, name, avatar, action) {
+  return `<span class="tournament-player-identity">${avatar(id)}<span class="tournament-player-name">${esc(name(id))}</span></span>${action ? `<div class="group-player-controls">${action}</div>` : ''}`;
+}
+function standingRow(day, group, row, table, done, name, avatar, editable) {
+  const next = groupProgression(day, group, row, table);
+  const badge = next ? `<span class="group-qual-badge group-qual-${next.kind}">${esc(next.label)}${next.provisional && next.kind !== 'unresolved' ? ' · vorläufig' : ''}</span>` : '';
+  const action = editable ? `<button type="button" class="group-withdraw-button" data-withdraw="${esc(row.id)}" aria-label="Spieler rausnehmen: ${esc(name(row.id))}">Spieler rausnehmen</button>` : '';
+  return `<tr data-group-player="${esc(row.id)}" class="${next ? `group-qual-${next.kind}` : ''}"><td>${!done && row.unresolved ? '–' : `${row.place}${row.unresolved ? ' ?' : ''}`}</td><td>${groupPlayerCell(row.id, name, avatar, badge + action)}</td><td>${row.mp}</td><td>${row.legsFor}</td><td>${row.legsAgainst}</td><td>${diff(row)}</td></tr>`;
+}
+function withdrawnRow(day, id, name, avatar, editable) {
+  const check = reentryAllowed(day, id);
+  const action = editable ? `<button type="button" data-reactivate="${esc(id)}" ${check.allowed ? '' : 'disabled'} aria-label="Spieler wieder aktivieren: ${esc(name(id))}">Wieder aktivieren</button>` : '';
+  return `<tr class="group-withdrawn-row" data-group-player="${esc(id)}"><td>–</td><td>${groupPlayerCell(id, name, avatar, '<span>Zurückgezogen</span>' + action)}</td><td colspan="4">Nicht in der Wertung</td></tr>`;
 }
 function bracketHtml(bracket, key, name, editable) {
   if (!bracket) return '';
@@ -96,12 +114,13 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish, 
   let html = '';
   if (day.groups) {
     host.replaceChildren();
+    html += progressionLegend(day);
     html += `<div class="groups-grid">${day.groups.map(g => {
       const table = standings(g, day), done = groupDone(g, day);
-      return `<section class="group-card"><h3>${esc(g.name)}</h3>${!done ? '<p class="group-progress">Vorläufige Tabelle · Gruppenspiele noch offen</p>' : ''}<div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => `<tr><td>${!done && r.unresolved ? '–' : `${r.place}${r.unresolved ? ' ?' : ''}`}</td><td><span class="tournament-player-identity">${avatar(r.id)}<span class="tournament-player-name">${esc(name(r.id))}</span></span></td><td>${r.mp}</td><td>${r.legsFor}</td><td>${r.legsAgainst}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
-        ${table.withdrawn.map(id => `<p>${esc(name(id))} · Zurückgezogen</p>`).join('')}
+      return `<section class="group-card"><h3>${esc(g.name)}</h3>${!done ? '<p class="group-progress">Vorläufige Tabelle · Gruppenspiele noch offen</p>' : ''}<div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => standingRow(day, g, r, table, done, name, avatar, editable)).join('')}${table.withdrawn.map(id => withdrawnRow(day, id, name, avatar, editable)).join('')}</tbody></table></div>
         ${done ? table.ties.map((t, i) => `<p role="status">Platz ${t.place}–${t.endPlace} ungeklärt: ${t.players.map(name).map(esc).join(', ')} ${editable ? `<button type="button" data-decider="${esc(g.id)}|${i}">Entscheidungsspiel anlegen</button>` : ''}</p>`).join('') : ''}
-        <details><summary>Alle Begegnungen und Entscheidungsspiele</summary>${matchList(matchEntries(day).filter(e => e.group === g.id), name, editable)}</details></section>`;
+        <section class="group-matches"><h4>Begegnungen</h4>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'group'), name, editable)}</section>
+        ${(g.deciderMatches || []).length ? `<details><summary>Entscheidungsspiele</summary>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'decider'), name, editable)}</details>` : ''}</section>`;
     }).join('')}</div>`;
     html += qualificationHtml(day, name, editable);
     if (day.finalPreview) for (const k of ['gold', 'silver']) html += bracketHtml(day.finalPreview[k], k === 'gold' ? 'previewGold' : 'previewSilver', name, editable);
@@ -125,20 +144,24 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish, 
   wire('[data-admin-match]', async button => {
     const entry = matchEntries(day).find(e => e.match.id === button.dataset.adminMatch), m = entry.match;
     const eligible = entry.group ? day.groups.find(g => g.id === entry.group).players : day.attendees;
+    const config = entry.group ? day.groupFormat : entry.phase === 'swiss' ? day.swissFormat : day.roundConfig?.[entry.round];
+    const isSets = config?.format === 'sets';
     const expected = m.conflict?.expected;
     const options = selected => `<option value="">Offen / Freilos</option>${eligible.map(id => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(name(id))}${withdrawn(day, id) ? ' (zurückgezogen)' : ''}</option>`).join('')}`;
     const data = await dialog('Spiel bearbeiten / Ergebnis korrigieren', `<p>${esc(entry.label)} · ${esc(m.id)}</p>
       ${m.conflict ? `<p role="alert">${esc(m.conflict.reason)} ${expected ? `Vorgesehene Teilnehmer: ${expected.map(name).map(esc).join(' – ')}. Das alte Ergebnis bleibt in der Historie.` : 'Vorgängerkonflikte zuerst prüfen. Danach die korrekte Paarung und Wertung ausdrücklich speichern.'}</p>` : ''}
       <div class="two-cols"><label>Spieler 1<select name="p1">${options(expected ? expected[0] : m.p1)}</select></label><label>Spieler 2<select name="p2">${options(expected ? expected[1] : m.p2)}</select></label></div>
-      <label>Aktion / Status<select name="status">${[['completed', 'Ergebnis speichern / korrigieren'], ['pending', 'Zurücksetzen / erneut öffnen'], ['live', 'Läuft'], ['void', 'Administrativ annullieren'], ['walkover', 'Kampflos werten']].map(([v, text]) => `<option value="${v}" ${v === m.status ? 'selected' : ''}>${text}</option>`).join('')}</select></label>
-      <div class="two-cols"><label>Ergebnis Spieler 1<input name="s1" type="number" min="0" step="1" value="${m.s1 ?? ''}"></label><label>Ergebnis Spieler 2<input name="s2" type="number" min="0" step="1" value="${m.s2 ?? ''}"></label><label>Gewonnene Legs Spieler 1<input name="legs1" type="number" min="0" step="1" value="${m.legs1 ?? m.s1 ?? 0}"></label><label>Gewonnene Legs Spieler 2<input name="legs2" type="number" min="0" step="1" value="${m.legs2 ?? m.s2 ?? 0}"></label></div>
-      <p>Bei Leg-Spielen entsprechen Ergebnis und gewonnene Legs einander. Bei Set-Spielen die Gesamtlegs zusätzlich eintragen.</p>
+      <label>Aktion / Status<select name="status">${[['completed', 'Ergebnis speichern / korrigieren'], ['pending', 'Zurücksetzen / erneut öffnen'], ['live', 'Läuft'], ['void', 'Administrativ annullieren'], ['walkover', 'Kampflos werten']].map(([v, text]) => `<option value="${v}" ${v === (['pending', 'live'].includes(m.status) ? 'completed' : m.status) ? 'selected' : ''}>${text}</option>`).join('')}</select></label>
+      <div class="two-cols"><label>Ergebnis Spieler 1<input name="s1" type="number" min="0" step="1" value="${m.s1 ?? ''}"></label><label>Ergebnis Spieler 2<input name="s2" type="number" min="0" step="1" value="${m.s2 ?? ''}"></label>${isSets ? `<label>Gewonnene Legs Spieler 1<input name="legs1" type="number" min="0" step="1" value="${m.legs1 ?? m.s1 ?? 0}"></label><label>Gewonnene Legs Spieler 2<input name="legs2" type="number" min="0" step="1" value="${m.legs2 ?? m.s2 ?? 0}"></label>` : ''}</div>
+      <p>${isSets ? 'Bei Set-Spielen die Gesamtlegs zusätzlich eintragen.' : 'Die gewonnenen Legs werden direkt aus dem Ergebnis übernommen.'}</p>
       <label>Gewinner (bei kampfloser Wertung erforderlich)<select name="winner"><option value="">Aus Ergebnis bestimmen</option>${eligible.map(id => `<option value="${esc(id)}">${esc(name(id))}</option>`).join('')}</select></label>
       <label>Administrative Notiz<textarea name="note">${esc(m.note || '')}</textarea></label>`);
     if (!data) return;
     const change = Object.fromEntries(data); change.p1 ||= null; change.p2 ||= null;
     if (change.status === 'completed' && (!data.get('s1') || !data.get('s2'))) throw new Error('Beide Ergebnisse sind erforderlich.');
-    for (const k of ['s1', 's2', 'legs1', 'legs2']) change[k] = Number(change[k]);
+    for (const k of ['s1', 's2']) change[k] = Number(change[k]);
+    change.legs1 = isSets ? Number(data.get('legs1')) : change.s1;
+    change.legs2 = isSets ? Number(data.get('legs2')) : change.s2;
     if (!change.winner) delete change.winner;
     await run('Spiel bearbeiten / korrigieren', draft => editMatch(draft, m.id, change));
   });

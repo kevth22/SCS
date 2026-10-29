@@ -370,3 +370,35 @@ test('Noch offene Gruppenspiele verhindern vorzeitige Entscheidungsspiele', () =
   assert.throws(() => T.createDecider(day, g.id, g.players), /erst nach Abschluss/);
   assert.equal(g.deciderMatches, undefined);
 });
+function orderedGroupDay() {
+  const ids = ['A', 'B', 'C', 'D'];
+  const g = group(ids, ids.flatMap((a, i) => ids.slice(i + 1).map(b => match(a, b, 2, 0))));
+  return { ...dayFor([g]), qualificationRules: { gold: [1, 2], silver: [3, 4] } };
+}
+test('Gruppenplätze werden entsprechend den konfigurierten Gold-/Silberregeln markiert', () => {
+  const day = orderedGroupDay(), g = day.groups[0], table = T.standings(g, day);
+  assert.deepEqual(table.rows.map(r => T.groupProgression(day, g, r, table).kind), ['gold', 'gold', 'silver', 'silver']);
+  assert.ok(table.rows.every(r => !T.groupProgression(day, g, r, table).provisional));
+});
+test('Eine einzelne K.-o.-Endrunde nutzt für alle Weiterkommer dieselbe Markierung', () => {
+  const day = orderedGroupDay(); day.qualificationRules = { gold: [1, 2], silver: [] };
+  const g = day.groups[0], table = T.standings(g, day);
+  assert.deepEqual(table.rows.map(r => T.groupProgression(day, g, r, table)?.kind || null), ['ko', 'ko', null, null]);
+});
+test('Gleichstände über einer Gold-/Silbergrenze werden nicht willkürlich eingefärbt', () => {
+  const day = dayFor([group(['A', 'B'], [T.blankMatch('A', 'B')])]);
+  day.qualificationRules = { gold: [1], silver: [2] };
+  const g = day.groups[0], table = T.standings(g, day);
+  assert.ok(table.rows.every(r => T.groupProgression(day, g, r, table).kind === 'unresolved'));
+  day.qualificationRules = { gold: [1, 2], silver: [] };
+  assert.ok(table.rows.every(r => T.groupProgression(day, g, r, table).kind === 'ko'));
+});
+test('Markierungen folgen nach Endrundenstart der eingefrorenen Qualifikation und schließen Rückzüge aus', () => {
+  let day = orderedGroupDay(); T.previewFinals(day); T.startFinals(day);
+  const games = day.groups[0].matches.filter(m => m.p1 === 'A');
+  for (const m of games) day = result(day, m.id, 0, 2);
+  const g = day.groups[0], table = T.standings(g, day), a = table.rows.find(r => r.id === 'A');
+  assert.equal(a.place, 4); assert.equal(T.groupProgression(day, g, a, table).kind, 'gold');
+  day.participation.A = { status: 'withdrawn' };
+  assert.equal(T.groupProgression(day, g, a, table), null);
+});
