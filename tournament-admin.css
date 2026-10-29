@@ -9,6 +9,20 @@
 .tournament-player-identity { display: inline-flex; align-items: center; gap: .5rem; vertical-align: middle; }
 .tournament-admin .tournament-player-identity .player-avatar { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; background: #222; color: #fff; font-size: .7rem; }
 .tournament-player-name { text-align: left; }
+.group-player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; max-width: 220px; margin-top: .4rem; white-space: normal; }
+.tournament-admin .group-player-controls button { width: auto !important; padding: .35rem .5rem; font-size: .74rem; text-transform: none; }
+.group-progression-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.group-progression-legend small { flex-basis: 100%; color: #bbb; line-height: 1.4; }
+.group-qual-badge { display: inline-flex; align-items: center; border: 1px solid currentColor; border-radius: .4rem; padding: .2rem .4rem; font-size: .75rem; font-weight: 700; white-space: normal; }
+.group-qual-badge.group-qual-gold { color: #f4ce68; background: #3b2c0b; }
+.group-qual-badge.group-qual-silver { color: #e2e8f0; background: #303943; }
+.group-qual-badge.group-qual-ko { color: #8ce7c4; background: #12382b; }
+.group-qual-badge.group-qual-unresolved { color: #bbb; background: #222; }
+.tournament-admin tr.group-qual-gold > td:first-child { box-shadow: inset 4px 0 #f4ce68; background: #3b2c0b; color: #f4ce68; }
+.tournament-admin tr.group-qual-silver > td:first-child { box-shadow: inset 4px 0 #e2e8f0; background: #303943; color: #e2e8f0; }
+.tournament-admin tr.group-qual-ko > td:first-child { box-shadow: inset 4px 0 #8ce7c4; background: #12382b; color: #8ce7c4; }
+.tournament-admin .group-withdrawn-row > td { color: #aaa; }
+.tournament-admin .group-matches { padding: .75rem; min-width: 0; }
 .tournament-admin h3, .tournament-admin h4 { margin: .6rem 0; }
 .tournament-admin details { margin: .65rem 0; }
 .tournament-admin summary { cursor: pointer; padding: .6rem; font-weight: 600; }

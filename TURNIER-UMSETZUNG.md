@@ -231,3 +231,28 @@ Nach dem offiziellen Start zeigt die Qualifikationsansicht die eingefrorenen
 Setzlisten und Werte; spätere Gruppenkorrekturen werden als Abweichung angezeigt.
 Die erweiterte Browserprüfung durchläuft Gruppenabschluss, manuelle Setzung,
 Endrundenstart und anschließende Korrektur und prüft diese Anzeige.
+
+## Direkte Gruppenaktionen und Qualifikationsfarben
+
+Die Spielerzeilen der Gruppentabelle besitzen jetzt direkt die Aktion „Spieler
+rausnehmen“. Sie verwendet den vorhandenen bestätigten Rückzug mit Annullierung
+aller Gruppenspiele und Historie. Zurückgezogene Spieler bleiben gekennzeichnet
+sichtbar und können bei erfüllten Bedingungen direkt wieder aktiviert werden.
+Die Begegnungen sind offen unter jeder Gruppe zugänglich; „Ergebnis eintragen“
+beziehungsweise „Ergebnis bearbeiten“ öffnet die echte Ergebnisbearbeitung.
+Bei Leg-Spielen genügen zwei Ergebnisfelder, aus denen die Legs übernommen werden;
+Set-Spiele behalten die zusätzlichen Gesamtleg-Felder.
+
+Eine Legende zeigt die konfigurierten Gruppenplätze. Bei Gold und Silber werden
+Platzierungszellen und beschriftete Markierungen entsprechend gold beziehungsweise
+silber dargestellt. Bei nur einer Endrunde verwenden alle Weiterkommer dieselbe
+grüne Markierung. Offene Tabellen werden ausdrücklich als vorläufig gekennzeichnet.
+Ein Gleichstand über einer Qualifikationsgrenze erhält eine neutrale Kennzeichnung
+statt einer willkürlichen Endrundenzuordnung. Nach offiziellem Start richten sich
+die Markierungen nach der eingefrorenen Qualifikation.
+
+Validierung: 55 automatisierte Tests, Syntaxprüfung und `git diff --check` bestanden.
+Die drei Chromium-Prüfungen testen zusätzlich die direkte Ergebniseingabe ohne
+separate Leg-Eingabe, Korrektur, Rückzug/Abbruch/Wiedereinstieg aus der Spielerzeile,
+Gold-/Silberfarben und die einheitliche Farbe bei nur einer K.-o.-Endrunde.
+Keine neue Datenquelle, keine Datenmigration und keine Änderung produktiver Ergebnisse.

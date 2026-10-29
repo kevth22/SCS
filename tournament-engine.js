@@ -100,6 +100,26 @@ export function rules(day) {
   if (!unique(all) || all.some(p => !Number.isInteger(p) || p < 1)) fail('Qualifikationsplätze müssen eindeutig und positiv sein. Gold und Silber dürfen sich nicht überschneiden.');
   return result;
 }
+export function groupProgression(day, group, standing, table = standings(group, day)) {
+  if (withdrawn(day, standing.id)) return null;
+  const qualificationRules = rules(day);
+  const split = qualificationRules.gold.length > 0 && qualificationRules.silver.length > 0;
+  let destination = null;
+  if (day.qualificationSnapshot) {
+    destination = ['gold', 'silver'].find(key => day.qualificationSnapshot[key]?.players.includes(standing.id)) || null;
+  } else {
+    const tie = table.ties.find(t => t.players.includes(standing.id));
+    const places = tie ? Array.from({ length: tie.endPlace - tie.place + 1 }, (_, i) => tie.place + i) : [standing.place];
+    const destinations = places.map(place => ['gold', 'silver'].find(key => qualificationRules[key].includes(place)) || null);
+    // Ein Gleichstand über einer Qualifikationsgrenze darf keinen einzelnen
+    // Spieler durch die zufällige Darstellungsreihenfolge zum Weiterkommer machen.
+    if (new Set(destinations).size > 1) return { kind: 'unresolved', label: 'Platz offen', provisional: true };
+    destination = destinations[0];
+  }
+  if (!destination) return null;
+  const provisional = !day.qualificationSnapshot && (!groupDone(group, day) || standing.unresolved);
+  return { kind: split ? destination : 'ko', label: split ? destination === 'gold' ? 'Gold' : 'Silber' : 'Weiter', provisional };
+}
 const seedCompare = (a, b) => a.place - b.place || b.mp - a.mp || diff(b) - diff(a);
 export function qualification(day, division = 'gold') {
   const places = rules(day)[division] || [];
