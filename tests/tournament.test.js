@@ -363,3 +363,10 @@ test('Manueller Paarungstausch nach gespieltem Finale bewahrt Originalteilnehmer
   assert.ok(semi.conflict); assert.ok(changed.day.matches.Finale[0].conflict);
   assert.ok(changed.effects.filter(e => e.conflict).length >= 3);
 });
+test('Noch offene Gruppenspiele verhindern vorzeitige Entscheidungsspiele', () => {
+  const g = group(['A', 'B', 'C'], T.roundRobinMatches(['A', 'B', 'C'])), day = dayFor([g]);
+  assert.equal(T.groupDone(g, day), false);
+  assert.equal(T.standings(g, day).ties.length, 1);
+  assert.throws(() => T.createDecider(day, g.id, g.players), /erst nach Abschluss/);
+  assert.equal(g.deciderMatches, undefined);
+});

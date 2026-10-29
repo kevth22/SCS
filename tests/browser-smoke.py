@@ -8,14 +8,15 @@ from playwright.sync_api import sync_playwright, expect
 import functools
 
 ROOT = Path(__file__).resolve().parents[1]
-HARNESS = '''<!doctype html><html lang="de"><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/vereinsserie.css"><link rel="stylesheet" href="/tournament-admin.css"></head><body><main style="max-width:1100px;margin:auto;padding:12px"><div id="host"></div></main><script type="module">
+HARNESS = '''<!doctype html><html lang="de"><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/vereinsserie.css"><link rel="stylesheet" href="/tournament-admin.css"></head><body><main class="app-container serie-wrap"><section id="tab-turnierbaum" class="serie-panel active"><div id="host"></div></section></main><script type="module">
 import * as T from '/tournament-engine.js';
 import { renderTournamentAdmin, confirmPlan } from '/tournament-admin.js';
 const players = ['Max', 'Tim', 'Leon', 'Ben'];
-let day = { id:'browser-test', attendees:players, engine:'groups', mode:'groupsko', groupFormat:{format:'legs'}, qualifyPlaces:[1,2], groups:[{id:'G1',name:'Gruppe A',players,matches:T.roundRobinMatches(players)}] };
+const others = ['Dart General', 'Hawkeye', 'Mr.1', 'Prinzessin'];
+let day = { id:'browser-test', attendees:[...players,...others], engine:'groups', mode:'groupsko', groupFormat:{format:'legs'}, qualifyPlaces:[1,2], groups:[{id:'G1',name:'Gruppe A',players,matches:T.roundRobinMatches(players)}, {id:'G2',name:'Gruppe B',players:others,matches:T.roundRobinMatches(others)}] };
 const first = day.groups[0].matches.find(m => m.p1 === 'Max');
 T.editMatch(day, first.id, {status:'completed',s1:2,s2:1,legs1:2,legs2:1});
-function render() { T.normalizeDay(day); renderTournamentAdmin({day,host:document.getElementById('host'),name:id=>id||'Offen',editable:true,finish:()=>{},run: async (action,mutate) => { const p=T.planChange(day,action,'admin',mutate); if(await confirmPlan(p,id=>id||'Offen',action)) { day=p.day; window.day=day; render(); } } }); }
+function render() { T.normalizeDay(day); renderTournamentAdmin({day,host:document.getElementById('host'),name:id=>id === 'Tim' ? 'Hackenschorschie mit langem Spielernamen' : id||'Offen',editable:true,finish:()=>{},run: async (action,mutate) => { const p=T.planChange(day,action,'admin',mutate); if(await confirmPlan(p,id=>id||'Offen',action)) { day=p.day; window.day=day; render(); } } }); }
 window.day=day; render(); window.ready=true;
 </script></body></html>'''
 
@@ -45,7 +46,10 @@ try:
             page.goto(f'http://127.0.0.1:{server.server_port}/__test')
             page.wait_for_function('window.ready === true')
             expect(page.get_by_role('heading', name='Gruppe A', exact=True)).to_be_visible()
-            page.locator('.group-card details > summary').click()
+            expect(page.locator('[data-decider]')).to_have_count(0)
+            assert page.locator('.group-card > h3').first.evaluate("el => getComputedStyle(el).color") == 'rgb(0, 0, 0)'
+            assert page.locator('.tournament-admin .group-card, .tournament-admin button, .tournament-admin summary').evaluate_all('els => els.every(el => { const r=el.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.left >= -1; })'), 'Admin-Inhalt wird am Bildschirmrand abgeschnitten'
+            page.locator('.group-card details > summary').first.click()
             target = page.locator('.group-card .tournament-match').filter(has_text='Max – Ben')
             target.get_by_role('button', name='Spiel bearbeiten').click()
             form = page.locator('dialog form')
@@ -72,7 +76,7 @@ try:
             assert page.evaluate("window.day.groups[0].matches.find(m => m.p1==='Max').winner") == 'Ben'
             assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Seite läuft horizontal über'
             assert not errors, errors
-            print(f'PASS Browser {width}x{height}: Korrektur, Vorschau, Abbruch, Rückzug, Wiedereinstieg, Layout')
+            print(f'PASS Browser {width}x{height}: Korrektur, Vorschau, Abbruch, Rückzug, Wiedereinstieg, echte App-Container, lange Namen, sichtbare Überschriften, keine vorzeitigen Entscheidungsspiele')
             page.close()
         browser.close()
 finally:
