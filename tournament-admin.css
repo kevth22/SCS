@@ -1,0 +1,26 @@
+.tournament-admin { margin-top: 1rem; display: grid; gap: 1.2rem; }
+.tournament-admin h3, .tournament-admin h4 { margin: .6rem 0; }
+.tournament-admin details { margin: .65rem 0; }
+.tournament-admin summary { cursor: pointer; padding: .6rem; font-weight: 600; }
+.tournament-admin table { width: 100%; border-collapse: collapse; }
+.tournament-admin th, .tournament-admin td { padding: .5rem; text-align: left; white-space: nowrap; }
+.tournament-match-list { display: grid; gap: .6rem; }
+.tournament-match { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .8rem; border: 1px solid #7776; border-radius: .6rem; margin: .5rem 0; }
+.tournament-match > div { display: grid; gap: .3rem; min-width: 0; }
+.tournament-match small, .tournament-match strong, .tournament-match span { overflow-wrap: anywhere; }
+.tournament-admin .has-conflict { border: 2px solid #d58c21; padding: .7rem; border-radius: .5rem; }
+.tournament-dialog { color: #f5f5f5; background: #202225; border: 1px solid #888; border-radius: .8rem; width: min(680px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 1.2rem; box-sizing: border-box; }
+.tournament-dialog::backdrop { background: #000b; }
+.tournament-dialog form, .tournament-dialog label { display: grid; gap: .6rem; }
+.tournament-dialog input, .tournament-dialog select, .tournament-dialog textarea { width: 100%; box-sizing: border-box; padding: .65rem; font: inherit; color: inherit; background: #30343a; border: 1px solid #888; border-radius: .3rem; }
+.tournament-dialog button, .tournament-admin button { min-height: 44px; cursor: pointer; }
+.tournament-dialog button:disabled, .tournament-admin button:disabled { cursor: default; opacity: .5; }
+.tournament-dialog li { margin-bottom: .7rem; }
+.tournament-dialog li small { display: block; overflow-wrap: anywhere; }
+.tournament-dialog .workspace-actions { position: sticky; bottom: -1.2rem; background: #202225; padding: .8rem 0; }
+.tournament-admin pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+.tournament-dialog .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.tournament-admin .tournament-tree { display: flex; min-width: max-content; gap: 1rem; }
+.tournament-admin .tree-round { min-width: 210px; max-width: 280px; }
+.tournament-admin .table-scroll, .tournament-admin .tournament-tree-scroll { overflow-x: auto; }
+@media (max-width: 600px) { .tournament-match { flex-direction: column; align-items: stretch; } .tournament-dialog .two-cols { grid-template-columns: 1fr; } .tournament-admin .groups-grid { grid-template-columns: 1fr; } }

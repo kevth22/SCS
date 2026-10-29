@@ -1,6 +1,10 @@
+import * as Tournament from './tournament-engine.js';
+import { renderTournamentAdmin, confirmPlan } from './tournament-admin.js';
+import { createTournamentWriter } from './tournament-persistence.js';
+import { refreshDouble, recomputeDoubleStats } from './tournament-double.js';
 import { db, getLogin } from './auth-utils.js';
 import {
-  doc, getDoc, setDoc, serverTimestamp, collection, getDocs
+  doc, getDoc, serverTimestamp, collection, getDocs, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const REF = doc(db, 'vereinsrangliste_neu', 'haupt');
@@ -73,14 +77,15 @@ function isRankingEligible(memberId) {
 
 async function refreshPermission() {
   login = getLogin();
-  currentRole = String(login?.rolle || '').toLowerCase();
+  currentRole = '';
+  canManage = false;
   if (!login?.benutzername) {
     canManage = false;
     return;
   }
   try {
     const snap = await getDoc(doc(db, 'mitglieder', login.benutzername));
-    if (snap.exists()) {
+    if (snap.exists() && snap.data().aktiv !== false) {
       currentRole = String(snap.data().rolle || 'gast').toLowerCase();
       canManage = ['admin', 'captain', 'kassenwart'].includes(currentRole);
     }
@@ -89,9 +94,44 @@ async function refreshPermission() {
   }
 }
 
-async function save({ render = true } = {}) {
-  await setDoc(REF, { ...state, updatedAt: serverTimestamp() });
-  if (render) renderAll();
+const tournamentWriter = createTournamentWriter({
+  db, ref: REF, getState: () => state, setState: value => { state = value; },
+  getActor: () => canManage ? getLogin()?.benutzername : null,
+  roles: ['admin', 'captain', 'kassenwart'],
+  runTransaction, getDoc, memberRef: actor => doc(db, 'mitglieder', actor),
+  serverTimestamp, render: renderAll, notify: toast
+});
+async function save(options = {}) { return tournamentWriter.save(options); }
+let tournamentMutationBusy = false;
+async function runTournamentChange(action, mutate, alwaysConfirm = false) {
+  if (!canManage || !state.current) return toast('Verwaltungsberechtigung erforderlich.');
+  if (tournamentMutationBusy) return toast('Bitte die laufende Änderung abschließen.');
+  tournamentMutationBusy = true;
+  try {
+    const original = state.current;
+    const source = JSON.stringify(original);
+    const plan = Tournament.planChange(original, action, getLogin()?.benutzername, mutate, refreshDouble);
+    if ((alwaysConfirm || plan.drift.length || plan.effects.length > 1 || plan.effects.some(e => e.conflict)) &&
+        !await confirmPlan(plan, memberName, action)) return;
+    if (state.current !== original || JSON.stringify(original) !== source) throw new Error('Der Turnierstand hat sich geändert. Bitte erneut prüfen.');
+    state.current = plan.day;
+    await save();
+    toast('Änderung gespeichert.');
+  } catch (error) { console.error(error); toast(error.message); }
+  finally { tournamentMutationBusy = false; }
+}
+function mountTournamentAdmin(day, editable = canManage) {
+  Tournament.normalizeDay(day);
+  renderTournamentAdmin({ day, host: $('dayWorkspace'), name: memberName, editable,
+    run: runTournamentChange, finish: finishDay });
+}
+async function saveTournamentScore(match, prefix, config) {
+  if (!canManage) return;
+  const score = readMatchScore(prefix, config);
+  if (!score) return toast('Bitte ein gültiges eindeutiges Ergebnis und ganze Legs eintragen.');
+  await runTournamentChange('Ergebnis speichern', draft => Tournament.editMatch(draft, match.id, {
+    s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, status: 'completed'
+  }));
 }
 
 async function syncMembers(showToast = true) {
@@ -120,13 +160,14 @@ async function syncMembers(showToast = true) {
       currentSeason.ranking[m.id] ||= blankStats();
     });
   }
-  await save({ render: false });
+  if (canManage) await save({ render: false });
   if (showToast) toast(`${members.length} Spieler synchronisiert.`);
 }
 
 async function load() {
   await refreshPermission();
   const snap = await getDoc(REF);
+  tournamentWriter.loaded(snap.exists() ? snap.data() : null);
   if (snap.exists()) state = { ...state, ...snap.data() };
   state.members ||= [];
   state.seasons ||= [];
@@ -139,7 +180,7 @@ async function load() {
   if (!state.activeSeasonId || !state.seasons.some(s => s.id === state.activeSeasonId)) {
     state.activeSeasonId = state.seasons[0].id;
   }
-  await syncMembers(false);
+  if (canManage) await syncMembers(false);
   renderAll();
 }
 
@@ -171,7 +212,7 @@ function validateScore(a, b, config) {
 }
 function totalLegsFromScore(a, b, config, explicitA, explicitB) {
   if (config.format === 'sets') {
-    return [Math.max(0, +explicitA || 0), Math.max(0, +explicitB || 0)];
+    return [Number(explicitA), Number(explicitB)];
   }
   return [a, b];
 }
@@ -202,96 +243,11 @@ function shuffled(array) {
   return result;
 }
 function makeSingleElimination(ids, seededOrder = null, fixedSize = null) {
-  const players = seededOrder ? [...seededOrder] : shuffled(ids);
-  const requestedSize = Number(fixedSize);
-  const size = [4, 8, 16, 32].includes(requestedSize) ? requestedSize : powerOfTwo(players.length);
-  if (players.length > size) throw new Error(`Für das ${size}er Feld sind höchstens ${size} Teilnehmer möglich.`);
-  const names = roundNames(size);
-  const byeCount = size - players.length;
-
-  // Freilose müssen echten Spielern gegenüberstehen. Die alte Logik hängte
-  // alle leeren Plätze ans Ende und erzeugte dadurch leere Partien statt Freilose.
-  const slots = [];
-  let playerIndex = 0;
-
-  for (let matchIndex = 0; matchIndex < size / 2; matchIndex++) {
-    if (matchIndex < byeCount) {
-      slots.push(players[playerIndex++] || null, null);
-    } else {
-      slots.push(players[playerIndex++] || null, players[playerIndex++] || null);
-    }
-  }
-
-  const matches = {};
-  names.forEach((round, roundIndex) => {
-    const count = size / (2 ** (roundIndex + 1));
-    matches[round] = Array.from({ length: count }, (_, index) => ({
-      id: uid(),
-      p1: roundIndex === 0 ? slots[index * 2] : null,
-      p2: roundIndex === 0 ? slots[index * 2 + 1] : null,
-      s1: null, s2: null, legs1: 0, legs2: 0,
-      winner: null, loser: null, completed: false, bye: false
-    }));
-  });
-
-  const day = { engine: 'ko', rounds: names, matches, size, byeCount };
-  advanceKO(day);
-  return day;
+  const players = seededOrder || shuffled(ids);
+  return Tournament.makeBracket(players.map(id => ({ id })), fixedSize);
 }
-function advanceKO(day) {
-  let changed = true;
-  while (changed) {
-    changed = false;
-
-    day.rounds.forEach((round, ri) => {
-      day.matches[round].forEach((match, mi) => {
-        if (ri === 0 && !match.completed && Boolean(match.p1) !== Boolean(match.p2)) {
-          match.winner = match.p1 || match.p2;
-          match.completed = true;
-          match.bye = true;
-          changed = true;
-        }
-
-        if (match.completed && match.winner && ri < day.rounds.length - 1) {
-          const next = day.matches[day.rounds[ri + 1]][Math.floor(mi / 2)];
-          const side = mi % 2 === 0 ? 'p1' : 'p2';
-          if (next[side] !== match.winner) {
-            next[side] = match.winner;
-            changed = true;
-          }
-        }
-      });
-    });
-  }
-}
-function koResults(day) {
-  const stats = Object.fromEntries(day.attendees.map(id => [id, { id, wins: 0, legsFor: 0, legsAgainst: 0, eliminatedRound: -1 }]));
-  day.rounds.forEach((round, ri) => day.matches[round].forEach(m => {
-    if (!m.completed || m.bye) return;
-    stats[m.winner].wins++;
-    stats[m.p1].legsFor += m.legs1 || m.s1 || 0;
-    stats[m.p1].legsAgainst += m.legs2 || m.s2 || 0;
-    stats[m.p2].legsFor += m.legs2 || m.s2 || 0;
-    stats[m.p2].legsAgainst += m.legs1 || m.s1 || 0;
-    stats[m.loser].eliminatedRound = ri;
-  }));
-  const final = day.matches[day.rounds.at(-1)][0];
-  const winner = final.winner;
-  const runnerUp = final.loser;
-  const results = [];
-  if (winner && stats[winner]) results.push({ ...stats[winner], place: 1 });
-  if (runnerUp && stats[runnerUp]) results.push({ ...stats[runnerUp], place: 2 });
-
-  let nextPlace = 3;
-  for (let ri = day.rounds.length - 2; ri >= 0; ri--) {
-    const cohort = Object.values(stats)
-      .filter(row => row.id !== winner && row.id !== runnerUp && row.eliminatedRound === ri)
-      .sort((a, b) => memberName(a.id).localeCompare(memberName(b.id), 'de'));
-    cohort.forEach(row => results.push({ ...row, place: nextPlace }));
-    nextPlace += cohort.length;
-  }
-  return results;
-}
+function advanceKO(day) { Tournament.normalizeDay(day); Tournament.advanceBracket(day); }
+function koResults(day) { return Tournament.performanceResults(day, Tournament.knockoutResults(day)); }
 
 // ---------- Schweizer System ----------
 function swissStats(day) {
@@ -324,6 +280,7 @@ function swissStats(day) {
   );
 }
 function pairSwissRound(day) {
+  if (Tournament.matchEntries(day).some(e => e.match.conflict)) throw new Error('Zuerst die Korrekturkonflikte lösen.');
   const standings = swissStats(day);
   const played = new Set();
   (day.swissRoundsData || []).flat().forEach(match => {
@@ -447,120 +404,12 @@ function roundRobinGroupMatches(players) {
 }
 
 function setupGroups(day) {
-  const count = day.groupCount === 'auto' ? autoGroupCount(day.attendees.length) : Math.max(1, +day.groupCount || 1);
-  const groups = Array.from({ length: Math.min(count, day.attendees.length) }, (_, index) => ({
-    id: `G${index + 1}`, name: `Gruppe ${String.fromCharCode(65 + index)}`, players: [], matches: []
-  }));
-  const source = day.groupDrawMode === 'manual'
-    ? [...day.attendees].sort((a, b) => (day.groupAssignments?.[a] ?? 999) - (day.groupAssignments?.[b] ?? 999))
-    : day.groupDrawMode === 'seeded' ? seededGroupOrder(day.attendees) : shuffled(day.attendees);
-
-  if (day.groupDrawMode === 'manual') {
-    source.forEach(id => {
-      const target = Math.max(0, Math.min(groups.length - 1, +(day.groupAssignments?.[id] ?? 0)));
-      groups[target].players.push(id);
-    });
-  } else {
-    source.forEach((id, index) => {
-      const cycle = Math.floor(index / groups.length);
-      const position = cycle % 2 === 0 ? index % groups.length : groups.length - 1 - (index % groups.length);
-      groups[position].players.push(id);
-    });
-  }
-
-  groups.forEach(group => {
-    group.matches = roundRobinGroupMatches(group.players);
-  });
-  day.groups = groups;
-  day.groupPhaseDone = false;
-  day.ko = null;
+  const source = day.groupDrawMode === 'manual' ? day.attendees : day.groupDrawMode === 'seeded' ? seededGroupOrder(day.attendees) : shuffled(day.attendees);
+  Tournament.setupGroups(day, source);
 }
-function groupTable(group) {
-  const rows = Object.fromEntries(group.players.map(id => [id, { id, mp: 0, wins: 0, legsFor: 0, legsAgainst: 0 }]));
-  group.matches.forEach(match => {
-    if (!match.completed) return;
-    rows[match.p1].legsFor += match.legs1 || match.s1 || 0;
-    rows[match.p1].legsAgainst += match.legs2 || match.s2 || 0;
-    rows[match.p2].legsFor += match.legs2 || match.s2 || 0;
-    rows[match.p2].legsAgainst += match.legs1 || match.s1 || 0;
-    rows[match.winner].mp += 2;
-    rows[match.winner].wins += 1;
-  });
-
-  // Zuerst nach den normalen Matchpunkten gruppieren. Bei Punktgleichheit
-  // entscheidet der direkte Vergleich vor der gesamten Leg-Differenz.
-  // Sind mehr als zwei Spieler punktgleich, wird eine Mini-Tabelle nur aus
-  // den direkten Duellen dieser Spieler gebildet.
-  const pointGroups = new Map();
-  Object.values(rows).forEach(row => {
-    if (!pointGroups.has(row.mp)) pointGroups.set(row.mp, []);
-    pointGroups.get(row.mp).push(row);
-  });
-
-  const sorted = [];
-  [...pointGroups.keys()].sort((a, b) => b - a).forEach(mp => {
-    const tied = pointGroups.get(mp);
-    if (tied.length === 1) {
-      sorted.push(tied[0]);
-      return;
-    }
-
-    const tiedIds = new Set(tied.map(row => row.id));
-    const direct = Object.fromEntries(tied.map(row => [row.id, {
-      mp: 0, legsFor: 0, legsAgainst: 0
-    }]));
-
-    group.matches.forEach(match => {
-      if (!match.completed || !tiedIds.has(match.p1) || !tiedIds.has(match.p2)) return;
-      const s1 = match.legs1 || match.s1 || 0;
-      const s2 = match.legs2 || match.s2 || 0;
-      direct[match.p1].legsFor += s1;
-      direct[match.p1].legsAgainst += s2;
-      direct[match.p2].legsFor += s2;
-      direct[match.p2].legsAgainst += s1;
-      if (match.winner && direct[match.winner]) direct[match.winner].mp += 2;
-    });
-
-    tied.sort((a, b) => {
-      const da = direct[a.id], db = direct[b.id];
-      return db.mp - da.mp ||
-        (db.legsFor - db.legsAgainst) - (da.legsFor - da.legsAgainst) ||
-        db.legsFor - da.legsFor ||
-        (b.legsFor - b.legsAgainst) - (a.legsFor - a.legsAgainst) ||
-        b.legsFor - a.legsFor ||
-        memberName(a.id).localeCompare(memberName(b.id), 'de');
-    });
-    sorted.push(...tied);
-  });
-
-  return sorted;
-}
-function allGroupsDone(day) {
-  return day.groups.every(group => group.matches.every(match => match.completed));
-}
-function buildGroupsKO(day) {
-  const qualified = [];
-  day.groups.forEach(group => {
-    const table = groupTable(group);
-    (day.qualifyPlaces || [1, 2]).forEach(place => {
-      const row = table[place - 1];
-      if (row) qualified.push({ id: row.id, group: group.id, place });
-    });
-  });
-  qualified.sort((a, b) => a.place - b.place);
-  // Beste Platzierungen bekommen Freilose; gleiche Gruppen werden soweit möglich getrennt.
-  const ordered = [];
-  const remaining = [...qualified];
-  while (remaining.length) {
-    const first = remaining.shift();
-    ordered.push(first.id);
-    const opponentIndex = remaining.findIndex(x => x.group !== first.group && x.place !== first.place);
-    if (opponentIndex >= 0) ordered.push(remaining.splice(opponentIndex, 1)[0].id);
-  }
-  day.ko = makeSingleElimination(qualified.map(x => x.id), ordered);
-  day.ko.attendees = qualified.map(x => x.id);
-  day.groupPhaseDone = true;
-}
+function groupTable(group) { return Tournament.standings(group, state.current || {}).rows; }
+function allGroupsDone(day) { return Tournament.allGroupsDone(day); }
+function buildGroupsKO(day) { Tournament.previewFinals(day); }
 function groupOnlyResults(day, startPlace = 1, excludedIds = new Set()) {
   const tables = (day.groups || []).map(group => groupTable(group));
   const maxRows = Math.max(0, ...tables.map(table => table.length));
@@ -578,35 +427,7 @@ function groupOnlyResults(day, startPlace = 1, excludedIds = new Set()) {
   return results;
 }
 
-function groupsResults(day) {
-  if (!allGroupsDone(day)) return [];
-  const qualifyCount = day.qualifyPlaces?.length || 0;
-
-  // Ohne Weiterkommer endet das Turnier direkt mit der Gruppenplatzierung.
-  // Gleiche Gruppenplätze erhalten dabei dieselbe Endplatzierung.
-  if (qualifyCount === 0) return groupOnlyResults(day, 1);
-
-  if (!day.groupPhaseDone || !day.ko) return [];
-  const ko = { ...day, ...day.ko, attendees: day.ko.attendees || [] };
-  const koRows = koResults(ko);
-  const qualified = new Set(day.ko.attendees || []);
-  const groupRows = (day.groups || []).flatMap(group => groupTable(group));
-
-  // Gruppenstatistik in die K.-o.-Teilnehmer einrechnen.
-  const groupById = Object.fromEntries(groupRows.map(row => [row.id, row]));
-  koRows.forEach(row => {
-    const group = groupById[row.id];
-    if (!group) return;
-    row.wins = (row.wins || 0) + (group.wins || 0);
-    row.legsFor = (row.legsFor || 0) + (group.legsFor || 0);
-    row.legsAgainst = (row.legsAgainst || 0) + (group.legsAgainst || 0);
-  });
-
-  // Nicht qualifizierte Spieler werden nach ihrem Gruppenplatz eingeordnet.
-  // Spieler mit gleichem Gruppenplatz teilen sich dieselbe Endplatzierung.
-  const eliminated = groupOnlyResults(day, qualified.size + 1, qualified);
-  return [...koRows, ...eliminated];
-}
+function groupsResults(day) { return Tournament.groupResults(day); }
 
 
 function makeSwiss(ids, totalRounds = 4) {
@@ -624,6 +445,7 @@ function makeGroupsKO(ids, sourceDay = {}) {
   const day = {
     engine: 'groups',
     attendees: [...ids],
+    qualificationRules: sourceDay.qualificationRules || { gold: sourceDay.qualifyPlaces ?? [1, 2], silver: [] },
     groupCount: sourceDay.groupCount || 'auto',
     groupDrawMode: sourceDay.groupDrawMode || 'manual',
     groupAssignments: { ...(sourceDay.groupAssignments || {}) },
@@ -863,35 +685,7 @@ function recomputeDoubleKOStats(day) {
   day.de.losses = losses;
 }
 
-function refreshDoubleKO(day) {
-  if (!day?.de?.wbRounds) return false;
-  let changed = false;
-  let guard = 0;
-  do {
-    changed = false;
-    allDoubleKOMatches(day).forEach(match => {
-      if (resolveDoubleKOMatch(day, match)) changed = true;
-    });
-    guard++;
-  } while (changed && guard < 100);
-
-  recomputeDoubleKOStats(day);
-
-  const gf = day.de.grandFinal;
-  const wbChampion = day.de.wbRounds.at(-1)?.matches?.[0]?.winner || null;
-  if (gf?.completed && !gf.bye) {
-    if (gf.winner === wbChampion) {
-      day.de.champion = gf.winner;
-      day.de.resetFinal = null;
-    } else {
-      if (!day.de.resetFinal) {
-        day.de.resetFinal = makeDEMatch('reset', 0, 0, gf.p1, gf.p2);
-      }
-      if (day.de.resetFinal.completed) day.de.champion = day.de.resetFinal.winner;
-    }
-  }
-  return true;
-}
+function refreshDoubleKO(day) { refreshDouble(day); return true; }
 
 // Kompatibilitätshelfer für ältere Aufrufe innerhalb der Datei.
 function continueCompletedDoubleKORounds(day) { return refreshDoubleKO(day); }
@@ -959,6 +753,7 @@ async function finishDay() {
   const day = state.current;
   const currentSeason = season();
   if (!day || !currentSeason) return;
+  if (!Tournament.tournamentComplete(day)) return toast('Turnier ist noch offen oder enthält ungeklärte Konflikte.');
   const results = dayResults(day);
   if (!results.length) return toast('Das Turnier kann noch nicht abgeschlossen werden.');
 
@@ -1315,6 +1110,7 @@ function renderCurrent() {
   $('currentDayInfo').textContent = `${(day.attendees || []).length} Teilnehmer · ${day.out || ''} · ${day.rankingEnabled === false ? 'ohne Ranglistenwertung' : 'mit Ranglistenwertung'}`;
   $('currentStatus').textContent = isCurrent ? 'Läuft' : 'Abgeschlossen';
   renderTournamentTree(day);
+  mountTournamentAdmin(day, canManage && !treeReadOnly);
   if (treeReadOnly) $('dayWorkspace')?.querySelectorAll('.admin-only').forEach(el => el.hidden = true);
 } 
 
@@ -1403,45 +1199,7 @@ function renderSwissResults(day) {
   if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
 }
 
-function renderGroupsResults(day) {
-  if (!day.groupPhaseDone) {
-    const config = day.groupFormat || { format: 'legs', win: day.groupLegsToWin || 3, legsPerSet: 3 };
-    const cards = [];
-    day.groups.forEach((group, gi) => {
-      group.matches.forEach((match, mi) => {
-        const card = resultCard(match, config, `gr-${match.id}`, 'data-gr-save', `${gi}|${mi}`, group.name);
-        if (card) cards.push(card);
-      });
-    });
-    $('dayWorkspace').innerHTML = `
-      <div class="result-entry-header"><h3>Gruppenphase – offene Partien</h3><span>${cards.length} offen</span></div>
-      <div class="result-entry-list">${cards.join('') || '<div class="empty-state">Alle Gruppenspiele sind eingetragen.</div>'}</div>
-      <div class="workspace-actions admin-only">
-        <button id="startGroupsKO" class="primary" ${allGroupsDone(day) ? '' : 'disabled'}>K.-o.-Phase auslosen</button>
-      </div>`;
-    document.querySelectorAll('[data-gr-save]').forEach(button => button.onclick = () => saveGroupMatch(button.dataset.grSave));
-    if ($('startGroupsKO')) $('startGroupsKO').onclick = async () => { buildGroupsKO(day); await save(); };
-    return;
-  }
-
-  const cards = [];
-  day.ko.rounds.forEach(round => {
-    day.ko.matches[round].forEach((match, index) => {
-      const config = roundConfigFor(day, round);
-      const card = resultCard(match, config, `gko-${match.id}`, 'data-gko-save', `${round}|${index}`, round);
-      if (card) cards.push(card);
-    });
-  });
-  const final = day.ko.matches[day.ko.rounds.at(-1)][0];
-  $('dayWorkspace').innerHTML = `
-    <div class="result-entry-header"><h3>K.-o.-Phase – offene Partien</h3><span>${cards.length} offen</span></div>
-    <div class="result-entry-list">${cards.join('') || '<div class="empty-state">Zurzeit ist keine Partie zur Eingabe bereit.</div>'}</div>
-    <div class="workspace-actions admin-only">
-      <button id="finishCurrent" class="primary" ${final?.completed ? '' : 'disabled'}>Spieltag abschließen</button>
-    </div>`;
-  document.querySelectorAll('[data-gko-save]').forEach(button => button.onclick = () => saveGroupKOMatch(button.dataset.gkoSave));
-  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
-}
+function renderGroupsResults(day) { mountTournamentAdmin(day, canManage); }
 
 function renderDoubleKOResults(day) {
   refreshDoubleKO(day);
@@ -1719,76 +1477,7 @@ function runningGroupQualifyControl(day) {
   </div>`;
 }
 
-function renderGroupsTree(day) {
-  const groupHtml = `<div class="groups-grid">${day.groups.map((group, gi) => `
-    <section class="group-card">
-      <h3>${esc(group.name)}</h3>
-      <table>
-        <thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Diff.</th></tr></thead>
-        <tbody>${groupTable(group).map((row,i)=>`
-          <tr class="${i < (day.qualifyPlaces?.length || 0) ? 'qualified-row' : ''}"><td>${i+1}</td><td>${playerIdentity(row.id, 'small')}</td><td>${row.mp}</td>
-          <td>${row.legsFor-row.legsAgainst}</td></tr>`).join('')}</tbody>
-      </table>
-      <div class="group-tree-matches">
-        ${group.matches.map((match, mi) => treeMatchCard(match, {
-          editable: !day.groupPhaseDone,
-          prefix: `gr-${match.id}`,
-          saveAttr: 'data-gr-save',
-          saveValue: `${gi}|${mi}`,
-          label: group.name
-        })).join('')}
-      </div>
-    </section>`).join('')}</div>`;
-
-  if (!day.groupPhaseDone || !day.ko) {
-    const qualifyCount = day.qualifyPlaces?.length || 0;
-    const groupsDone = allGroupsDone(day);
-    $('dayWorkspace').innerHTML = `${runningGroupQualifyControl(day)}${groupHtml}
-      <div class="workspace-actions admin-only">
-        ${qualifyCount === 0
-          ? `<button id="finishGroupsOnly" class="primary" ${groupsDone ? '' : 'disabled'}>Gruppenturnier abschließen</button>`
-          : `<button id="startGroupsKO" class="primary" ${groupsDone ? '' : 'disabled'}>K.-o.-Phase auslosen</button>`}
-      </div>`;
-    document.querySelectorAll('[data-gr-save]').forEach(button => {
-      button.onclick = () => saveGroupMatch(button.dataset.grSave);
-    });
-    $('runningQualifyCount')?.addEventListener('change', event => updateRunningGroupQualifiers(day, event.target.value));
-    if ($('startGroupsKO')) $('startGroupsKO').onclick = async () => {
-      buildGroupsKO(day);
-      await save();
-    };
-    if ($('finishGroupsOnly')) $('finishGroupsOnly').onclick = finishDay;
-    return;
-  }
-
-  $('dayWorkspace').innerHTML = `${groupHtml}
-    <h2 class="ko-tree-heading">K.-o.-Baum</h2>
-    <div class="tournament-tree-scroll">
-      <div class="tournament-tree">
-        ${day.ko.rounds.map(round => `
-          <section class="tree-round">
-            <h3>${esc(round)}</h3>
-            ${day.ko.matches[round].map((match, index) => treeMatchCard(match, {
-              editable: true,
-              prefix: `gko-${match.id}`,
-              saveAttr: 'data-gko-save',
-              saveValue: `${round}|${index}`,
-              label: round
-            })).join('')}
-          </section>`).join('')}
-      </div>
-    </div>
-    <div class="workspace-actions admin-only">
-      <button id="finishCurrent" class="primary" ${
-        day.ko.matches[day.ko.rounds.at(-1)][0]?.completed ? '' : 'disabled'
-      }>Spieltag abschließen</button>
-    </div>`;
-
-  document.querySelectorAll('[data-gko-save]').forEach(button => {
-    button.onclick = () => saveGroupKOMatch(button.dataset.gkoSave);
-  });
-  if ($('finishCurrent')) $('finishCurrent').onclick = finishDay;
-}
+function renderGroupsTree(day) { $('dayWorkspace').replaceChildren(); }
 
 function doubleTreeRound(round, bracketLabel, options = {}) {
   const matches = round.matches || [];
@@ -1944,6 +1633,7 @@ function readMatchScore(prefix, config) {
   const a = +$(`${prefix}-s1`).value, b = +$(`${prefix}-s2`).value;
   if (!validateScore(a, b, config)) return null;
   const [legs1, legs2] = totalLegsFromScore(a, b, config, $(`${prefix}-l1`)?.value, $(`${prefix}-l2`)?.value);
+  if (!Number.isSafeInteger(legs1) || !Number.isSafeInteger(legs2) || legs1 < 0 || legs2 < 0) return null;
   if (config.format === 'sets' && legs1 + legs2 <= 0) return null;
   return { a, b, legs1, legs2 };
 }
@@ -1961,13 +1651,8 @@ function renderKOEditor(day) {
   $('finishCurrent').onclick = finishDay;
 }
 async function saveKOMatch(key) {
-  const [round, indexString] = key.split('|');
-  const match = state.current.matches[round][+indexString];
-  const config = roundConfigFor(state.current, round), prefix = `ko-${match.id}`;
-  const score = readMatchScore(prefix, config);
-  if (!score) return toast('Bitte ein gültiges eindeutiges Ergebnis eintragen.');
-  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, firstTo: Math.max(score.a, score.b), winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
-  advanceKO(state.current); await save();
+  const [round, index] = key.split('|'), day = state.current;
+  return saveTournamentScore(day.matches[round][+index], `ko-${day.matches[round][+index].id}`, roundConfigFor(day, round));
 }
 function renderSwissEditor(day) {
   const standings = swissStats(day), round = day.swissRoundsData.length, matches = day.swissRoundsData.at(-1) || [];
@@ -1984,51 +1669,16 @@ function renderSwissEditor(day) {
 }
 async function saveSwissMatch(index) {
   const day = state.current, match = day.swissRoundsData.at(-1)[index];
-  const config = day.swissFormat || { format: 'legs', win: day.legsToWin || 3, legsPerSet: 3 };
-  const score = readMatchScore(`sw-${match.id}`, config);
-  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
-  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
-  await save();
+  return saveTournamentScore(match, `sw-${match.id}`, day.swissFormat || { format: 'legs' });
 }
-function renderGroupsEditor(day) {
-  if (!day.groupPhaseDone) {
-    const config = day.groupFormat || { format: 'legs', win: day.groupLegsToWin || 3, legsPerSet: 3 };
-    $('dayWorkspace').innerHTML = `<div class="groups-grid">${day.groups.map((group, gi) => `<section class="group-card"><h3>${group.name}</h3><table><thead><tr><th>#</th><th>Spieler</th><th>MP</th><th>Diff.</th></tr></thead><tbody>${groupTable(group).map((row, i) => `<tr><td>${i + 1}</td><td>${playerIdentity(row.id, 'small')}</td><td>${row.mp}</td><td>${row.legsFor - row.legsAgainst}</td></tr>`).join('')}</tbody></table>${group.matches.map((match, mi) => {
-      const prefix = `gr-${match.id}`;
-      return `<article class="swiss-match">${scoreInputs(match, config, prefix)}<button data-gr-save="${gi}|${mi}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
-    }).join('')}</section>`).join('')}</div><div class="workspace-actions admin-only"><button id="startGroupsKO" class="primary" ${allGroupsDone(day) ? '' : 'disabled'}>K.-o.-Phase auslosen</button></div>`;
-    document.querySelectorAll('[data-gr-save]').forEach(button => button.onclick = () => saveGroupMatch(button.dataset.grSave));
-    $('startGroupsKO').onclick = async () => { buildGroupsKO(day); await save(); };
-  } else {
-    const koDay = { ...day, ...day.ko };
-    // Render mit Originalreferenzen, damit Speichern in day.ko landet.
-    advanceKO(koDay); day.ko.matches = koDay.matches;
-    $('dayWorkspace').innerHTML = `<h2>K.-o.-Phase</h2><div class="bracket">${day.ko.rounds.map(round => `<div class="round-column"><h3>${round}</h3>${day.ko.matches[round].map((match, index) => {
-      if (match.bye) return `<article class="match-card"><strong>${esc(memberName(match.winner))}</strong><p>Freilos – automatisch weiter</p></article>`;
-      if (!match.p1 || !match.p2) return '<article class="match-card"><p>Wartet auf vorherige Partie</p></article>';
-      const config = roundConfigFor(day, round), prefix = `gko-${match.id}`;
-      return `<article class="match-card">${scoreInputs(match, config, prefix)}<button data-gko-save="${round}|${index}" ${match.completed || !canManage ? 'disabled' : ''}>Ergebnis speichern</button></article>`;
-    }).join('')}</div>`).join('')}</div><div class="workspace-actions admin-only"><button id="finishCurrent" class="primary">Spieltag abschließen</button></div>`;
-    document.querySelectorAll('[data-gko-save]').forEach(button => button.onclick = () => saveGroupKOMatch(button.dataset.gkoSave));
-    $('finishCurrent').disabled = !day.ko.matches[day.ko.rounds.at(-1)][0]?.completed;
-    $('finishCurrent').onclick = finishDay;
-  }
-}
+function renderGroupsEditor(day) { mountTournamentAdmin(day, canManage); }
 async function saveGroupMatch(key) {
   const [gi, mi] = key.split('|').map(Number), day = state.current, match = day.groups[gi].matches[mi];
-  const config = day.groupFormat || { format: 'legs', win: day.groupLegsToWin || 3, legsPerSet: 3 };
-  const score = readMatchScore(`gr-${match.id}`, config);
-  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
-  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, completed: true });
-  await save();
+  return saveTournamentScore(match, `gr-${match.id}`, day.groupFormat || { format: 'legs' });
 }
 async function saveGroupKOMatch(key) {
-  const [round, indexString] = key.split('|'), day = state.current, match = day.ko.matches[round][+indexString];
-  const config = roundConfigFor(day, round), score = readMatchScore(`gko-${match.id}`, config);
-  if (!score) return toast('Bitte ein gültiges Ergebnis eintragen.');
-  Object.assign(match, { s1: score.a, s2: score.b, legs1: score.legs1, legs2: score.legs2, winner: score.a > score.b ? match.p1 : match.p2, loser: score.a > score.b ? match.p2 : match.p1, completed: true });
-  const koDay = { ...day, ...day.ko }; advanceKO(koDay); day.ko.matches = koDay.matches;
-  await save();
+  const [round, index] = key.split('|'), day = state.current, match = day.ko.matches[round][+index];
+  return saveTournamentScore(match, `gko-${match.id}`, roundConfigFor(day, round));
 }
 function doubleRoundConfig(day) {
   return { format: 'legs', win: 1, legsPerSet: 1 };
@@ -2039,35 +1689,9 @@ function renderDoubleKOEditor(day) {
 }
 
 async function saveDoubleKOMatch(matchId) {
-  const day = state.current;
-  if (!day?.de?.wbRounds) return toast('Doppel-K.-o.-Baum wurde nicht gefunden.');
-  refreshDoubleKO(day);
-  const match = findDoubleKOMatch(day, String(matchId));
-  if (!match) return toast('Doppel-K.-o.-Partie wurde nicht gefunden.');
-  if (match.completed || !match.p1 || !match.p2) return toast('Diese Partie ist noch nicht spielbereit.');
-
-  const config = doubleRoundConfig(day);
-  const score = readMatchScore(`de-${match.id}`, config);
-  if (!score) return toast('Bitte ein gültiges eindeutiges Ergebnis eintragen.');
-
-  Object.assign(match, {
-    s1: score.a,
-    s2: score.b,
-    legs1: score.a,
-    legs2: score.b,
-    firstTo: Math.max(score.a, score.b),
-    winner: score.a > score.b ? match.p1 : match.p2,
-    loser: score.a > score.b ? match.p2 : match.p1,
-    completed: true,
-    bye: false,
-    completedAt: new Date().toISOString()
-  });
-
-  refreshDoubleKO(day);
-  await save();
-  if (day.de.champion) toast(`${memberName(day.de.champion)} gewinnt den Doppel-K.-o.-Spieltag.`);
-  else if (day.de.resetFinal && !day.de.resetFinal.completed) toast('Grand Final ausgeglichen – Reset-Finale wurde automatisch erstellt.');
-  else toast('Ergebnis gespeichert. Sieger und Verlierer wurden automatisch weitergeleitet.');
+  const day = state.current, match = findDoubleKOMatch(day, String(matchId));
+  if (!match) return toast('Partie wurde nicht gefunden.');
+  return saveTournamentScore(match, `de-${match.id}`, doubleRoundConfig(day));
 }
 
 function renderHistory() {
@@ -2153,6 +1777,7 @@ async function drawAndStart() {
       day.attendees = selected;
     } else if (day.mode === 'doubleko') {
       Object.assign(day, makeDoubleKO(selected, day.bracketSize || null));
+      day.bracketStartedAt = null;
       day.mode = 'doubleko';
       day.status = 'laeuft';
       day.attendees = selected;
@@ -2205,11 +1830,12 @@ async function createDay() {
       if (groupCount > selected.length) return toast('Es können nicht mehr Gruppen als Teilnehmer angelegt werden.');
 
       const assignments = {};
+      const automaticGroups = $('createGroupDrawMode')?.value !== 'manual';
       const groupSizes = Array(groupCount).fill(0);
       for (const id of selected) {
         const select = document.querySelector(`[data-group-assign="${CSS.escape(id)}"]`);
         if (!select) return toast('Bitte jedem Teilnehmer eine Gruppe zuweisen.');
-        const groupIndex = +select.value;
+        const groupIndex = automaticGroups ? selected.indexOf(id) % groupCount : +select.value;
         if (!Number.isInteger(groupIndex) || groupIndex < 0 || groupIndex >= groupCount) return toast('Ungültige Gruppenzuordnung.');
         assignments[id] = groupIndex;
         groupSizes[groupIndex]++;
@@ -2218,14 +1844,16 @@ async function createDay() {
       if (qualifyCount > 0 && groupSizes.some(size => size < qualifyCount)) return toast('Es können nicht mehr Spieler weiterkommen, als in der kleinsten Gruppe vorhanden sind.');
 
       day.groupCount = groupCount;
-      day.groupDrawMode = 'manual';
+      day.groupDrawMode = $('createGroupDrawMode')?.value || 'manual';
       day.groupAssignments = assignments;
       day.qualifyPlaces = Array.from({ length: qualifyCount }, (_, index) => index + 1);
+      day.qualificationRules = readQualificationInputs(day.qualifyPlaces);
       Object.assign(day, makeGroupsKO(selected, day));
       day.mode = 'groupsko';
       day.bracketSize = qualifyCount > 0 ? powerOfTwo(groupCount * qualifyCount) : 0;
     } else if (tournamentType === 'doubleko') {
       Object.assign(day, makeDoubleKO(selected, bracketSize));
+      day.bracketStartedAt = null;
       day.mode = 'doubleko';
     } else {
       Object.assign(day, makeSingleElimination(selected, null, bracketSize));
@@ -2263,7 +1891,10 @@ async function reopenDay(id) {
   if (index < 0) return;
   if (!confirm('Spieltag zur Bearbeitung öffnen? Punkte werden vorübergehend zurückgenommen.')) return;
   const day = currentSeason.days[index]; rollbackDay(currentSeason, day); currentSeason.days.splice(index, 1);
-  state.current = { ...day, status: 'laeuft', results: undefined, finishedAt: undefined };
+  state.current = { ...day, status: 'laeuft' };
+  state.current.audit ||= [];
+  state.current.audit.push({ id: uid(), at: new Date().toISOString(), actor: getLogin()?.benutzername || '', action: 'Abgeschlossenes Turnier zur Korrektur geöffnet', before: { results: day.results || [], finishedAt: day.finishedAt || null } });
+  delete state.current.results; delete state.current.finishedAt;
   await save(); closeDrawer(); selectTab('turnierbaum');
 }
 async function createSeason() {
@@ -2430,3 +2061,14 @@ $('addBestPerformanceBtn')?.addEventListener('click', addBestPerformance);
 $('bestOverviewFilter')?.addEventListener('change', renderBestOverview);
 
 load().catch(error => { console.error(error); toast(`Daten konnten nicht geladen werden: ${error?.message || error}`); });
+
+
+function readQualificationInputs(defaultGold) {
+  const parse = (id, fallback) => {
+    const value = $(id)?.value;
+    return value === undefined || value.trim() === '' ? fallback : value.split(',').map(x => Number(x.trim()));
+  };
+  const qualificationRules = { gold: parse('goldQualifyPlaces', defaultGold), silver: parse('silverQualifyPlaces', []) };
+  Tournament.rules({ qualificationRules });
+  return qualificationRules;
+}

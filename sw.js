@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "bwe-v24-profile-groups";
+const VERSION = "scs-tournament-v2";
 
 const CORE_FILES = [
   "./",
@@ -133,3 +133,4 @@ self.addEventListener("fetch", event => {
       })
   );
 });
+
