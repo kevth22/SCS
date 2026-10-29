@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "scs-tournament-v4";
+const VERSION = "scs-tournament-v5";
 
 const CORE_FILES = [
   "./",

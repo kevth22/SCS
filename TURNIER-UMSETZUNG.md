@@ -217,3 +217,17 @@ vorhandene Avatarfunktion; die ältere Spieltagsansicht übernimmt `profilbild` 
 den vorhandenen Mitgliedsdaten. Ohne Profilbild erscheinen die Initialen. Die
 Browserprüfung kontrolliert ein tatsächlich geladenes Bild, die sichtbare Reihenfolge
 Platzierung → Profilbild → Name sowie die Initialen bei fehlendem Bild.
+
+Die Admin-Komponente bindet ihre versionierte CSS-Datei zusätzlich selbst ein.
+Damit werden die Layoutregeln auch geladen, wenn eine ältere zwischengespeicherte
+HTML-Seite den CSS-Link noch nicht enthält. Dieser Fall wird in Chromium auf dem
+Smartphoneformat ausdrücklich ohne CSS-Link in der HTML-Datei geprüft.
+
+Während laufender Gruppenspiele zeigt die Qualifikationsansicht ausschließlich
+die Regeln und den Phasenhinweis. Ungeklärte qualifikationsrelevante Gruppenplätze
+erzeugen keine vorweggenommene Teilnehmerliste. Bei gruppenübergreifenden
+Setzgleichständen steht der Setzplatz bis zur Adminentscheidung auf „offen“.
+Nach dem offiziellen Start zeigt die Qualifikationsansicht die eingefrorenen
+Setzlisten und Werte; spätere Gruppenkorrekturen werden als Abweichung angezeigt.
+Die erweiterte Browserprüfung durchläuft Gruppenabschluss, manuelle Setzung,
+Endrundenstart und anschließende Korrektur und prüft diese Anzeige.
