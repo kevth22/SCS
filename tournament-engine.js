@@ -88,8 +88,11 @@ export function groupSignature(group, day) {
   return JSON.stringify({ players: group.players.filter(id => !withdrawn(day, id)),
     matches: (group.matches || []).map(m => [m.id, m.p1, m.p2, m.s1, m.s2, m.legs1, m.legs2, m.completed, !!m.annulled, m.status, m.winner, !!m.conflict]) });
 }
+export function groupDone(group, day = {}) {
+  return (group.matches || []).every(m => finished(m) || withdrawn(day, m.p1) || withdrawn(day, m.p2));
+}
 export function allGroupsDone(day) {
-  return (day.groups || []).every(g => (g.matches || []).every(m => finished(m) || withdrawn(day, m.p1) || withdrawn(day, m.p2)));
+  return (day.groups || []).every(g => groupDone(g, day));
 }
 export function rules(day) {
   const result = day.qualificationRules || { gold: day.qualifyPlaces ?? [1, 2], silver: [] };
@@ -459,6 +462,7 @@ export function qualificationDrift(day) {
 }
 export function createDecider(day, groupId, players, format = 'round-robin') {
   const group = day.groups.find(g => g.id === groupId);
+  if (!group || !groupDone(group, day)) fail('Entscheidungsspiele sind erst nach Abschluss aller regulären Spiele dieser Gruppe möglich.');
   const tie = standings(group, day).ties.find(t => t.players.length === players.length && t.players.every(id => players.includes(id)));
   if (!tie) fail('Diese Spieler bilden aktuell keinen vollständigen Gleichstand.');
   const signature = groupSignature(group, day);

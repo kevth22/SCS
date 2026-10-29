@@ -123,6 +123,7 @@ async function runTournamentChange(action, mutate, alwaysConfirm = false) {
 function mountTournamentAdmin(day, editable = canManage) {
   Tournament.normalizeDay(day);
   renderTournamentAdmin({ day, host: $('dayWorkspace'), name: memberName, editable,
+    avatar: id => memberAvatar(id, 'small'),
     run: runTournamentChange, finish: finishDay });
 }
 async function saveTournamentScore(match, prefix, config) {

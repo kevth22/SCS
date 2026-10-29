@@ -1,5 +1,5 @@
 import {
-  standings, allGroupsDone, qualification, qualificationDrift, rules, diff, matchEntries,
+  standings, groupDone, allGroupsDone, qualification, qualificationDrift, rules, diff, matchEntries,
   divisions, editMatch, swapSlots, setManualSeeds, previewFinals, startFinals,
   createDecider, withdrawPlayer, reactivatePlayer, reentryAllowed, withdrawn, tournamentComplete,
   clone, swappableBracket
@@ -8,6 +8,12 @@ import {
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const score = m => m.annulled ? 'Annulliert' : m.bye ? 'Freilos' : m.completed ? `${m.s1}:${m.s2}${m.walkover ? ' · kampflos' : ''}` : m.status === 'live' ? 'Läuft' : m.withdrawalHold ? 'Erneut geöffnet · Rückzugswertung manuell prüfen' : 'Offen';
 const label = key => ['silver', 'previewSilver'].includes(key) ? 'Silber' : ['gold', 'previewGold'].includes(key) ? 'Gold / K.-o.' : 'K.-o.';
+
+export function renderPlayerAvatar(member, name) {
+  if (member?.profilbild) return `<img class="player-avatar player-avatar-small" src="${esc(member.profilbild)}" alt="">`;
+  const initials = String(name || '?').trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+  return `<span class="player-avatar player-avatar-small player-avatar-fallback" aria-hidden="true">${esc(initials || '?')}</span>`;
+}
 
 // Native dialog: Tastaturbedienung, Fokusbindung und mobile Darstellung.
 function dialog(title, body, accept = 'Speichern') {
@@ -45,16 +51,18 @@ function bracketHtml(bracket, key, name, editable) {
 }
 function qualificationHtml(day, name, editable) {
   const frozen = Boolean(day.koStartedAt || day.groupPhaseDone);
+  const done = allGroupsDone(day);
   const drift = qualificationDrift(day);
   return `<section class="tournament-qualification"><h3>Qualifikation und Setzlisten ${frozen ? '· eingefroren' : ''}</h3>
     <p>Qualifikationsplätze: ${['gold', 'silver'].map(k => `${label(k)}: ${rules(day)[k].join(', ') || 'keine'}`).join(' · ')}</p>
+    ${!done ? '<p>Die Gruppenphase läuft. Setzlisten und Gleichstände werden nach Abschluss der Gruppenspiele geprüft.</p>' : ''}
     ${drift.length ? '<p class="has-conflict" role="alert">Gruppenwertung und eingefrorene Qualifikation weichen ab. Gespeicherte Teilnehmer und Paarungen bleiben unverändert.</p>' : ''}
     ${['gold', 'silver'].filter(k => rules(day)[k].length).map(key => {
       const q = qualification(day, key);
       return `<h4>${esc(label(key))}</h4><div class="table-scroll"><table><thead><tr><th>Setzplatz</th><th>Spieler</th><th>Gruppe</th><th>Gruppenplatz</th><th>Punkte</th><th>Leg-Diff.</th></tr></thead><tbody>${q.rows.map(r => `<tr><td>${r.seed}</td><td>${esc(name(r.id))}</td><td>${esc(r.group)}</td><td>${r.place}${r.unresolved ? ' ?' : ''}</td><td>${r.mp}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
-        ${q.unresolved.length ? '<p role="alert">Ungeklärte Gruppenplätze: Entscheidungsspiele erforderlich.</p>' : ''}
-        ${q.seedTies.length ? `<p role="alert">Gleiche Setzkriterien: ${q.seedTies.map(ids => ids.map(name).map(esc).join(' / ')).join('; ')}. Reihenfolge ausdrücklich speichern.</p>` : ''}
-        ${editable && !frozen ? `<button type="button" data-seeds="${key}">Setzliste prüfen / manuell korrigieren</button>` : ''}
+        ${done && q.unresolved.length ? '<p role="alert">Ungeklärte Gruppenplätze: Entscheidungsspiele erforderlich.</p>' : ''}
+        ${done && q.seedTies.length ? `<p role="alert">Gleiche Setzkriterien: ${q.seedTies.map(ids => ids.map(name).map(esc).join(' / ')).join('; ')}. Reihenfolge ausdrücklich speichern.</p>` : ''}
+        ${done && editable && !frozen ? `<button type="button" data-seeds="${key}">Setzliste prüfen / manuell korrigieren</button>` : ''}
         ${frozen ? `<p>Eingefrorene Teilnehmer: ${(day.qualificationSnapshot?.[key]?.players || []).map(name).map(esc).join(', ')}</p>` : ''}`;
     }).join('')}
     ${editable && !frozen ? `<div class="workspace-actions"><button type="button" data-rules>Qualifikationsplätze ändern</button><button type="button" data-preview ${allGroupsDone(day) ? '' : 'disabled'}>Setzlisten prüfen und Paarungsvorschau erzeugen</button>${day.finalPreview ? '<button type="button" data-start-finals class="primary">K.-o.-Phase offiziell starten</button>' : ''}</div>` : ''}
@@ -70,17 +78,17 @@ function withdrawalHtml(day, name, editable) {
         ${editable ? withdrawn(day, id) ? `<button type="button" data-reactivate="${esc(id)}" ${check.allowed ? '' : 'disabled'}>Wieder aktivieren</button>` : `<button type="button" data-withdraw="${esc(id)}">Spieler zurückziehen</button>` : ''}</article>`;
     }).join('')}</details>`;
 }
-export function renderTournamentAdmin({ day, host, name, editable, run, finish }) {
+export function renderTournamentAdmin({ day, host, name, editable, run, finish, avatar = id => renderPlayerAvatar(null, name(id)) }) {
   if (!day || day.engine === 'draft') return;
   const section = document.createElement('section'); section.className = 'tournament-admin';
   let html = '';
   if (day.groups) {
     host.replaceChildren();
     html += `<div class="groups-grid">${day.groups.map(g => {
-      const table = standings(g, day);
-      return `<section class="group-card"><h3>${esc(g.name)}</h3><div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => `<tr><td>${r.place}${r.unresolved ? ' ?' : ''}</td><td>${esc(name(r.id))}</td><td>${r.mp}</td><td>${r.legsFor}</td><td>${r.legsAgainst}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
+      const table = standings(g, day), done = groupDone(g, day);
+      return `<section class="group-card"><h3>${esc(g.name)}</h3>${!done ? '<p class="group-progress">Vorläufige Tabelle · Gruppenspiele noch offen</p>' : ''}<div class="table-scroll"><table><thead><tr><th>Platz</th><th>Spieler</th><th>Punkte</th><th>Legs +</th><th>Legs −</th><th>Diff.</th></tr></thead><tbody>${table.rows.map(r => `<tr><td>${!done && r.unresolved ? '–' : `${r.place}${r.unresolved ? ' ?' : ''}`}</td><td><span class="tournament-player-identity">${avatar(r.id)}<span class="tournament-player-name">${esc(name(r.id))}</span></span></td><td>${r.mp}</td><td>${r.legsFor}</td><td>${r.legsAgainst}</td><td>${diff(r)}</td></tr>`).join('')}</tbody></table></div>
         ${table.withdrawn.map(id => `<p>${esc(name(id))} · Zurückgezogen</p>`).join('')}
-        ${table.ties.map((t, i) => `<p role="status">Platz ${t.place}–${t.endPlace} ungeklärt: ${t.players.map(name).map(esc).join(', ')} ${editable ? `<button type="button" data-decider="${esc(g.id)}|${i}">Entscheidungsspiel anlegen</button>` : ''}</p>`).join('')}
+        ${done ? table.ties.map((t, i) => `<p role="status">Platz ${t.place}–${t.endPlace} ungeklärt: ${t.players.map(name).map(esc).join(', ')} ${editable ? `<button type="button" data-decider="${esc(g.id)}|${i}">Entscheidungsspiel anlegen</button>` : ''}</p>`).join('') : ''}
         <details><summary>Alle Begegnungen und Entscheidungsspiele</summary>${matchList(matchEntries(day).filter(e => e.group === g.id), name, editable)}</details></section>`;
     }).join('')}</div>`;
     html += qualificationHtml(day, name, editable);

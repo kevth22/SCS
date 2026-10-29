@@ -191,3 +191,29 @@ ausgeführten Produktions-Build. Die App bleibt direkt ausgeliefertes HTML/JavaS
 
 Die Änderungen sind Code und überprüfte lokale Abläufe. Eine produktive
 Veröffentlichung oder eine vollständige Sicherheitsfreigabe wird damit nicht behauptet.
+
+## Nachbesserung der mobilen Gruppenansicht
+
+Nach dem ersten produktiven Screenshot wurden die Gruppenüberschriften mit
+ausdrücklich schwarzer Schrift auf weißem Hintergrund versehen. Karten und
+Grid-Spalten können jetzt innerhalb der verfügbaren Breite schrumpfen; breite
+Tabellen scrollen innerhalb ihrer Karte, Texte und Aktionsschaltflächen umbrechen.
+Die Browserprüfung verwendet nun die tatsächlichen App-Container, zwei Gruppen
+und lange Spielernamen und prüft zusätzlich die sichtbaren Grenzen der Karten,
+Schaltflächen und Zusammenfassungen sowie die Überschriftenfarbe.
+
+Solange reguläre Spiele einer Gruppe offen sind, ist deren Tabelle als vorläufig
+gekennzeichnet. Entscheidungsspiele werden erst nach Abschluss der jeweiligen
+Gruppe angeboten; die gemeinsame Turnierlogik verhindert auch direkte vorzeitige
+Aufrufe. Die abschließende Setzlistenprüfung wartet auf das Ende der Gruppenphase.
+
+Validierung dieser Nachbesserung: `npm test` mit 51 bestandenen Tests,
+`npm run check`, `git diff --check` und Chromium-Prüfungen bei 1440×1000 sowie
+390×844 bestanden. Keine Datenmigration und keine Änderung produktiver Ergebnisse.
+
+Die Gruppentabelle zeigt außerdem wieder das bestehende Spielerprofilbild direkt
+nach der Platzierung und vor dem Namen. Die Vereinsrangliste verwendet dazu ihre
+vorhandene Avatarfunktion; die ältere Spieltagsansicht übernimmt `profilbild` aus
+den vorhandenen Mitgliedsdaten. Ohne Profilbild erscheinen die Initialen. Die
+Browserprüfung kontrolliert ein tatsächlich geladenes Bild, die sichtbare Reihenfolge
+Platzierung → Profilbild → Name sowie die Initialen bei fehlendem Bild.
