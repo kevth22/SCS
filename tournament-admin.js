@@ -73,11 +73,15 @@ function withdrawnRow(day, id, name, avatar, editable) {
   const action = editable ? `<button type="button" data-reactivate="${esc(id)}" ${check.allowed ? '' : 'disabled'} aria-label="Spieler wieder aktivieren: ${esc(name(id))}">Wieder aktivieren</button>` : '';
   return `<tr class="group-withdrawn-row" data-group-player="${esc(id)}"><td>–</td><td>${groupPlayerCell(id, name, avatar, '<span>Zurückgezogen</span>' + action)}</td><td colspan="4">Nicht in der Wertung</td></tr>`;
 }
-function bracketHtml(bracket, key, name, editable) {
+function bracketScoreForm(day, match, round, name) {
+  if (!match.p1 || !match.p2 || match.bye || match.walkover || match.annulled || match.conflict || day.roundConfig?.[round]?.format === 'sets') return '';
+  return `<form class="group-inline-score" data-inline-score="${esc(match.id)}"><label>${esc(name(match.p1))}<input name="s1" aria-label="Legs ${esc(name(match.p1))}" type="number" inputmode="numeric" min="0" step="1" required value="${match.s1 ?? ''}"></label><label>${esc(name(match.p2))}<input name="s2" aria-label="Legs ${esc(name(match.p2))}" type="number" inputmode="numeric" min="0" step="1" required value="${match.s2 ?? ''}"></label><button type="submit">${match.completed ? 'Ergebnis korrigieren' : 'Ergebnis speichern'}</button></form>`;
+}
+function bracketHtml(bracket, key, name, editable, day) {
   if (!bracket) return '';
   return `<section class="tournament-final"><h3>${esc(label(key))}${key.startsWith('preview') ? ' · Vorschau' : ''}</h3>
     ${(bracket.warnings || []).map(w => `<p role="status">${esc(w)}</p>`).join('')}
-    <div class="tournament-tree-scroll"><div class="tournament-tree">${bracket.rounds.map(r => `<section class="tree-round"><h4>${esc(r)}</h4>${bracket.matches[r].map(m => `<article class="tournament-match ${m.conflict ? 'has-conflict' : ''}"><div><strong>${esc(name(m.p1))}</strong><strong>${esc(name(m.p2))}</strong><span>${esc(score(m))}${m.conflict ? ' · ⚠ Konflikt' : ''}</span>${editable && !key.startsWith('preview') ? `<button type="button" data-admin-match="${esc(m.id)}">Bearbeiten</button>` : ''}</div></article>`).join('')}</section>`).join('')}</div></div>
+    <div class="tournament-tree-scroll"><div class="tournament-tree">${bracket.rounds.map(r => `<section class="tree-round"><h4>${esc(r)}</h4>${bracket.matches[r].map(m => `<article class="tournament-match ${m.conflict ? 'has-conflict' : ''}"><div><strong>${esc(name(m.p1))}</strong><strong>${esc(name(m.p2))}</strong><span>${esc(score(m))}${m.conflict ? ' · ⚠ Konflikt' : ''}</span>${editable && !key.startsWith('preview') ? `${bracketScoreForm(day, m, r, name)}<button type="button" class="match-details-button" data-admin-match="${esc(m.id)}">Details / Spiel bearbeiten</button>` : ''}</div></article>`).join('')}</section>`).join('')}</div></div>
     ${editable ? `<button type="button" data-swap="${esc(key)}">Spieler / Freilose tauschen</button>` : ''}
     ${bracket.matches[bracket.rounds.at(-1)][0]?.winner && !bracket.matches[bracket.rounds.at(-1)][0]?.conflict ? `<p>Sieger: <strong>${esc(name(bracket.matches[bracket.rounds.at(-1)][0].winner))}</strong></p>` : ''}</section>`;
 }
@@ -129,8 +133,8 @@ export function renderTournamentAdmin({ day, host, name, editable, run, finish, 
         ${(g.archivedMatches || []).length ? `<details><summary>Ursprüngliche Begegnungen nach Spielertausch</summary>${matchList(matchEntries(day).filter(e => e.group === g.id && e.phase === 'archived-group'), name, editable, day)}</details>` : ''}</section>`;
     }).join('')}</div>`;
     html += qualificationHtml(day, name, editable);
-    if (day.finalPreview) for (const k of ['gold', 'silver']) html += bracketHtml(day.finalPreview[k], k === 'gold' ? 'previewGold' : 'previewSilver', name, editable);
-    for (const { key, bracket } of divisions(day)) html += bracketHtml(bracket, key, name, editable);
+    if (day.finalPreview) for (const k of ['gold', 'silver']) html += bracketHtml(day.finalPreview[k], k === 'gold' ? 'previewGold' : 'previewSilver', name, editable, day);
+    for (const { key, bracket } of divisions(day)) html += bracketHtml(bracket, key, name, editable, day);
     if (editable) html += `<button type="button" data-finish class="primary" ${tournamentComplete(day) ? '' : 'disabled'}>Turnier abschließen</button>`;
   } else {
     html += `<h3>Administrative Spielbearbeitung</h3><details><summary>Alle Spiele, Ergebnisse und Konflikte</summary>${matchList(matchEntries(day), name, editable)}</details>`;
