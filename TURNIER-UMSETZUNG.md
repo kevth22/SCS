@@ -302,3 +302,13 @@ Rückzug/Wiedereinstieg/Farbmarkierungen. Zusätzlich wird die tatsächliche
 Erstellungs-HTML-Seite bei 375, 390, 430 und 1440 Pixeln mit K.-o.- und
 Gruppenfeldern auf volle nutzbare Breite und fehlende Überbreite geprüft.
 Keine produktiven Ergebnisse oder Datenbankregeln wurden für diese Tests verändert.
+
+## Direkte Ergebnisse im K.-o.-Baum
+Gestartete Gold-/Silber-Spielkarten besitzen jetzt direkte Legs-Felder zum
+Speichern und Korrigieren. Vorschauen, offene Teilnehmerpositionen, Freilose,
+Kampfloswertungen und Konflikte erhalten keine reguläre Legs-Eingabe.
+Set-Spiele verwenden weiterhin den detaillierten Editor. Derselbe bestehende
+Änderungsplan mit Bestätigung und Transaktionsspeicherung wird verwendet.
+Browserprüfung: Gold-Ergebnis und Siegerwechsel mit Weiterleitung ins Finale,
+Silber unverändert, Desktop/Mobil. 61 Node-Tests und Syntaxprüfung bestanden.
+Keine Datenbankänderung; keine Prüfung mit produktiven Firebase-Daten.
