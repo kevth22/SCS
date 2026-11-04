@@ -12,7 +12,7 @@ const label = key => ['silver', 'previewSilver'].includes(key) ? 'Silber' : ['go
 // Auch ältere, im PWA-Cache gespeicherte HTML-Seiten können bereits das neue
 // JavaScript laden. Die Komponente stellt deshalb ihren eigenen CSS-Bezug sicher.
 function ensureTournamentStyles() {
-  const href = new URL('./tournament-admin.css?v=6', import.meta.url).href;
+  const href = new URL('./tournament-admin.css?v=7', import.meta.url).href;
   if ([...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href === href)) return;
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href;
   document.head.append(link);
