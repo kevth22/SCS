@@ -67,7 +67,7 @@ Thread(target=server.serve_forever, daemon=True).start()
 try:
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path='/usr/bin/chromium', headless=True, args=['--no-sandbox'])
-        for width, height, legacy in [(1440, 1000, False), (390, 844, False), (390, 844, True)]:
+        for width, height, legacy in [(1440, 1000, False), (390, 844, False), (390, 844, True), (360, 800, False), (412, 915, False)]:
             page = browser.new_page(viewport={'width': width, 'height': height})
             errors = []
             page.on('pageerror', lambda e: errors.append(str(e)))
@@ -75,7 +75,7 @@ try:
             page.wait_for_function('window.ready === true')
             expect(page.get_by_role('heading', name='Gruppe A', exact=True)).to_be_visible()
             expect(page.locator('.group-card > h3').first).to_have_css('color', 'rgb(0, 0, 0)')
-            expect(page.locator('link[href$="tournament-admin.css?v=6"]')).to_have_count(1)
+            expect(page.locator('link[href$="tournament-admin.css?v=7"]')).to_have_count(1)
             expect(page.locator('.tournament-qualification table')).to_have_count(0)
             max_row = page.locator('.group-card tbody tr').filter(has=page.locator('.tournament-player-name', has_text='Max'))
             expect(max_row.locator('td').nth(1).locator('img.player-avatar')).to_have_count(1)
@@ -83,10 +83,14 @@ try:
             assert max_row.evaluate("row => { const rank=row.cells[0].getBoundingClientRect(); const img=row.querySelector('img').getBoundingClientRect(); const name=row.querySelector('.tournament-player-name').getBoundingClientRect(); return rank.right <= img.left && img.right <= name.left; }")
             fallback_row = page.locator('.group-card tbody tr').filter(has=page.locator('.tournament-player-name', has_text='Hackenschorschie'))
             expect(fallback_row.locator('.player-avatar-fallback')).to_have_text('HM')
+            assert fallback_row.locator('.tournament-player-name').evaluate('el => el.getBoundingClientRect().width >= 140 && el.getBoundingClientRect().height < 40'), 'Spielername wird senkrecht zerlegt'
+            assert fallback_row.evaluate('el => el.getBoundingClientRect().height < 160'), 'Spielerzeile ist übermäßig hoch'
+            assert fallback_row.locator('.tournament-player-identity').evaluate('el => { const img=el.querySelector(".player-avatar").getBoundingClientRect(), name=el.querySelector(".tournament-player-name").getBoundingClientRect(), action=el.querySelector(".group-withdraw-button").getBoundingClientRect(); return img.right<=name.left && name.right<=action.left; }'), 'Bild, Name und Aktion überlappen'
+
             assert max_row.locator('[data-withdraw=Max]').evaluate('el => { const r=el.getBoundingClientRect(); return r.width<=32 && r.height<=32; }')
             expect(page.locator('[data-decider]')).to_have_count(0)
             assert page.locator('.group-card > h3').first.evaluate("el => getComputedStyle(el).color") == 'rgb(0, 0, 0)'
-            assert page.locator('.tournament-admin .group-card, .tournament-admin button, .tournament-admin summary').evaluate_all('els => els.every(el => { const r=el.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.left >= -1; })'), 'Admin-Inhalt wird am Bildschirmrand abgeschnitten'
+            assert page.locator('.tournament-admin .group-card, .tournament-admin button, .tournament-admin summary').evaluate_all('els => els.filter(el => !el.closest(".table-scroll")).every(el => { const r=el.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.left >= -1; })'), 'Admin-Inhalt wird am Bildschirmrand abgeschnitten'
             pending = page.locator('.group-card .tournament-match').filter(has_text='Max – Leon')
             form = pending.locator('form[data-inline-score]')
             form.locator('[name=s1]').fill('2'); form.locator('[name=s2]').fill('0')

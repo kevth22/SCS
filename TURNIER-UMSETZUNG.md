@@ -302,3 +302,11 @@ Rückzug/Wiedereinstieg/Farbmarkierungen. Zusätzlich wird die tatsächliche
 Erstellungs-HTML-Seite bei 375, 390, 430 und 1440 Pixeln mit K.-o.- und
 Gruppenfeldern auf volle nutzbare Breite und fehlende Überbreite geprüft.
 Keine produktiven Ergebnisse oder Datenbankregeln wurden für diese Tests verändert.
+
+## Android-Gruppentabelle
+Die Spielerspalte und Bild/Name/Aktionszeile besitzen Mindestbreiten; Namen
+werden innerhalb der Tabelle nicht buchstabenweise umgebrochen. Die Tabelle
+scrollt innerhalb ihrer Karte, ohne den Seitenviewport zu verbreitern.
+CSS-/PWA-Version aktualisiert. Browserprüfungen einschließlich 360 und 412 Pixeln
+prüfen Namenshöhe, Mindestbreite und überlappungsfreie Aktionen. Alle 61 Node-Tests,
+Syntax- und Browserprüfungen bestanden. Kein physisches Android-Gerät getestet.

@@ -73,3 +73,10 @@
   #tab-erstellen .groups-create-options { grid-template-columns: minmax(0, 1fr); }
   #tab-erstellen .tournament-type-options, #tab-erstellen .ko-size-options { min-width: 0; }
 }
+
+/* Schmale Android-Viewports: Namen nicht zwischen Bild und Aktion zerdrücken. */
+.tournament-admin .group-card table { table-layout: auto !important; min-width: 620px; }
+.tournament-admin .group-card th:nth-child(2),
+.tournament-admin .group-card td:nth-child(2) { min-width: 240px !important; width: auto !important; }
+.tournament-admin .group-card .tournament-player-identity { display: inline-flex; flex-wrap: nowrap; min-width: 240px; }
+.tournament-admin .group-card td .tournament-player-name { flex: 1 0 auto; min-width: 140px !important; max-width: none !important; white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; }
