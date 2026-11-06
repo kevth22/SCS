@@ -45,3 +45,17 @@
 @media (max-width: 350px) { .calendar-page .calendar-time-fields { grid-template-columns: minmax(0, 1fr); } }
 .calendar-page #adminSpieltagBox input, .calendar-page #adminSpieltagBox select,
 .calendar-page #adminSpieltagBox .main-button { scroll-margin-block: 110px; }
+
+/* Sieben gleich breite Tage; lange Namen dürfen das Raster nicht verbreitern. */
+.calendar-page .kalender-grid { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+.calendar-page .kalender-tag { min-width: 0; }
+.calendar-page .kalender-event { max-width: 100%; overflow-wrap: anywhere; }
+.calendar-page #geburtstagListe { margin-top: 20px; padding-top: 14px; border-top: 1px solid #555; }
+.calendar-page #geburtstagListe h3 { font-size: 1rem; margin-bottom: 12px; }
+.calendar-page .calendar-birthday-row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; }
+.calendar-page .calendar-birthday-row strong { flex: 0 0 auto; }
+.calendar-page .calendar-birthday-row span { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .calendar-page .kalender-tag { padding: 4px 2px; }
+  .calendar-page .kalender-event { padding: 5px 2px; font-size: 10px; }
+}

@@ -12,6 +12,10 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == '/__calendar':
             html = (ROOT / 'kalender.html').read_text()
             html = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', '', html)
+            calendar_source = (ROOT / 'kalender.js').read_text()
+            renderer = 'function kalenderZeichnen()' + calendar_source.split('function kalenderZeichnen()')[1].split('/* =========================')[0]
+            birthday_script = calendar_source.split('\n')[0] + "\nlet aktuellesDatum=new Date(2026,10,1), spieltage=[], geburtstageLadefehler=false, geburtstage=[{name:'Hackenschorschie mit langem Namen',geburtstag:'1980-11-13'}]; function spieltagListeAnzeigen(){};" + renderer + ';kalenderZeichnen();'
+            html = html.replace('</body>', '<script>' + birthday_script + '</script></body>')
             html = html.replace('</body>', '''<script>
                 document.getElementById('adminSpieltagBox').style.display='block';
                 document.getElementById('urlaubContent').style.display='block';
@@ -33,6 +37,11 @@ try:
             page=browser.new_page(viewport={'width':width,'height':height},is_mobile=width<900,has_touch=width<900,locale='de-DE')
             page.goto(f'http://127.0.0.1:{server.server_port}/__calendar')
             expect(page.locator('#adminSpieltagBox')).to_be_visible()
+            expect(page.locator('.geburtstag-event')).to_have_count(1)
+            expect(page.locator('#geburtstagListe')).to_contain_text('13.11.')
+            expect(page.locator('#geburtstagListe')).to_contain_text('Hackenschorschie mit langem Namen')
+            assert page.locator('#geburtstagListe .calendar-birthday-row').evaluate('el=>el.getBoundingClientRect().right<=innerWidth'), 'Geburtstagsliste abgeschnitten'
+
             for filled in [False,True]:
                 if filled:
                     page.get_by_label('Datum', exact=True).fill('2026-11-13')

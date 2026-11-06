@@ -46,6 +46,7 @@ let aktuellerUser = JSON.parse(gespeicherterUser);
 let spieltage = [];
 let zusagen = [];
 let geburtstage = [];
+let geburtstageLadefehler = false;
 let aktuellesDatum = new Date();
 let ausgewaehltesDatum = null;
 
@@ -102,10 +103,11 @@ onSnapshot(zusagenRef, (snapshot) => {
 });
 
 onSnapshot(mitgliederRef, (snapshot) => {
+  geburtstageLadefehler = false;
   geburtstage = [];
   snapshot.forEach((docSnap) => {
     const daten = docSnap.data();
-    const rolle = String(daten.rolle || '').toLowerCase();
+    const rolle = String(daten.rolle || '').trim().toLowerCase();
     if (!["mitglied", "captain", "kassenwart", "admin"].includes(rolle)) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(daten.geburtstag || ''))) return;
     geburtstage.push({
@@ -114,6 +116,10 @@ onSnapshot(mitgliederRef, (snapshot) => {
       geburtstag: daten.geburtstag
     });
   });
+  kalenderZeichnen();
+}, (error) => {
+  console.error("Geburtstage konnten nicht geladen werden:", error);
+  geburtstageLadefehler = true;
   kalenderZeichnen();
 });
 
@@ -383,7 +389,7 @@ function kalenderZeichnen() {
     geburtstageHeute.forEach(person => {
       const event = document.createElement("div");
       event.classList.add("kalender-event", "geburtstag-event");
-      event.innerHTML = `<strong>🎂 ${person.name}</strong><br><small>Geburtstag</small>`;
+      event.innerHTML = `<strong>🎂 ${spieltagEscape(person.name)}</strong><br><small>Geburtstag</small>`;
       event.onclick = function (e) { e.stopPropagation(); };
       feld.appendChild(event);
     });
@@ -391,6 +397,16 @@ function kalenderZeichnen() {
     grid.appendChild(feld);
   }
 
+  const liste = document.getElementById("geburtstagListe");
+  if (liste) {
+    const imMonat = geburtstage.filter(person => Number(person.geburtstag.slice(5, 7)) === monat + 1)
+      .sort((a, b) => Number(a.geburtstag.slice(8)) - Number(b.geburtstag.slice(8)));
+    const monatName = aktuellesDatum.toLocaleDateString("de-DE", { month: "long" });
+    liste.innerHTML = `<h3>🎂 Geburtstage im ${spieltagEscape(monatName)}</h3>` +
+      (geburtstageLadefehler ? '<p role="alert">Geburtstage konnten nicht aktualisiert werden. Bitte Verbindung prüfen und den Kalender neu laden.</p>' : '') +
+      (imMonat.map(person => `<p class="calendar-birthday-row"><strong>${person.geburtstag.slice(8)}.${person.geburtstag.slice(5, 7)}.</strong><span>${spieltagEscape(person.name)}</span></p>`).join("") ||
+      (geburtstageLadefehler ? '' : '<p>Keine Geburtstage für diesen Monat hinterlegt.</p>'));
+  }
   spieltagListeAnzeigen();
 }
 
