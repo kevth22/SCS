@@ -74,7 +74,10 @@
       <input id="spieltagDatum" type="date">
       <input id="spieltagTreffen" type="time" placeholder="Treffen">
       <input id="spieltagAnwurf" type="time" placeholder="Anwurf">
-      <input id="spieltagOrt" type="text" placeholder="Ort / Gegner">
+      <label for="spieltagGegner">Gegner</label>
+      <input id="spieltagGegner" type="text" placeholder="Name der gegnerischen Mannschaft">
+      <label for="spieltagOrt">Spielort / Adresse für Maps</label>
+      <input id="spieltagOrt" type="text" placeholder="Spielstätte, Straße, Hausnummer und Stadt">
 
       <select id="spieltagTyp">
         <option value="heim">Heimspiel</option>
@@ -121,7 +124,7 @@
   <a href="vereinsserie.html">🎖️<br>Vereins-Serie</a>
 </nav>
 
-<script type="module" src="kalender.js"></script>
+<script type="module" src="kalender.js?v=opponent-location-1"></script>
 <div id="reminderPopup" class="reminder-popup" style="display:none;">
   <div class="reminder-card">
     <img src="black-white-eagles-logo.png?v=9" class="reminder-logo" alt="Black White Eagles Logo">
@@ -138,3 +141,4 @@
 <script type="module" src="push-foreground.js?v=10.0.1"></script>
 </body>
 </html>
+
