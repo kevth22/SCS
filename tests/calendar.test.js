@@ -31,3 +31,29 @@ test('Alte Spieltage ohne Gegnerfeld bleiben lesbar; Maps-Ziel unverändert',()=
 test('Kalenderdetails zeigen Gegner und Ort mit sicherer Textdarstellung',()=>{
  const day={id:'a',gegner:'Team <A>',ort:'Straße & Halle'};const details={style:{},innerHTML:''};const context={window:{},spieltage:[day],aktuellerUser:null,document:{getElementById:()=>details}};const script=source('kalender.js').split('window.zeigeSpieltag =')[1].split('/* =========================')[0];vm.runInNewContext(escapeSource+'\nwindow.zeigeSpieltag ='+script+'\nwindow.zeigeSpieltag("a");',context);assert.ok(details.innerHTML.includes('Gegner: Team &lt;A&gt;'));assert.ok(details.innerHTML.includes('Ort: Straße &amp; Halle'));
 });
+
+function birthdaySubscription() {
+  let success, failure;
+  const context={mitgliederRef:{},geburtstage:[],geburtstageLadefehler:false,redraws:0,kalenderZeichnen(){context.redraws++;},console:{error(){}},onSnapshot(ref,ok,error){success=ok;failure=error;}};
+  const script='onSnapshot(mitgliederRef'+source('kalender.js').split('onSnapshot(mitgliederRef')[1].split('onSnapshot(urlaubeRef')[0];
+  vm.runInNewContext(script,context);
+  return {context,load:members=>success({forEach:fn=>members.forEach((data,i)=>fn({id:`P${i}`,data:()=>data}))}),fail:()=>failure(new Error('offline'))};
+}
+test('Geburtstage werden aus echten Mitglieder-Snapshotdaten geladen und nach Rollen gefiltert',()=>{
+ const s=birthdaySubscription();s.load([{rolle:' Mitglied ',nickname:'Max',geburtstag:'1980-11-13'},{rolle:'captain',benutzername:'Tim',geburtstag:'1990-12-01'},{rolle:'gast',geburtstag:'1990-11-01'},{rolle:'admin',geburtstag:''}]);assert.equal(s.context.geburtstage.length,2);assert.equal(s.context.geburtstage[0].name,'Max');assert.equal(s.context.redraws,1);
+});
+test('Geburtstags-Ladefehler bleibt sichtbar und löscht bereits geladene Einträge nicht',()=>{
+ const s=birthdaySubscription();s.load([{rolle:'mitglied',nickname:'Max',geburtstag:'1980-11-13'}]);s.fail();assert.equal(s.context.geburtstageLadefehler,true);assert.equal(s.context.geburtstage.length,1);s.load([]);assert.equal(s.context.geburtstageLadefehler,false);
+});
+function birthdayCalendar(month=10,error=false) {
+ const node=()=>({innerHTML:'',textContent:'',children:[],classList:{add(){}},appendChild(child){this.children.push(child);}});
+ const elements={kalenderGrid:node(),monatTitel:node(),geburtstagListe:node()};
+ const context={document:{getElementById:id=>elements[id],createElement:()=>node()},aktuellesDatum:new Date(2026,month,1),spieltage:[],geburtstage:[{name:'Max <A>',geburtstag:'1980-11-13'},{name:'Tim',geburtstag:'1990-12-01'},{name:'Ben',geburtstag:'2000-11-02'}],geburtstageLadefehler:error,spieltagListeAnzeigen(){}};
+ const script='function kalenderZeichnen()'+source('kalender.js').split('function kalenderZeichnen()')[1].split('/* =========================')[0];
+ vm.runInNewContext(escapeSource+'\n'+script+'\nkalenderZeichnen();',context);
+ return elements;
+}
+test('Geburtstage erscheinen am richtigen Tag unabhängig vom Geburtsjahr und zusätzlich in Monatsliste',()=>{
+ const e=birthdayCalendar();const day=e.kalenderGrid.children.find(n=>n.innerHTML==='<strong>13</strong>');assert.ok(day.children[0].innerHTML.includes('Max &lt;A&gt;'));assert.ok(e.geburtstagListe.innerHTML.includes('13.11.'));assert.ok(e.geburtstagListe.innerHTML.indexOf('Ben')<e.geburtstagListe.innerHTML.indexOf('Max'));assert.ok(!e.geburtstagListe.innerHTML.includes('Tim'));
+});
+test('Monatswechsel und Ladefehler werden in der Geburtstagsübersicht abgebildet',()=>{const e=birthdayCalendar(11,true);assert.ok(e.geburtstagListe.innerHTML.includes('Tim'));assert.ok(!e.geburtstagListe.innerHTML.includes('Max'));assert.ok(e.geburtstagListe.innerHTML.includes('role="alert"'));});
