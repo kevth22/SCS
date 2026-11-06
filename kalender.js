@@ -1,3 +1,5 @@
+const spieltagEscape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[c]));
+
 const gespeicherterUser = localStorage.getItem("bweLogin");
 
 if (!gespeicherterUser) {
@@ -209,10 +211,9 @@ function spieltagListeAnzeigen() {
         ⏰ Anwurf: ${spieltag.anwurf}<br>
         🕒 Treffen: ${spieltag.treffen || "-"}<br>
 
-        ${spieltag.typ === "heim"
-          ? "🏠 Heimspiel"
-          : `🚗 Auswärtsspiel<br>📍 ${spieltag.ort}`
-        }
+        ⚔ Gegner: ${spieltagEscape(spieltag.gegner || spieltag.ort || "Noch offen")}<br>
+        ${spieltag.typ === "heim" ? "🏠 Heimspiel" : "🚗 Auswärtsspiel"}<br>
+        📍 ${spieltagEscape(spieltag.ort)}
 
         <br>
         ✅ Zusagen: ${zusagenGesamt}
@@ -246,14 +247,16 @@ window.spieltagSpeichern = async function () {
   const anwurf =
     document.getElementById("spieltagAnwurf").value;
 
+  const gegner = document.getElementById("spieltagGegner").value.trim();
+
   const ort =
     document.getElementById("spieltagOrt").value.trim();
 
   const typ =
     document.getElementById("spieltagTyp").value;
 
-  if (!liga || !datum || !anwurf || !ort) {
-    alert("Bitte Liga, Datum, Anwurf und Ort ausfüllen.");
+  if (!liga || !datum || !anwurf || !gegner || !ort) {
+    alert("Bitte Liga, Datum, Anwurf, Gegner und Spielort ausfüllen.");
     return;
   }
 
@@ -263,6 +266,7 @@ window.spieltagSpeichern = async function () {
   treffen,
   anwurf,
   ort,
+  gegner,
   typ,
   erstelltAm: serverTimestamp()
 });
@@ -279,6 +283,7 @@ document.getElementById("spieltagDatum").value = "";
 document.getElementById("spieltagTreffen").value = "";
 document.getElementById("spieltagAnwurf").value = "";
 document.getElementById("spieltagOrt").value = "";
+document.getElementById("spieltagGegner").value = "";
 
 alert(
   pushErfolgreich
@@ -421,7 +426,8 @@ window.zeigeSpieltag = function (spieltagId) {
     <p>📅 Datum: ${spieltag.datum}</p>
     <p>⏰ Treffen: ${spieltag.treffen || "Noch offen"}</p>
     <p>🎯 Anwurf: ${spieltag.anwurf}</p>
-    <p>📍 Ort: ${spieltag.ort}</p>
+    <p>⚔ Gegner: ${spieltagEscape(spieltag.gegner || spieltag.ort || "Noch offen")}</p>
+    <p>📍 Ort: ${spieltagEscape(spieltag.ort)}</p>
     <p>🏠 Typ: ${spieltag.typ === "heim" ? "Heimspiel" : "Auswärtsspiel"}</p>
 
     ${aktuellerUser && (
@@ -730,3 +736,4 @@ window.reminderSchliessen = function () {
     popup.style.display = "none";
   }
 };
+

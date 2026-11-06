@@ -1,3 +1,5 @@
+const spieltagEscape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[c]));
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore,
@@ -122,10 +124,11 @@ function spieltagAnzeigen() {
   z.spieltagId === spieltag.id &&
   z.benutzername === aktuellerUser.benutzername
 );
+  const gegner = spieltagEscape(spieltag.gegner || spieltag.ort || "Gegner noch offen");
   const gegnerText =
     spieltag.typ === "heim"
-      ? `Black White Eagles : ${spieltag.ort}`
-      : `${spieltag.ort} : Black White Eagles`;
+      ? `Black White Eagles : ${gegner}`
+      : `${gegner} : Black White Eagles`;
 
   const spieltagKlasse =
     spieltag.typ === "heim"
@@ -147,11 +150,13 @@ function spieltagAnzeigen() {
       <p>🕒 Treffen: ${spieltag.treffen || "-"}</p>
       <p id="spieltagCountdown"></p>
       <p>🎯 Anwurf: ${spieltag.anwurf}</p>
-      <p>📍 ${spieltag.ort}</p>
+      <p>📍 Spielort: ${spieltagEscape(spieltag.ort)}</p>
 
       <a
         class="maps-button"
         target="_blank"
+        rel="noopener noreferrer"
+        onclick="event.stopPropagation()"
         href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spieltag.ort)}"
       >
         🗺 Navigation starten
@@ -552,3 +557,4 @@ function updateCountdown(spieltag) {
   window.spieltagCountdownInterval =
     setInterval(countdownBerechnen, 60000);
 }
+
