@@ -1,0 +1,47 @@
+/* Nur der Kalender: native Datums-/Zeitfelder auch auf iOS begrenzen. */
+.calendar-page { padding-top: env(safe-area-inset-top, 0px); padding-bottom: calc(105px + env(safe-area-inset-bottom, 0px)); }
+.calendar-page .app-container, .calendar-page #kalenderBereich,
+.calendar-page .info-card, .calendar-page .calendar-field,
+.calendar-page .matchday-fields, .calendar-page .calendar-time-fields {
+  min-width: 0;
+  min-inline-size: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.calendar-page #adminSpieltagBox h2 { font-size: clamp(1.25rem, 5vw, 1.7rem); line-height: 1.25; margin-bottom: 20px; }
+.calendar-page .matchday-fields { display: grid; gap: 16px; }
+.calendar-page .calendar-field { display: flex; flex-direction: column; gap: 7px; font-size: 15px; line-height: 1.4; color: #eee; }
+.calendar-page .calendar-field small { font-size: 12px; color: #bbb; }
+.calendar-page .calendar-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.calendar-page #adminSpieltagBox input,
+.calendar-page #adminSpieltagBox select,
+.calendar-page .urlaub-box input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-inline-size: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: 50px;
+  min-height: 50px;
+  margin: 0;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  border-radius: 12px;
+  color-scheme: dark;
+}
+.calendar-page input[type="date"], .calendar-page input[type="time"] { -webkit-appearance: none; appearance: none; text-align: left; }
+.calendar-page input::-webkit-date-and-time-value { min-height: 1.4em; text-align: left; }
+.calendar-page input::-webkit-datetime-edit { min-width: 0; padding: 0; }
+.calendar-page #adminSpieltagBox .main-button { width: 100%; height: auto; min-height: 50px; margin: 22px 0 0; padding: 14px 12px; white-space: normal; line-height: 1.4; }
+.calendar-page .bottom-nav { height: calc(85px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); }
+@media (max-width: 600px) {
+  .calendar-page .app-container { width: 100%; padding-left: 14px; padding-right: 14px; }
+  .calendar-page #adminSpieltagBox { padding: 18px 16px; }
+  .calendar-page .bottom-nav a { font-size: 10px; min-width: 0; }
+}
+@media (max-width: 350px) { .calendar-page .calendar-time-fields { grid-template-columns: minmax(0, 1fr); } }
+.calendar-page #adminSpieltagBox input, .calendar-page #adminSpieltagBox select,
+.calendar-page #adminSpieltagBox .main-button { scroll-margin-block: 110px; }

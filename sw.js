@@ -48,7 +48,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-const VERSION = "scs-calendar-location-v10";
+const VERSION = "scs-calendar-mobile-v11";
 
 const CORE_FILES = [
   "./",
