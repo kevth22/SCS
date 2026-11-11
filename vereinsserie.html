@@ -215,7 +215,13 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
         <label class="rating-toggle"><span><strong>Für Vereinsrangliste werten</strong><small>Deaktivieren, wenn das Turnier nicht in die Saisonwertung eingehen soll.</small></span><input id="rankingEnabled" type="checkbox" checked></label>
 
         <div class="create-participants">
-          <div class="participants-head"><div><h3>Teilnehmer</h3><p class="hint">Nur Spieler mit vorhandenem Konto können ausgewählt werden.</p></div><strong id="selectedParticipantsCount">0 ausgewählt</strong></div>
+          <div class="participants-head"><div><h3>Teilnehmer</h3><p class="hint">Mitglieder und Gastspieler ohne Konto können ausgewählt werden.</p></div><strong id="selectedParticipantsCount">0 ausgewählt</strong></div>
+          <div class="workspace-actions guest-player-form">
+            <label for="guestPlayerName">Gastspieler ohne Konto
+              <input id="guestPlayerName" type="text" minlength="2" maxlength="60" autocomplete="off" placeholder="Name des Gastspielers">
+            </label>
+            <button id="addGuestPlayerBtn" type="button">Gastspieler hinzufügen</button>
+          </div>
           <div id="createParticipantsList" class="attendance-list"></div>
         </div>
 
@@ -235,7 +241,7 @@ html,body{min-height:100%;background:#050505!important;color:#fff!important;}
 
 <div id="profileModal" class="modal" hidden><div class="modal-card"><button id="closeProfile" class="modal-close">×</button><div id="profileContent"></div></div></div>
 <div id="toast" class="serie-toast"></div>
-<script type="module" src="vereinsserie.js?v=tournament-android-9"></script>
+<script type="module" src="vereinsserie.js?v=tournament-guests-10"></script>
 </body>
 </html>
 

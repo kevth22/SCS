@@ -1,3 +1,4 @@
+import { createGuest, retainTournamentGuests } from './tournament-guests.js';
 import * as Tournament from './tournament-engine.js';
 import { renderTournamentAdmin, confirmPlan } from './tournament-admin.js';
 import { createTournamentWriter } from './tournament-persistence.js';
@@ -153,7 +154,7 @@ async function syncMembers(showToast = true) {
     }
   });
   members.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  state.members = members;
+  state.members = retainTournamentGuests(members, state.members);
   const currentSeason = season();
   if (currentSeason) {
     currentSeason.ranking ||= {};
@@ -1028,6 +1029,30 @@ function renderRanking() {
   $('rankingBody').innerHTML = rows.length ? rows.map((row, i) => `<tr data-player="${row.m.id}"><td><strong>${i + 1}</strong></td><td><strong class="ranking-player">${memberAvatar(row.m.id, 'small')}<span>${esc(row.m.name)}</span></strong></td><td><strong>${row.totalPoints || 0}</strong></td><td class="ranking-bonus"><strong>+${row.bonus || 0}</strong></td><td>${row.st.legsFor || 0}</td><td>${row.st.legsAgainst || 0}</td><td>${(row.st.legsFor || 0) - (row.st.legsAgainst || 0)}</td></tr>`).join('') : '<tr><td colspan="7">Noch keine gewerteten Turnierergebnisse vorhanden.</td></tr>';
   document.querySelectorAll('[data-player]').forEach(row => row.onclick = () => openProfile(row.dataset.player));
 }
+let addingGuest = false;
+async function addTournamentGuest() {
+  if (!canManage) return toast('Verwaltungsberechtigung erforderlich.');
+  if (addingGuest) return;
+  const input = $('guestPlayerName');
+  const button = $('addGuestPlayerBtn');
+  addingGuest = true;
+  button.disabled = true;
+  try {
+    const guest = createGuest(input.value, state.members, uid());
+    state.members.push(guest);
+    // Kein renderAll: bisherige Teilnehmerauswahl und Gruppenzuordnung behalten.
+    await save({ render: false });
+    renderCreateParticipants();
+    const checkbox = [...$('createParticipantsList').querySelectorAll('[data-create-attend]')]
+      .find(item => item.dataset.createAttend === guest.id);
+    if (checkbox) checkbox.checked = true;
+    updateCreateTournamentInfo({ rerenderParticipants: true });
+    input.value = '';
+    toast('Gastspieler gespeichert und ausgewählt.');
+  } catch (error) { toast(error.message); }
+  finally { addingGuest = false; button.disabled = false; }
+}
+
 function renderCreateParticipants() {
   const box = $('createParticipantsList');
   if (!box) return;
@@ -2003,6 +2028,8 @@ function openDrawer() { if (!canManage) return; $('seriesAdminDrawer').classList
 function closeDrawer() { $('seriesAdminDrawer').classList.remove('open'); $('seriesAdminDrawerBackdrop').hidden = true; }
 
 // ---------- Events ----------
+$('addGuestPlayerBtn')?.addEventListener('click', addTournamentGuest);
+$('guestPlayerName')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addTournamentGuest(); } });
 $('startDayBtn')?.addEventListener('click', createDay);
 $('createSeasonBtn')?.addEventListener('click', createSeason);
 $('syncMembersBtn')?.addEventListener('click', () => syncMembers(true));
